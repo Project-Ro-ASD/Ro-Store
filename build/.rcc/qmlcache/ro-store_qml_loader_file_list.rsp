@@ -1,0 +1,8 @@
+--resource
+/run/media/KOC/Yeni Birim/ro_store/build/.qt/rcc/qmake_RoStore.qrc
+--resource
+/run/media/KOC/Yeni Birim/ro_store/build/.qt/rcc/ro-store_raw_qml_0.qrc
+/RoStore/qml/Main.qml
+/RoStore/qml/pages/HomePage.qml
+/RoStore/qml/pages/AppDetailPage.qml
+/RoStore/qml/components/AppCard.qml

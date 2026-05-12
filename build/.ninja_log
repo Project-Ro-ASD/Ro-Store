@@ -1,0 +1,62 @@
+# ninja log v7
+5	18	1778526610165834100	.qt/ro-store_res.txt	ceaf05ff3628aa37
+5	18	1778526610165834100	/run/media/KOC/Yeni Birim/ro_store/build/.qt/ro-store_res.txt	ceaf05ff3628aa37
+5	23	1778526610169934100	.qt/ro-store_qml.txt	636943b0b470f77e
+5	23	1778526610169934100	/run/media/KOC/Yeni Birim/ro_store/build/.qt/ro-store_qml.txt	636943b0b470f77e
+5	51	1778526610198718000	.qt/.qmlls.build.ini	241220ebd85307ef
+5	51	1778526610198718000	/run/media/KOC/Yeni Birim/ro_store/build/.qt/.qmlls.build.ini	241220ebd85307ef
+6	87	1778526610234413300	.qt/qml_imports/ro-store_build.cmake	53419c5dba38647b
+6	87	1778526610234413300	/run/media/KOC/Yeni Birim/ro_store/build/.qt/qml_imports/ro-store_build.cmake	53419c5dba38647b
+87	405	1778526610544077200	ro-store_autogen/timestamp	d3c26ca806bc3722
+87	405	1778526610544077200	ro-store_autogen/mocs_compilation.cpp	d3c26ca806bc3722
+87	405	1778526610544077200	/run/media/KOC/Yeni Birim/ro_store/build/ro-store_autogen/timestamp	d3c26ca806bc3722
+87	405	1778526610544077200	/run/media/KOC/Yeni Birim/ro_store/build/ro-store_autogen/mocs_compilation.cpp	d3c26ca806bc3722
+423	427	1778526610575665200	meta_types/ro-store_json_file_list.txt	37b52133f379c8a4
+423	427	1778526610575665200	meta_types/ro-store_json_file_list.txt.timestamp	37b52133f379c8a4
+423	427	1778526610575665200	/run/media/KOC/Yeni Birim/ro_store/build/meta_types/ro-store_json_file_list.txt	37b52133f379c8a4
+423	427	1778526610575665200	/run/media/KOC/Yeni Birim/ro_store/build/meta_types/ro-store_json_file_list.txt.timestamp	37b52133f379c8a4
+423	430	1778526610578540600	.qt/rcc/qrc_qmake_RoStore.cpp	52f31ed932ee2a63
+423	430	1778526610578540600	/run/media/KOC/Yeni Birim/ro_store/build/.qt/rcc/qrc_qmake_RoStore.cpp	52f31ed932ee2a63
+424	443	1778526610582481400	.rcc/qmlcache/ro-store_qmlcache_loader.cpp	58852fe41a30d211
+424	443	1778526610582481400	/run/media/KOC/Yeni Birim/ro_store/build/.rcc/qmlcache/ro-store_qmlcache_loader.cpp	58852fe41a30d211
+427	445	1778526610592634100	meta_types/qt6ro-store_metatypes.json.gen	e59e07b08f5f2bf
+427	445	1778526610592634100	meta_types/qt6ro-store_metatypes.json	e59e07b08f5f2bf
+427	445	1778526610592634100	/run/media/KOC/Yeni Birim/ro_store/build/meta_types/qt6ro-store_metatypes.json.gen	e59e07b08f5f2bf
+427	445	1778526610592634100	/run/media/KOC/Yeni Birim/ro_store/build/meta_types/qt6ro-store_metatypes.json	e59e07b08f5f2bf
+424	451	1778526610599535400	.qt/rcc/qrc_ro-store_raw_qml_0.cpp	285628d2c893151a
+424	451	1778526610599535400	/run/media/KOC/Yeni Birim/ro_store/build/.qt/rcc/qrc_ro-store_raw_qml_0.cpp	285628d2c893151a
+445	483	1778526610615968900	ro-store_qmltyperegistrations.cpp	c3a57a1a2f37ce24
+445	483	1778526610615968900	RoStore/ro-store.qmltypes	c3a57a1a2f37ce24
+445	483	1778526610615968900	/run/media/KOC/Yeni Birim/ro_store/build/ro-store_qmltyperegistrations.cpp	c3a57a1a2f37ce24
+445	483	1778526610615968900	/run/media/KOC/Yeni Birim/ro_store/build/RoStore/ro-store.qmltypes	c3a57a1a2f37ce24
+484	556	1778526610701010900	.rcc/qmlcache/ro-store_qml/components/AppCard_qml.cpp	b032921def0786b8
+484	556	1778526610701010900	.rcc/qmlcache/ro-store_qml/components/AppCard_qml.cpp.aotstats	b032921def0786b8
+484	556	1778526610701010900	/run/media/KOC/Yeni Birim/ro_store/build/.rcc/qmlcache/ro-store_qml/components/AppCard_qml.cpp	b032921def0786b8
+484	556	1778526610701010900	/run/media/KOC/Yeni Birim/ro_store/build/.rcc/qmlcache/ro-store_qml/components/AppCard_qml.cpp.aotstats	b032921def0786b8
+483	571	1778526610714906300	.rcc/qmlcache/ro-store_qml/pages/HomePage_qml.cpp	519a18b790d3de2d
+483	571	1778526610714906300	.rcc/qmlcache/ro-store_qml/pages/HomePage_qml.cpp.aotstats	519a18b790d3de2d
+483	571	1778526610714906300	/run/media/KOC/Yeni Birim/ro_store/build/.rcc/qmlcache/ro-store_qml/pages/HomePage_qml.cpp	519a18b790d3de2d
+483	571	1778526610714906300	/run/media/KOC/Yeni Birim/ro_store/build/.rcc/qmlcache/ro-store_qml/pages/HomePage_qml.cpp.aotstats	519a18b790d3de2d
+483	578	1778526610723223000	.rcc/qmlcache/ro-store_qml/Main_qml.cpp	f2fdf3f771b6cfc4
+483	578	1778526610723223000	.rcc/qmlcache/ro-store_qml/Main_qml.cpp.aotstats	f2fdf3f771b6cfc4
+483	578	1778526610723223000	/run/media/KOC/Yeni Birim/ro_store/build/.rcc/qmlcache/ro-store_qml/Main_qml.cpp	f2fdf3f771b6cfc4
+483	578	1778526610723223000	/run/media/KOC/Yeni Birim/ro_store/build/.rcc/qmlcache/ro-store_qml/Main_qml.cpp.aotstats	f2fdf3f771b6cfc4
+484	596	1778526610740675000	.rcc/qmlcache/ro-store_qml/pages/AppDetailPage_qml.cpp	83557a1197c1915c
+484	596	1778526610740675000	.rcc/qmlcache/ro-store_qml/pages/AppDetailPage_qml.cpp.aotstats	83557a1197c1915c
+484	596	1778526610740675000	/run/media/KOC/Yeni Birim/ro_store/build/.rcc/qmlcache/ro-store_qml/pages/AppDetailPage_qml.cpp	83557a1197c1915c
+484	596	1778526610740675000	/run/media/KOC/Yeni Birim/ro_store/build/.rcc/qmlcache/ro-store_qml/pages/AppDetailPage_qml.cpp.aotstats	83557a1197c1915c
+601	627	1778526610749613500	CMakeFiles/ro-store.dir/build/.qt/rcc/qrc_qmake_RoStore.cpp.o	3dc9b0b410eb6d0b
+603	634	1778526610751451900	CMakeFiles/ro-store.dir/build/.qt/rcc/qrc_ro-store_raw_qml_0.cpp.o	731a4404929f2340
+599	2273	1778526610748171900	CMakeFiles/ro-store.dir/src/PackageStatus.cpp.o	80389cf6fb2b6a95
+600	2353	1778526610748885400	CMakeFiles/ro-store.dir/src/AppLauncher.cpp.o	703ad3bab7d42637
+600	2722	1778526610748584300	CMakeFiles/ro-store.dir/src/PackageInstaller.cpp.o	3d0665135d46c056
+600	2821	1778526610749179400	CMakeFiles/ro-store.dir/ro-store_qmltyperegistrations.cpp.o	eb8140ad638d1ae5
+596	3018	1778526610745126600	CMakeFiles/ro-store.dir/ro-store_autogen/mocs_compilation.cpp.o	78e8d6bb5447718f
+598	3086	1778526610747258900	CMakeFiles/ro-store.dir/src/CatalogModel.cpp.o	ec5810523c90633e
+602	3168	1778526610750475200	CMakeFiles/ro-store.dir/build/.rcc/qmlcache/ro-store_qml/pages/HomePage_qml.cpp.o	396b4781ef09fe92
+601	3208	1778526610749844000	CMakeFiles/ro-store.dir/build/.rcc/qmlcache/ro-store_qmlcache_loader.cpp.o	ffdd53ddd53bb2e0
+601	3304	1778526610750134700	CMakeFiles/ro-store.dir/build/.rcc/qmlcache/ro-store_qml/Main_qml.cpp.o	45b69ded294baa3c
+602	3519	1778526610751205400	CMakeFiles/ro-store.dir/build/.rcc/qmlcache/ro-store_qml/components/AppCard_qml.cpp.o	83c8efe29c3a031f
+602	3617	1778526610750759900	CMakeFiles/ro-store.dir/build/.rcc/qmlcache/ro-store_qml/pages/AppDetailPage_qml.cpp.o	7cdcc9331a802d9b
+597	3871	1778526610746282000	CMakeFiles/ro-store.dir/src/main.cpp.o	8c5a10a6d99345aa
+3875	4216	1778526614024015700	ro-store	7737ea4520d86491

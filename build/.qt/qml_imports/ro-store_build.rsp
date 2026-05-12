@@ -1,0 +1,14 @@
+-rootPath
+/run/media/KOC/Yeni Birim/ro_store
+-cmake-output
+-output-file
+/run/media/KOC/Yeni Birim/ro_store/build/.qt/qml_imports/ro-store_build.cmake
+-importPath
+/run/media/KOC/Yeni Birim/ro_store/build
+-importPath
+/run/media/KOC/Yeni Birim/ro_store/build/RoStore
+-importPath
+/usr/lib64/qt6/qml
+-qrcFiles
+/run/media/KOC/Yeni Birim/ro_store/build/.qt/rcc/qmake_RoStore.qrc
+/run/media/KOC/Yeni Birim/ro_store/build/.qt/rcc/ro-store_raw_qml_0.qrc

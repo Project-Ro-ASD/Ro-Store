@@ -1,0 +1,9 @@
+<RCC>
+  <qresource prefix="/RoStore/">
+    <file alias="qml/Main.qml">/run/media/KOC/Yeni Birim/ro_store/qml/Main.qml</file>
+    <file alias="qml/pages/HomePage.qml">/run/media/KOC/Yeni Birim/ro_store/qml/pages/HomePage.qml</file>
+    <file alias="qml/pages/AppDetailPage.qml">/run/media/KOC/Yeni Birim/ro_store/qml/pages/AppDetailPage.qml</file>
+    <file alias="qml/components/AppCard.qml">/run/media/KOC/Yeni Birim/ro_store/qml/components/AppCard.qml</file>
+  </qresource>
+</RCC>
+

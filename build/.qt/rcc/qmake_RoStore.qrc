@@ -1,0 +1,6 @@
+<RCC>
+  <qresource prefix="/RoStore">
+    <file alias="qmldir">/run/media/KOC/Yeni Birim/ro_store/build/RoStore/qmldir</file>
+  </qresource>
+</RCC>
+
