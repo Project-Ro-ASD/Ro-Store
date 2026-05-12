@@ -136,7 +136,8 @@ jobs:
             bash -lc '
               set -euo pipefail
               dnf install -y cmake rpm-build
-              cpack --config "${{ matrix.build_dir }}/CPackConfig.cmake" -G RPM
+              rm -rf "${{ matrix.build_dir }}/packages"
+              cpack --config "${{ matrix.build_dir }}/CPackConfig.cmake" -G RPM -B "${{ matrix.build_dir }}/packages"
             '
 
       - name: Normalize RPM filename
@@ -150,7 +151,7 @@ jobs:
             bash -lc '
               set -euo pipefail
               dnf install -y rpm-build
-              rpm_file=$(find "${{ matrix.build_dir }}" -maxdepth 1 -type f -name "*.rpm" | head -n 1)
+              rpm_file=$(find "${{ matrix.build_dir }}/packages" -type f -name "*.rpm" | head -n 1)
               test -n "$rpm_file"
               final_name=$(rpm -qp --qf "%{NAME}-%{VERSION}-%{ARCH}.rpm" "$rpm_file")
               mv "$rpm_file" "dist/$final_name"
