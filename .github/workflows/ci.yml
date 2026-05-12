@@ -136,7 +136,7 @@ jobs:
             fedora:43 \
             bash -lc '
               set -euo pipefail
-              dnf install -y rpm-build
+              dnf install -y cmake rpm-build
               cpack --config "${{ matrix.build_dir }}/CPackConfig.cmake" -G RPM
 
               rpm_file=$(find "${{ matrix.build_dir }}" -maxdepth 1 -type f -name "*.rpm" | head -n 1)
