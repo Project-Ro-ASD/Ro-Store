@@ -126,9 +126,8 @@ jobs:
                 "${{ matrix.build_dir }}/RoStore/qml/components/AppCard.qml"
             '
 
-      - name: Package Fedora 43 RPM
+      - name: Generate Fedora 43 RPM
         run: |
-          mkdir -p dist
           docker run --rm \
             --platform "${{ matrix.docker_platform }}" \
             -v "${{ github.workspace }}:/work" \
@@ -138,8 +137,21 @@ jobs:
               set -euo pipefail
               dnf install -y cmake rpm-build
               cpack --config "${{ matrix.build_dir }}/CPackConfig.cmake" -G RPM
+            '
 
+      - name: Normalize RPM filename
+        run: |
+          mkdir -p dist
+          docker run --rm \
+            --platform "${{ matrix.docker_platform }}" \
+            -v "${{ github.workspace }}:/work" \
+            -w /work \
+            fedora:43 \
+            bash -lc '
+              set -euo pipefail
+              dnf install -y rpm-build
               rpm_file=$(find "${{ matrix.build_dir }}" -maxdepth 1 -type f -name "*.rpm" | head -n 1)
+              test -n "$rpm_file"
               final_name=$(rpm -qp --qf "%{NAME}-%{VERSION}-%{ARCH}.rpm" "$rpm_file")
               mv "$rpm_file" "dist/$final_name"
             '
