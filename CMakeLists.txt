@@ -1,6 +1,6 @@
 cmake_minimum_required(VERSION 3.21)
 
-project(RoStore VERSION 0.1.0
+project(RoStore VERSION 0.0.1
     DESCRIPTION "Qt-based Project Ro application store"
     HOMEPAGE_URL "https://github.com/project-ro-asd/Ro-Store"
     LANGUAGES CXX

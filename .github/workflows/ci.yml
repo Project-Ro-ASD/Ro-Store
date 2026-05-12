@@ -37,9 +37,8 @@ jobs:
         with:
           platforms: arm64
 
-      - name: Build Fedora 43 RPM
+      - name: Install Fedora 43 build dependencies
         run: |
-          mkdir -p dist
           docker run --rm \
             --platform "${{ matrix.docker_platform }}" \
             -v "${{ github.workspace }}:/work" \
@@ -55,11 +54,69 @@ jobs:
                 qt6-qtdeclarative-devel \
                 rpm-build \
                 desktop-file-utils
+            '
+
+      - name: Configure Fedora 43 build
+        run: |
+          docker run --rm \
+            --platform "${{ matrix.docker_platform }}" \
+            -v "${{ github.workspace }}:/work" \
+            -w /work \
+            fedora:43 \
+            bash -lc '
+              set -euo pipefail
+              dnf install -y \
+                cmake \
+                gcc-c++ \
+                ninja-build \
+                qt6-qtbase-devel \
+                qt6-qtdeclarative-devel
 
               cmake -S . -B "${{ matrix.build_dir }}" -G Ninja -DCMAKE_BUILD_TYPE=Release
-              cmake --build "${{ matrix.build_dir }}" --parallel
+            '
 
+      - name: Build Fedora 43 application
+        run: |
+          docker run --rm \
+            --platform "${{ matrix.docker_platform }}" \
+            -v "${{ github.workspace }}:/work" \
+            -w /work \
+            fedora:43 \
+            bash -lc '
+              set -euo pipefail
+              dnf install -y \
+                cmake \
+                gcc-c++ \
+                ninja-build \
+                qt6-qtbase-devel \
+                qt6-qtdeclarative-devel
+
+              cmake --build "${{ matrix.build_dir }}" --parallel
+            '
+
+      - name: Validate desktop entry
+        run: |
+          docker run --rm \
+            --platform "${{ matrix.docker_platform }}" \
+            -v "${{ github.workspace }}:/work" \
+            -w /work \
+            fedora:43 \
+            bash -lc '
+              set -euo pipefail
+              dnf install -y desktop-file-utils
               desktop-file-validate "${{ matrix.build_dir }}/org.projectro.RoStore.desktop"
+            '
+
+      - name: Lint QML
+        run: |
+          docker run --rm \
+            --platform "${{ matrix.docker_platform }}" \
+            -v "${{ github.workspace }}:/work" \
+            -w /work \
+            fedora:43 \
+            bash -lc '
+              set -euo pipefail
+              dnf install -y qt6-qtdeclarative-devel
               qmllint-qt6 \
                 -I "${{ matrix.build_dir }}" \
                 -I "${{ matrix.build_dir }}/RoStore" \
@@ -67,7 +124,19 @@ jobs:
                 "${{ matrix.build_dir }}/RoStore/qml/pages/HomePage.qml" \
                 "${{ matrix.build_dir }}/RoStore/qml/pages/AppDetailPage.qml" \
                 "${{ matrix.build_dir }}/RoStore/qml/components/AppCard.qml"
+            '
 
+      - name: Package Fedora 43 RPM
+        run: |
+          mkdir -p dist
+          docker run --rm \
+            --platform "${{ matrix.docker_platform }}" \
+            -v "${{ github.workspace }}:/work" \
+            -w /work \
+            fedora:43 \
+            bash -lc '
+              set -euo pipefail
+              dnf install -y rpm-build
               cpack --config "${{ matrix.build_dir }}/CPackConfig.cmake" -G RPM
 
               rpm_file=$(find "${{ matrix.build_dir }}" -maxdepth 1 -type f -name "*.rpm" | head -n 1)
