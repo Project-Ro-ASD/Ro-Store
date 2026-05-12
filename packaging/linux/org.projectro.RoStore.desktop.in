@@ -6,5 +6,5 @@ Comment=Browse and manage Project Ro applications
 Exec=ro-store
 Icon=ro-store
 Terminal=false
-Categories=Qt;KDE;System;PackageManager;
+Categories=System;Utility;
 StartupNotify=true
