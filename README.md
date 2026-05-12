@@ -1,6 +1,6 @@
 # Ro-Store
 
-Ro-Store is a Qt 6 + QML desktop client for browsing official Project Ro applications and managing package lifecycle actions through PackageKit-compatible Linux tooling.
+Ro-Store is a Qt 6 + QML desktop client for browsing official Project Ro applications and managing package lifecycle actions on Fedora systems.
 
 ## Highlights
 
@@ -21,10 +21,10 @@ Ro-Store is a Qt 6 + QML desktop client for browsing official Project Ro applica
 
 - CMake 3.21+
 - Qt 6 with `Core`, `Quick`, and `Network`
-- Linux for full package management support
+- Fedora 43 for the packaged target environment
 - `rpm`, `pkexec`, and `pkcon` for runtime package operations
 
-Note: The project can compile on macOS, but package-management actions are Linux-specific.
+Note: GitHub Actions builds RPM packages targeted at Fedora 43 systems running KDE Plasma Desktop.
 
 ## Build
 
@@ -56,12 +56,12 @@ qmllint -I build-local -I build-local/RoStore build-local/RoStore/qml/Main.qml b
 
 ## GitHub Actions outputs
 
-The repository CI produces only two Linux artifacts:
+The repository CI produces only two RPM artifacts:
 
-- `ro-store-linux-x86_64.tar.gz`
-- `ro-store-linux-aarch64.tar.gz`
+- `ro-store-<version>-x86_64.rpm`
+- `ro-store-<version>-aarch64.rpm`
 
-Each artifact contains the built `ro-store` binary together with `README.md` and `LICENSE`.
+These packages are built in Fedora 43 environments and are intended for Fedora 43 systems with KDE Plasma Desktop.
 
 ## Maintenance
 

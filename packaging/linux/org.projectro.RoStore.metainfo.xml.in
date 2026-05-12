@@ -1,0 +1,22 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<component type="desktop-application">
+  <id>org.projectro.RoStore</id>
+  <name>Ro-Store</name>
+  <summary>Browse and manage Project Ro applications</summary>
+  <metadata_license>CC0-1.0</metadata_license>
+  <project_license>GPL-3.0-or-later</project_license>
+  <description>
+    <p>
+      Ro-Store is a Qt 6 and QML desktop client for browsing official Project Ro
+      applications and managing their installation lifecycle on Fedora-based systems.
+    </p>
+  </description>
+  <launchable type="desktop-id">org.projectro.RoStore.desktop</launchable>
+  <url type="homepage">@PROJECT_HOMEPAGE_URL@</url>
+  <developer id="org.projectro">
+    <name>Project Ro</name>
+  </developer>
+  <provides>
+    <binary>ro-store</binary>
+  </provides>
+</component>

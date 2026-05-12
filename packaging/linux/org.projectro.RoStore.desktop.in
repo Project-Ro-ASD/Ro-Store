@@ -1,0 +1,10 @@
+[Desktop Entry]
+Type=Application
+Version=1.0
+Name=Ro-Store
+Comment=Browse and manage Project Ro applications
+Exec=ro-store
+Icon=ro-store
+Terminal=false
+Categories=Qt;KDE;System;PackageManager;
+StartupNotify=true

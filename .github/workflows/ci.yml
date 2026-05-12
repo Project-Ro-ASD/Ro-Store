@@ -1,4 +1,4 @@
-name: Build Linux Artifacts
+name: Build Fedora 43 RPMs
 
 on:
   push:
@@ -12,97 +12,70 @@ permissions:
   contents: read
 
 jobs:
-  build-x86_64:
-    name: Build x86_64
+  build-rpm:
+    name: Build ${{ matrix.rpm_arch }} RPM
     runs-on: ubuntu-latest
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - docker_platform: linux/amd64
+            rpm_arch: x86_64
+            build_dir: build-x86_64
+          - docker_platform: linux/arm64
+            rpm_arch: aarch64
+            build_dir: build-aarch64
 
     steps:
       - name: Checkout
         uses: actions/checkout@v4
 
-      - name: Install dependencies
+      - name: Set up QEMU
+        uses: docker/setup-qemu-action@v4
+        with:
+          platforms: arm64
+
+      - name: Build Fedora 43 RPM
         run: |
-          sudo apt-get update
-          sudo apt-get install -y \
-            cmake \
-            g++ \
-            ninja-build \
-            qt6-base-dev \
-            qt6-declarative-dev \
-            qt6-declarative-dev-tools
+          mkdir -p dist
+          docker run --rm \
+            --platform "${{ matrix.docker_platform }}" \
+            -v "${{ github.workspace }}:/work" \
+            -w /work \
+            fedora:43 \
+            bash -lc '
+              set -euo pipefail
+              dnf install -y \
+                cmake \
+                gcc-c++ \
+                ninja-build \
+                qt6-qtbase-devel \
+                qt6-qtdeclarative-devel \
+                rpm-build \
+                desktop-file-utils
 
-      - name: Configure
-        run: cmake -S . -B build -G Ninja -DCMAKE_BUILD_TYPE=Release
+              cmake -S . -B "${{ matrix.build_dir }}" -G Ninja -DCMAKE_BUILD_TYPE=Release
+              cmake --build "${{ matrix.build_dir }}" --parallel
 
-      - name: Build
-        run: cmake --build build --parallel
+              desktop-file-validate "${{ matrix.build_dir }}/org.projectro.RoStore.desktop"
+              qmllint \
+                -I "${{ matrix.build_dir }}" \
+                -I "${{ matrix.build_dir }}/RoStore" \
+                "${{ matrix.build_dir }}/RoStore/qml/Main.qml" \
+                "${{ matrix.build_dir }}/RoStore/qml/pages/HomePage.qml" \
+                "${{ matrix.build_dir }}/RoStore/qml/pages/AppDetailPage.qml" \
+                "${{ matrix.build_dir }}/RoStore/qml/components/AppCard.qml"
 
-      - name: QML lint
-        run: |
-          qmllint \
-            -I build \
-            -I build/RoStore \
-            build/RoStore/qml/Main.qml \
-            build/RoStore/qml/pages/HomePage.qml \
-            build/RoStore/qml/pages/AppDetailPage.qml \
-            build/RoStore/qml/components/AppCard.qml
+              cpack --config "${{ matrix.build_dir }}/CPackConfig.cmake" -G RPM
 
-      - name: Package artifact
-        run: |
-          mkdir -p dist/ro-store-linux-x86_64
-          cp build/ro-store dist/ro-store-linux-x86_64/
-          cp README.md LICENSE dist/ro-store-linux-x86_64/
-          tar -C dist -czf ro-store-linux-x86_64.tar.gz ro-store-linux-x86_64
+              rpm_file=$(find "${{ matrix.build_dir }}" -maxdepth 1 -type f -name "*.rpm" | head -n 1)
+              final_name=$(rpm -qp --qf "%{NAME}-%{VERSION}-%{ARCH}.rpm" "$rpm_file")
+              mv "$rpm_file" "dist/$final_name"
+            '
 
       - name: Upload artifact
         uses: actions/upload-artifact@v4
         with:
-          name: ro-store-linux-x86_64
-          path: ro-store-linux-x86_64.tar.gz
-          if-no-files-found: error
-
-  build-aarch64:
-    name: Build aarch64
-    runs-on: ubuntu-latest
-
-    steps:
-      - name: Checkout
-        uses: actions/checkout@v4
-
-      - name: Build inside ARM64 environment
-        uses: uraimo/run-on-arch-action@v2
-        with:
-          arch: aarch64
-          distro: ubuntu22.04
-          githubToken: ${{ github.token }}
-          install: |
-            apt-get update
-            apt-get install -y \
-              cmake \
-              g++ \
-              ninja-build \
-              qt6-base-dev \
-              qt6-declarative-dev \
-              qt6-declarative-dev-tools \
-              tar
-          run: |
-            cmake -S . -B build-arm64 -G Ninja -DCMAKE_BUILD_TYPE=Release
-            cmake --build build-arm64 --parallel
-            qmllint \
-              -I build-arm64 \
-              -I build-arm64/RoStore \
-              build-arm64/RoStore/qml/Main.qml \
-              build-arm64/RoStore/qml/pages/HomePage.qml \
-              build-arm64/RoStore/qml/pages/AppDetailPage.qml \
-              build-arm64/RoStore/qml/components/AppCard.qml
-            mkdir -p dist/ro-store-linux-aarch64
-            cp build-arm64/ro-store dist/ro-store-linux-aarch64/
-            cp README.md LICENSE dist/ro-store-linux-aarch64/
-            tar -C dist -czf ro-store-linux-aarch64.tar.gz ro-store-linux-aarch64
-
-      - name: Upload artifact
-        uses: actions/upload-artifact@v4
-        with:
-          name: ro-store-linux-aarch64
-          path: ro-store-linux-aarch64.tar.gz
+          name: ro-store-${{ matrix.rpm_arch }}-rpm
+          path: dist/*.rpm
           if-no-files-found: error
