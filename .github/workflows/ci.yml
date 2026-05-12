@@ -60,7 +60,7 @@ jobs:
               cmake --build "${{ matrix.build_dir }}" --parallel
 
               desktop-file-validate "${{ matrix.build_dir }}/org.projectro.RoStore.desktop"
-              qmllint \
+              qmllint-qt6 \
                 -I "${{ matrix.build_dir }}" \
                 -I "${{ matrix.build_dir }}/RoStore" \
                 "${{ matrix.build_dir }}/RoStore/qml/Main.qml" \
