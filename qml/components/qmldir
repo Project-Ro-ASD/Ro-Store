@@ -1,0 +1,3 @@
+module RoStore
+prefer :/qt/qml/RoStore/
+AppCard 1.0 AppCard.qml

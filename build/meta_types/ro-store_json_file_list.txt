@@ -1,4 +1,0 @@
-/run/media/KOC/Yeni Birim/ro_store/build/ro-store_autogen/include/../UVLADIE3JM/moc_AppLauncher.cpp.json
-/run/media/KOC/Yeni Birim/ro_store/build/ro-store_autogen/include/../UVLADIE3JM/moc_CatalogModel.cpp.json
-/run/media/KOC/Yeni Birim/ro_store/build/ro-store_autogen/include/../UVLADIE3JM/moc_PackageInstaller.cpp.json
-/run/media/KOC/Yeni Birim/ro_store/build/ro-store_autogen/include/../UVLADIE3JM/moc_PackageStatus.cpp.json

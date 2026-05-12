@@ -1,6 +1,7 @@
 #include "PackageStatus.h"
 
 #include <QProcess>
+#include <QStandardPaths>
 
 PackageStatus::PackageStatus(QObject *parent)
     : QObject(parent)
@@ -52,11 +53,20 @@ void PackageStatus::checkInstalled(const QString &packageName, const QString &la
         return;
     }
 
+    const QString rpmPath = QStandardPaths::findExecutable("rpm");
+    if (rpmPath.isEmpty()) {
+        setInstalled(false);
+        setInstalledVersion("");
+        setUpdateAvailable(false);
+        setStatusText("Paket durumu bu sistemde kontrol edilemiyor: rpm bulunamadı");
+        return;
+    }
+
     setChecking(true);
     setStatusText("Paket durumu kontrol ediliyor...");
 
     QProcess *process = new QProcess(this);
-    process->setProgram("rpm");
+    process->setProgram(rpmPath);
 
     // Paket kuruluysa sadece VERSION bilgisini döndürür.
     process->setArguments({ "-q", "--qf", "%{VERSION}", cleanPackageName });
@@ -66,7 +76,7 @@ void PackageStatus::checkInstalled(const QString &packageName, const QString &la
         setInstalled(false);
         setInstalledVersion("");
         setUpdateAvailable(false);
-        setStatusText("Paket durumu kontrol edilemedi");
+        setStatusText("Paket durumu kontrol edilemedi: rpm çalıştırılamadı");
         process->deleteLater();
     });
 

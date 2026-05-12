@@ -1,0 +1,4 @@
+module RoStore
+prefer :/qt/qml/RoStore/
+HomePage 1.0 HomePage.qml
+AppDetailPage 1.0 AppDetailPage.qml

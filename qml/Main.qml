@@ -1,3 +1,5 @@
+pragma ComponentBehavior: Bound
+
 import QtQuick
 import QtQuick.Controls
 import RoStore 1.0
@@ -11,6 +13,7 @@ ApplicationWindow {
     visible: true
     title: "Ro-Store"
     color: "#101418"
+    readonly property url catalogUrl: "https://project-ro-asd.github.io/Ro-Repo/store/catalog.json"
 
     CatalogModel {
         id: catalogModel
@@ -24,10 +27,10 @@ ApplicationWindow {
             catalog: catalogModel
 
             onReloadRequested: {
-                catalogModel.load("https://project-ro-asd.github.io/Ro-Repo/store/catalog.json")
+                catalogModel.load(root.catalogUrl)
             }
 
-            onAppSelected: function(title, summary, description, category, version, packageName, iconUrl) {
+            onAppSelected: function(title, summary, description, category, version, packageName, installPackage, launchCommand, iconUrl) {
                 stackView.push(detailPageComponent, {
                     appName: title,
                     summaryText: summary,
@@ -35,6 +38,8 @@ ApplicationWindow {
                     categoryText: category,
                     versionText: version,
                     packageName: packageName,
+                    installPackage: installPackage,
+                    launchCommand: launchCommand,
                     iconUrl: iconUrl
                 })
             }
@@ -52,6 +57,6 @@ ApplicationWindow {
     }
 
     Component.onCompleted: {
-        catalogModel.load("https://project-ro-asd.github.io/Ro-Repo/store/catalog.json")
+        catalogModel.load(root.catalogUrl)
     }
 }

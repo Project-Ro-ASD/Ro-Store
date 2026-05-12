@@ -1,0 +1,7 @@
+build/
+build-local/
+.DS_Store
+*.user
+*.qtc.user
+*.swp
+*.swo

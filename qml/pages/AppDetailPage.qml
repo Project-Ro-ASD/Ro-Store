@@ -1,3 +1,5 @@
+pragma ComponentBehavior: Bound
+
 import QtQuick
 import QtQuick.Controls
 import RoStore 1.0
@@ -11,6 +13,8 @@ Item {
     property string categoryText: ""
     property string versionText: ""
     property string packageName: ""
+    property string installPackage: ""
+    property string launchCommand: ""
     property string iconUrl: ""
 
     property bool narrow: width < 760
@@ -50,12 +54,12 @@ Item {
             page.lastActionMessage = message
             page.lastActionSuccess = success
             page.logsExpanded = false
-            packageStatus.checkInstalled(page.packageName, page.versionText)
+            packageStatus.checkInstalled(page.installPackage.length > 0 ? page.installPackage : page.packageName, page.versionText)
         }
     }
 
     Component.onCompleted: {
-        packageStatus.checkInstalled(page.packageName, page.versionText)
+        packageStatus.checkInstalled(page.installPackage.length > 0 ? page.installPackage : page.packageName, page.versionText)
     }
 
     // ÜST BAR
@@ -375,6 +379,14 @@ Item {
 
                     Text {
                         width: parent.width
+                        text: "Kurulum paketi: " + (page.installPackage.length > 0 ? page.installPackage : page.packageName)
+                        color: "#9aa4b2"
+                        font.pixelSize: 14
+                        wrapMode: Text.WordWrap
+                    }
+
+                    Text {
+                        width: parent.width
                         text: "Kaynak: Ro-Repo"
                         color: "#9aa4b2"
                         font.pixelSize: 14
@@ -585,7 +597,7 @@ Item {
                 anchors.leftMargin: 12
                 anchors.verticalCenter: parent.verticalCenter
                 enabled: !packageStatus.checking && !packageInstaller.running
-                onClicked: packageStatus.checkInstalled(page.packageName, page.versionText)
+                onClicked: packageStatus.checkInstalled(page.installPackage.length > 0 ? page.installPackage : page.packageName, page.versionText)
             }
 
             Text {
@@ -647,9 +659,10 @@ Item {
                 anchors.verticalCenter: parent.verticalCenter
 
                 onClicked: {
-                    appLauncher.launch(page.packageName)
+                    const command = page.launchCommand.length > 0 ? page.launchCommand : page.packageName
+                    const started = appLauncher.launch(command)
                     page.lastActionMessage = appLauncher.statusText
-                    page.lastActionSuccess = true
+                    page.lastActionSuccess = started
                 }
             }
 
@@ -675,11 +688,11 @@ Item {
                     page.lastActionMessage = ""
 
                     if (!packageStatus.installed) {
-                        packageInstaller.installPackage(page.packageName)
+                        packageInstaller.installPackage(page.installPackage.length > 0 ? page.installPackage : page.packageName)
                     } else if (packageStatus.updateAvailable) {
                         page.logsExpanded = false
                         page.lastActionMessage = ""
-                        packageInstaller.updatePackage(page.packageName)
+                        packageInstaller.updatePackage(page.installPackage.length > 0 ? page.installPackage : page.packageName)
                     } else {
                         removeConfirmDialog.open()
                     }
@@ -749,9 +762,10 @@ Item {
                 height: 38
 
                 onClicked: {
-                    appLauncher.launch(page.packageName)
+                    const command = page.launchCommand.length > 0 ? page.launchCommand : page.packageName
+                    const started = appLauncher.launch(command)
                     page.lastActionMessage = appLauncher.statusText
-                    page.lastActionSuccess = true
+                    page.lastActionSuccess = started
                 }
             }
 
@@ -762,7 +776,7 @@ Item {
                 width: packageStatus.installed && !packageInstaller.running ? (parent.width - 48) / 3 : (parent.width - 36) / 2
                 height: 38
                 enabled: !packageStatus.checking && !packageInstaller.running
-                onClicked: packageStatus.checkInstalled(page.packageName, page.versionText)
+                onClicked: packageStatus.checkInstalled(page.installPackage.length > 0 ? page.installPackage : page.packageName, page.versionText)
             }
 
             Button {
@@ -786,11 +800,11 @@ Item {
                     page.lastActionMessage = ""
 
                     if (!packageStatus.installed) {
-                        packageInstaller.installPackage(page.packageName)
+                        packageInstaller.installPackage(page.installPackage.length > 0 ? page.installPackage : page.packageName)
                     } else if (packageStatus.updateAvailable) {
                         page.logsExpanded = false
                         page.lastActionMessage = ""
-                        packageInstaller.updatePackage(page.packageName)
+                        packageInstaller.updatePackage(page.installPackage.length > 0 ? page.installPackage : page.packageName)
                     } else {
                         removeConfirmDialog.open()
                     }
@@ -843,7 +857,7 @@ Item {
 
             MouseArea {
                 anchors.fill: parent
-                onClicked: mouse.accepted = true
+                onClicked: function(mouse) { mouse.accepted = true }
             }
 
             Rectangle {
@@ -945,20 +959,21 @@ Item {
                 y: parent.height - 62
 
                 Button {
+                    id: cancelRemoveButton
                     text: "Vazgeç"
                     width: 160
                     height: 42
 
                     background: Rectangle {
                         radius: 16
-                        color: parent.down ? "#d1d5db" : parent.hovered ? "#f3f4f6" : "#ffffff"
+                        color: cancelRemoveButton.down ? "#d1d5db" : cancelRemoveButton.hovered ? "#f3f4f6" : "#ffffff"
                         border.color: "#d1d5db"
                         border.width: 1
                         antialiasing: true
                     }
 
                     contentItem: Text {
-                        text: parent.text
+                        text: cancelRemoveButton.text
                         color: "#111827"
                         font.pixelSize: 14
                         horizontalAlignment: Text.AlignHCenter
@@ -969,20 +984,21 @@ Item {
                 }
 
                 Button {
+                    id: confirmRemoveButton
                     text: "Kaldır"
                     width: 160
                     height: 42
 
                     background: Rectangle {
                         radius: 16
-                        color: parent.down ? "#7f1d1d" : parent.hovered ? "#991b1b" : "#b91c1c"
+                        color: confirmRemoveButton.down ? "#7f1d1d" : confirmRemoveButton.hovered ? "#991b1b" : "#b91c1c"
                         border.color: "#ef4444"
                         border.width: 1
                         antialiasing: true
                     }
 
                     contentItem: Text {
-                        text: parent.text
+                        text: confirmRemoveButton.text
                         color: "#ffffff"
                         font.pixelSize: 14
                         font.bold: true
@@ -994,7 +1010,7 @@ Item {
                         removeConfirmDialog.close()
                         page.logsExpanded = false
                         page.lastActionMessage = ""
-                        packageInstaller.removePackage(page.packageName)
+                        packageInstaller.removePackage(page.installPackage.length > 0 ? page.installPackage : page.packageName)
                     }
                 }
             }

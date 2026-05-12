@@ -2,6 +2,7 @@
 
 #include <QProcess>
 #include <QRegularExpression>
+#include <QStandardPaths>
 
 PackageInstaller::PackageInstaller(QObject *parent)
     : QObject(parent)
@@ -98,6 +99,18 @@ void PackageInstaller::runPkconTransaction(
         return;
     }
 
+    const QString pkexecPath = QStandardPaths::findExecutable("pkexec");
+    const QString pkconPath = QStandardPaths::findExecutable("pkcon");
+
+    if (pkexecPath.isEmpty() || pkconPath.isEmpty()) {
+        const QString message =
+            failureMessage + " (Teknik: pkexec veya pkcon bu sistemde bulunamadı)";
+        setPhaseText("Desteklenmiyor");
+        setStatusText(message);
+        emit finished(false, message);
+        return;
+    }
+
     m_output.clear();
     emit outputChanged();
 
@@ -105,13 +118,13 @@ void PackageInstaller::runPkconTransaction(
     setPhaseText("Hazırlanıyor");
 
     appendOutput("İşlem başlatıldı\n");
-    appendOutput("Komut: pkexec " + arguments.join(" ") + "\n\n");
+    appendOutput("Komut: " + pkexecPath + " " + arguments.join(" ") + "\n\n");
 
     setRunning(true);
     setStatusText(startMessage);
 
     QProcess *process = new QProcess(this);
-    process->setProgram("pkexec");
+    process->setProgram(pkexecPath);
     process->setArguments(arguments);
     process->setProcessChannelMode(QProcess::MergedChannels);
 

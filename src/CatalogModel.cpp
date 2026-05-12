@@ -33,6 +33,8 @@ QVariant CatalogModel::data(const QModelIndex &index, int role) const
         return app.id;
     case PackageNameRole:
         return app.packageName;
+    case LaunchCommandRole:
+        return app.launchCommand;
     case AppNameRole:
         return app.appName;
     case SummaryRole:
@@ -67,6 +69,7 @@ QHash<int, QByteArray> CatalogModel::roleNames() const
     return {
         { IdRole, "appId" },
         { PackageNameRole, "packageName" },
+        { LaunchCommandRole, "launchCommand" },
         { AppNameRole, "appName" },
         { SummaryRole, "summary" },
         { DescriptionRole, "description" },
@@ -133,13 +136,29 @@ QStringList CatalogModel::categories() const
 
 void CatalogModel::load(const QUrl &url)
 {
+    if (m_activeReply) {
+        disconnect(m_activeReply, nullptr, this, nullptr);
+        m_activeReply->abort();
+        m_activeReply->deleteLater();
+        m_activeReply = nullptr;
+    }
+
     setLoading(true);
     setError("");
 
     QNetworkRequest request(url);
+    request.setAttribute(QNetworkRequest::RedirectPolicyAttribute, QNetworkRequest::NoLessSafeRedirectPolicy);
+
     QNetworkReply *reply = m_network.get(request);
+    m_activeReply = reply;
 
     connect(reply, &QNetworkReply::finished, this, [this, reply]() {
+        if (m_activeReply != reply) {
+            reply->deleteLater();
+            return;
+        }
+
+        m_activeReply = nullptr;
         reply->deleteLater();
 
         if (reply->error() != QNetworkReply::NoError) {
@@ -175,17 +194,30 @@ void CatalogModel::setError(const QString &message)
     emit errorChanged();
 }
 
+void CatalogModel::resetVisibleApps()
+{
+    beginResetModel();
+    m_apps.clear();
+    endResetModel();
+}
+
 void CatalogModel::parseCatalog(const QByteArray &jsonData)
 {
     QJsonParseError parseError;
     QJsonDocument document = QJsonDocument::fromJson(jsonData, &parseError);
 
     if (parseError.error != QJsonParseError::NoError) {
+        m_allApps.clear();
+        resetVisibleApps();
+        rebuildCategories();
         setError("Katalog JSON hatası: " + parseError.errorString());
         return;
     }
 
     if (!document.isObject()) {
+        m_allApps.clear();
+        resetVisibleApps();
+        rebuildCategories();
         setError("Katalog formatı geçersiz.");
         return;
     }
@@ -205,6 +237,13 @@ void CatalogModel::parseCatalog(const QByteArray &jsonData)
         AppInfo app;
         app.id = obj.value("id").toString();
         app.packageName = obj.value("packageName").toString();
+        app.launchCommand = obj.value("launchCommand").toString();
+        if (app.launchCommand.isEmpty()) {
+            app.launchCommand = obj.value("command").toString();
+        }
+        if (app.launchCommand.isEmpty()) {
+            app.launchCommand = obj.value("exec").toString();
+        }
         app.appName = obj.value("name").toString();
         app.summary = obj.value("summary").toString();
         app.description = obj.value("description").toString();
@@ -217,6 +256,14 @@ void CatalogModel::parseCatalog(const QByteArray &jsonData)
         app.iconUrl = obj.value("iconUrl").toString();
         app.featured = obj.value("featured").toBool(false);
         app.priority = obj.value("priority").toInt(999);
+
+        if (app.installPackage.isEmpty()) {
+            app.installPackage = app.packageName;
+        }
+
+        if (app.launchCommand.isEmpty()) {
+            app.launchCommand = app.packageName;
+        }
 
         if (!app.id.isEmpty() && !app.packageName.isEmpty() && !app.appName.isEmpty()) {
             loadedApps.append(app);

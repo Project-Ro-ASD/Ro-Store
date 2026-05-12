@@ -8,6 +8,8 @@ set(CMAKE_CXX_STANDARD_REQUIRED ON)
 find_package(Qt6 REQUIRED COMPONENTS Core Quick Network)
 
 qt_standard_project_setup()
+qt_policy(SET QTP0001 NEW)
+qt_policy(SET QTP0004 NEW)
 
 qt_add_executable(ro-store
     src/main.cpp
@@ -24,6 +26,7 @@ qt_add_executable(ro-store
 qt_add_qml_module(ro-store
     URI RoStore
     VERSION 1.0
+    RESOURCE_PREFIX /qt/qml
     QML_FILES
         qml/Main.qml
         qml/pages/HomePage.qml
@@ -36,4 +39,9 @@ target_link_libraries(ro-store
         Qt6::Core
         Qt6::Quick
         Qt6::Network
+)
+
+target_include_directories(ro-store
+    PRIVATE
+        ${CMAKE_CURRENT_SOURCE_DIR}/src
 )

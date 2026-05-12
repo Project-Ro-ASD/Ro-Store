@@ -1,6 +1,7 @@
+pragma ComponentBehavior: Bound
+
 import QtQuick
 import QtQuick.Controls
-import QtQuick.Layouts
 import "../components"
 
 Item {
@@ -19,6 +20,8 @@ Item {
         string category,
         string version,
         string packageName,
+        string installPackage,
+        string launchCommand,
         string iconUrl
     )
 
@@ -418,6 +421,18 @@ Item {
                     interactive: false
 
                     delegate: Item {
+                        id: appDelegate
+
+                        required property string appName
+                        required property string summary
+                        required property string description
+                        required property string category
+                        required property string latestVersion
+                        required property string packageName
+                        required property string installPackage
+                        required property string launchCommand
+                        required property string iconUrl
+
                         width: appsGrid.cellWidth
                         height: appsGrid.cellHeight
 
@@ -425,16 +440,28 @@ Item {
                             anchors.horizontalCenter: page.narrow ? parent.horizontalCenter : undefined
                             width: page.narrow ? Math.min(300, parent.width) : 300
 
-                            titleText: model.appName
-                            summaryText: model.summary
-                            descriptionText: model.description
-                            categoryText: model.category
-                            versionText: model.latestVersion
-                            packageText: model.packageName
-                            iconUrl: model.iconUrl
+                            titleText: appDelegate.appName
+                            summaryText: appDelegate.summary
+                            descriptionText: appDelegate.description
+                            categoryText: appDelegate.category
+                            versionText: appDelegate.latestVersion
+                            packageText: appDelegate.packageName
+                            installPackageText: appDelegate.installPackage
+                            launchCommand: appDelegate.launchCommand
+                            iconUrl: appDelegate.iconUrl
 
-                            onDetailRequested: function(title, summary, description, category, version, packageName, iconUrl) {
-                                page.appSelected(title, summary, description, category, version, packageName, iconUrl)
+                            onDetailRequested: function(title, summaryText, descriptionText, categoryText, versionText, packageNameText, installPackageText, launchCommandText, iconUrlText) {
+                                page.appSelected(
+                                    title,
+                                    summaryText,
+                                    descriptionText,
+                                    categoryText,
+                                    versionText,
+                                    packageNameText,
+                                    installPackageText,
+                                    launchCommandText,
+                                    iconUrlText
+                                )
                             }
                         }
                     }

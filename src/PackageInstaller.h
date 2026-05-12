@@ -3,10 +3,12 @@
 #include <QObject>
 #include <QString>
 #include <QStringList>
+#include <QtQml/qqmlregistration.h>
 
 class PackageInstaller : public QObject
 {
     Q_OBJECT
+    QML_ELEMENT
     Q_PROPERTY(bool running READ running NOTIFY runningChanged)
     Q_PROPERTY(QString statusText READ statusText NOTIFY statusTextChanged)
     Q_PROPERTY(QString output READ output NOTIFY outputChanged)

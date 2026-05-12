@@ -2,10 +2,12 @@
 
 #include <QObject>
 #include <QString>
+#include <QtQml/qqmlregistration.h>
 
 class AppLauncher : public QObject
 {
     Q_OBJECT
+    QML_ELEMENT
     Q_PROPERTY(QString statusText READ statusText NOTIFY statusTextChanged)
 
 public:

@@ -1,3 +1,5 @@
+pragma ComponentBehavior: Bound
+
 import QtQuick
 import QtQuick.Controls
 import QtQuick.Layouts
@@ -11,7 +13,9 @@ Rectangle {
     property string categoryText: ""
     property string versionText: ""
     property string packageText: ""
+    property string installPackageText: ""
     property string descriptionText: ""
+    property string launchCommand: ""
     property string iconUrl: ""
 
     signal detailRequested(
@@ -21,6 +25,8 @@ Rectangle {
         string category,
         string version,
         string packageName,
+        string installPackage,
+        string launchCommand,
         string iconUrl
     )
 
@@ -42,15 +48,19 @@ Rectangle {
     }
 
     Component.onCompleted: {
-        cardPackageStatus.checkInstalled(card.packageText, card.versionText)
+        cardPackageStatus.checkInstalled(card.installPackageText.length > 0 ? card.installPackageText : card.packageText, card.versionText)
     }
 
     onPackageTextChanged: {
-        cardPackageStatus.checkInstalled(card.packageText, card.versionText)
+        cardPackageStatus.checkInstalled(card.installPackageText.length > 0 ? card.installPackageText : card.packageText, card.versionText)
+    }
+
+    onInstallPackageTextChanged: {
+        cardPackageStatus.checkInstalled(card.installPackageText.length > 0 ? card.installPackageText : card.packageText, card.versionText)
     }
 
     onVersionTextChanged: {
-        cardPackageStatus.checkInstalled(card.packageText, card.versionText)
+        cardPackageStatus.checkInstalled(card.installPackageText.length > 0 ? card.installPackageText : card.packageText, card.versionText)
     }
 
     Behavior on color {
@@ -75,6 +85,8 @@ Rectangle {
                 card.categoryText,
                 card.versionText,
                 card.packageText,
+                card.installPackageText,
+                card.launchCommand,
                 card.iconUrl
             )
         }
@@ -90,8 +102,8 @@ Rectangle {
             spacing: 12
 
             Rectangle {
-                width: 54
-                height: 54
+                Layout.preferredWidth: 54
+                Layout.preferredHeight: 54
                 radius: 16
                 color: "#243447"
                 clip: true
@@ -134,8 +146,8 @@ Rectangle {
                 Rectangle {
                     radius: 9
                     color: "#243447"
-                    height: 25
-                    width: categoryLabel.implicitWidth + 18
+                    Layout.preferredHeight: 25
+                    Layout.preferredWidth: categoryLabel.implicitWidth + 18
 
                     Label {
                         id: categoryLabel
@@ -161,7 +173,7 @@ Rectangle {
 
         Rectangle {
             Layout.fillWidth: true
-            height: 1
+            Layout.preferredHeight: 1
             color: "#263445"
         }
 
@@ -224,6 +236,8 @@ Rectangle {
                             card.categoryText,
                             card.versionText,
                             card.packageText,
+                            card.installPackageText,
+                            card.launchCommand,
                             card.iconUrl
                         )
                     }
@@ -255,7 +269,7 @@ Rectangle {
                     cursorShape: Qt.PointingHandCursor
 
                     onClicked: {
-                        cardLauncher.launch(card.packageText)
+                        cardLauncher.launch(card.launchCommand.length > 0 ? card.launchCommand : card.packageText)
                     }
                 }
             }

@@ -2,10 +2,12 @@
 
 #include <QObject>
 #include <QString>
+#include <QtQml/qqmlregistration.h>
 
 class PackageStatus : public QObject
 {
     Q_OBJECT
+    QML_ELEMENT
     Q_PROPERTY(bool checking READ checking NOTIFY checkingChanged)
     Q_PROPERTY(bool installed READ installed NOTIFY installedChanged)
     Q_PROPERTY(bool updateAvailable READ updateAvailable NOTIFY updateAvailableChanged)

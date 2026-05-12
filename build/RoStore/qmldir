@@ -1,9 +1,0 @@
-module RoStore
-typeinfo ro-store.qmltypes
-prefer :/RoStore/
-Main 1.0 qml/Main.qml
-HomePage 1.0 qml/pages/HomePage.qml
-AppDetailPage 1.0 qml/pages/AppDetailPage.qml
-AppCard 1.0 qml/components/AppCard.qml
-depends QtQuick
-

@@ -2,13 +2,18 @@
 
 #include <QAbstractListModel>
 #include <QNetworkAccessManager>
+#include <QPointer>
 #include <QStringList>
+#include <QtQml/qqmlregistration.h>
 #include <QVector>
+
+class QNetworkReply;
 
 struct AppInfo
 {
     QString id;
     QString packageName;
+    QString launchCommand;
     QString appName;
     QString summary;
     QString description;
@@ -26,6 +31,7 @@ struct AppInfo
 class CatalogModel : public QAbstractListModel
 {
     Q_OBJECT
+    QML_ELEMENT
     Q_PROPERTY(bool loading READ loading NOTIFY loadingChanged)
     Q_PROPERTY(QString error READ error NOTIFY errorChanged)
 
@@ -37,6 +43,7 @@ public:
     enum Roles {
         IdRole = Qt::UserRole + 1,
         PackageNameRole,
+        LaunchCommandRole,
         AppNameRole,
         SummaryRole,
         DescriptionRole,
@@ -80,6 +87,7 @@ signals:
 private:
     void setLoading(bool value);
     void setError(const QString &message);
+    void resetVisibleApps();
     void parseCatalog(const QByteArray &jsonData);
     void rebuildCategories();
     void applyFilters();
@@ -89,6 +97,7 @@ private:
     QVector<AppInfo> m_apps;
 
     QNetworkAccessManager m_network;
+    QPointer<QNetworkReply> m_activeReply;
 
     bool m_loading = false;
     QString m_error;

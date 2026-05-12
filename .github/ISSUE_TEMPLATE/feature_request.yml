@@ -1,0 +1,25 @@
+name: Feature request
+description: Yeni ozellik onerileri icin kullanin.
+title: "[Feature] "
+labels:
+  - enhancement
+body:
+  - type: textarea
+    id: problem
+    attributes:
+      label: Problem
+      description: Cozulmesini istediginiz ihtiyaci aciklayin.
+    validations:
+      required: true
+  - type: textarea
+    id: proposal
+    attributes:
+      label: Onerilen cozum
+      description: Beklediginiz davranisi yazin.
+    validations:
+      required: true
+  - type: textarea
+    id: context
+    attributes:
+      label: Ek baglam
+      description: Gerekli gorurseniz ekran goruntusu, katalog ornegi veya teknik baglam ekleyin.
