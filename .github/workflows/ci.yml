@@ -1,4 +1,4 @@
-name: CI
+name: Build Linux Artifacts
 
 on:
   push:
@@ -6,26 +6,103 @@ on:
       - main
       - master
   pull_request:
+  workflow_dispatch:
+
+permissions:
+  contents: read
 
 jobs:
-  build:
+  build-x86_64:
+    name: Build x86_64
     runs-on: ubuntu-latest
 
     steps:
       - name: Checkout
         uses: actions/checkout@v4
 
-      - name: Install Qt
-        uses: jurplel/install-qt-action@v4
-        with:
-          version: "6.7.3"
-          modules: qtdeclarative
+      - name: Install dependencies
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y \
+            cmake \
+            g++ \
+            ninja-build \
+            qt6-base-dev \
+            qt6-declarative-dev \
+            qt6-declarative-dev-tools
 
       - name: Configure
-        run: cmake -S . -B build -DCMAKE_BUILD_TYPE=Release
+        run: cmake -S . -B build -G Ninja -DCMAKE_BUILD_TYPE=Release
 
       - name: Build
-        run: cmake --build build --config Release --parallel
+        run: cmake --build build --parallel
 
-      - name: QML Lint
-        run: qmllint -I build -I build/RoStore build/RoStore/qml/Main.qml build/RoStore/qml/pages/HomePage.qml build/RoStore/qml/pages/AppDetailPage.qml build/RoStore/qml/components/AppCard.qml
+      - name: QML lint
+        run: |
+          qmllint \
+            -I build \
+            -I build/RoStore \
+            build/RoStore/qml/Main.qml \
+            build/RoStore/qml/pages/HomePage.qml \
+            build/RoStore/qml/pages/AppDetailPage.qml \
+            build/RoStore/qml/components/AppCard.qml
+
+      - name: Package artifact
+        run: |
+          mkdir -p dist/ro-store-linux-x86_64
+          cp build/ro-store dist/ro-store-linux-x86_64/
+          cp README.md LICENSE dist/ro-store-linux-x86_64/
+          tar -C dist -czf ro-store-linux-x86_64.tar.gz ro-store-linux-x86_64
+
+      - name: Upload artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: ro-store-linux-x86_64
+          path: ro-store-linux-x86_64.tar.gz
+          if-no-files-found: error
+
+  build-aarch64:
+    name: Build aarch64
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Build inside ARM64 environment
+        uses: uraimo/run-on-arch-action@v2
+        with:
+          arch: aarch64
+          distro: ubuntu22.04
+          githubToken: ${{ github.token }}
+          install: |
+            apt-get update
+            apt-get install -y \
+              cmake \
+              g++ \
+              ninja-build \
+              qt6-base-dev \
+              qt6-declarative-dev \
+              qt6-declarative-dev-tools \
+              tar
+          run: |
+            cmake -S . -B build-arm64 -G Ninja -DCMAKE_BUILD_TYPE=Release
+            cmake --build build-arm64 --parallel
+            qmllint \
+              -I build-arm64 \
+              -I build-arm64/RoStore \
+              build-arm64/RoStore/qml/Main.qml \
+              build-arm64/RoStore/qml/pages/HomePage.qml \
+              build-arm64/RoStore/qml/pages/AppDetailPage.qml \
+              build-arm64/RoStore/qml/components/AppCard.qml
+            mkdir -p dist/ro-store-linux-aarch64
+            cp build-arm64/ro-store dist/ro-store-linux-aarch64/
+            cp README.md LICENSE dist/ro-store-linux-aarch64/
+            tar -C dist -czf ro-store-linux-aarch64.tar.gz ro-store-linux-aarch64
+
+      - name: Upload artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: ro-store-linux-aarch64
+          path: ro-store-linux-aarch64.tar.gz
+          if-no-files-found: error

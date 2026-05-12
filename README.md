@@ -54,6 +54,15 @@ env CCACHE_DISABLE=1 cmake --build build-local
 qmllint -I build-local -I build-local/RoStore build-local/RoStore/qml/Main.qml build-local/RoStore/qml/pages/HomePage.qml build-local/RoStore/qml/pages/AppDetailPage.qml build-local/RoStore/qml/components/AppCard.qml
 ```
 
+## GitHub Actions outputs
+
+The repository CI produces only two Linux artifacts:
+
+- `ro-store-linux-x86_64.tar.gz`
+- `ro-store-linux-aarch64.tar.gz`
+
+Each artifact contains the built `ro-store` binary together with `README.md` and `LICENSE`.
+
 ## Maintenance
 
 - See [CONTRIBUTING.md](CONTRIBUTING.md) for contribution rules.
