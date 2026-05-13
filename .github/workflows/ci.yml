@@ -172,13 +172,13 @@ jobs:
 
     steps:
       - name: Download x86_64 artifact
-        uses: actions/download-artifact@v5
+        uses: actions/download-artifact@v8
         with:
           name: ro-store-x86_64-rpm
           path: release-assets
 
       - name: Download aarch64 artifact
-        uses: actions/download-artifact@v5
+        uses: actions/download-artifact@v8
         with:
           name: ro-store-aarch64-rpm
           path: release-assets
