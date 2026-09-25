@@ -1,0 +1,29 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<component type="desktop-application">
+  <id>org.projectro.RoStore</id>
+  <name>Ro-Store</name>
+  <summary>Ro-ASD application store</summary>
+
+  <metadata_license>CC0-1.0</metadata_license>
+  <project_license>GPL-3.0-or-later</project_license>
+
+  <description>
+    <p>
+      Ro-Store is the application store for Ro-ASD. It provides a graphical
+      interface for browsing, installing, updating, removing and launching
+      applications distributed through Ro-ASD repositories.
+    </p>
+  </description>
+
+  <launchable type="desktop-id">org.projectro.RoStore.desktop</launchable>
+
+  <url type="homepage">@PROJECT_HOMEPAGE_URL@</url>
+
+  <developer id="org.project-ro-asd">
+    <name>Project Ro-ASD</name>
+  </developer>
+
+  <provides>
+    <binary>ro-store</binary>
+  </provides>
+</component>

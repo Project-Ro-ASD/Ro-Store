@@ -1,6 +1,11 @@
 cmake_minimum_required(VERSION 3.21)
 
-project(RoStore VERSION 0.1.0 LANGUAGES CXX)
+project(RoStore
+    VERSION 0.1.0
+    DESCRIPTION "Ro-ASD application store"
+    HOMEPAGE_URL "https://github.com/Project-Ro-ASD/Ro-Store"
+    LANGUAGES CXX
+)
 
 set(CMAKE_CXX_STANDARD 20)
 set(CMAKE_CXX_STANDARD_REQUIRED ON)
@@ -8,6 +13,9 @@ set(CMAKE_CXX_STANDARD_REQUIRED ON)
 find_package(Qt6 REQUIRED COMPONENTS Core Quick Network)
 
 qt_standard_project_setup()
+
+qt_policy(SET QTP0001 NEW)
+qt_policy(SET QTP0004 NEW)
 
 qt_add_executable(ro-store
     src/main.cpp
@@ -37,3 +45,68 @@ target_link_libraries(ro-store
         Qt6::Quick
         Qt6::Network
 )
+
+target_include_directories(ro-store
+    PRIVATE
+        ${CMAKE_CURRENT_SOURCE_DIR}/src
+)
+
+include(GNUInstallDirs)
+
+configure_file(
+    ${CMAKE_CURRENT_SOURCE_DIR}/packaging/linux/org.projectro.RoStore.desktop.in
+    ${CMAKE_CURRENT_BINARY_DIR}/org.projectro.RoStore.desktop
+    @ONLY
+)
+
+configure_file(
+    ${CMAKE_CURRENT_SOURCE_DIR}/packaging/linux/org.projectro.RoStore.metainfo.xml.in
+    ${CMAKE_CURRENT_BINARY_DIR}/org.projectro.RoStore.metainfo.xml
+    @ONLY
+)
+
+install(TARGETS ro-store
+    RUNTIME DESTINATION ${CMAKE_INSTALL_BINDIR}
+)
+
+install(FILES
+    ${CMAKE_CURRENT_BINARY_DIR}/org.projectro.RoStore.desktop
+    DESTINATION ${CMAKE_INSTALL_DATADIR}/applications
+)
+
+install(FILES
+    ${CMAKE_CURRENT_SOURCE_DIR}/assets/ro-store.svg
+    DESTINATION ${CMAKE_INSTALL_DATADIR}/icons/hicolor/scalable/apps
+)
+
+install(FILES
+    ${CMAKE_CURRENT_BINARY_DIR}/org.projectro.RoStore.metainfo.xml
+    DESTINATION ${CMAKE_INSTALL_DATADIR}/metainfo
+)
+
+set(CPACK_GENERATOR "RPM")
+
+set(CPACK_PACKAGE_NAME "ro-store")
+set(CPACK_PACKAGE_VERSION "${PROJECT_VERSION}")
+set(CPACK_PACKAGE_VENDOR "Project Ro-ASD")
+set(CPACK_PACKAGE_DESCRIPTION_SUMMARY "Ro-ASD application store")
+set(CPACK_PACKAGE_DESCRIPTION
+    "Ro-Store is the graphical application store for Ro-ASD. It allows users to browse, install, update, remove and launch applications distributed through Ro-ASD repositories."
+)
+set(CPACK_PACKAGE_HOMEPAGE_URL "${PROJECT_HOMEPAGE_URL}")
+
+set(CPACK_RPM_PACKAGE_LICENSE "GPL-3.0-or-later")
+set(CPACK_RPM_PACKAGE_DESCRIPTION "${CPACK_PACKAGE_DESCRIPTION}")
+set(CPACK_RPM_PACKAGE_GROUP "Applications/System")
+set(CPACK_RPM_PACKAGE_URL "${PROJECT_HOMEPAGE_URL}")
+set(CPACK_RPM_PACKAGE_RELEASE "1")
+set(CPACK_RPM_PACKAGE_RELEASE_DIST ON)
+set(CPACK_RPM_PACKAGE_AUTOREQ ON)
+set(CPACK_RPM_PACKAGE_AUTOPROV ON)
+
+# Ro-Store paket işlemlerini bunlarla yapıyor.
+set(CPACK_RPM_PACKAGE_REQUIRES "/usr/bin/pkcon, /usr/bin/pkexec")
+
+set(CPACK_RPM_FILE_NAME "RPM-DEFAULT")
+
+include(CPack)
