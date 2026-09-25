@@ -1,0 +1,197 @@
+name: Build Fedora 44 RPMs
+
+on:
+  push:
+    branches:
+      - main
+    tags:
+      - "v*"
+  pull_request:
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  build-rpm:
+    name: Fedora 44 RPM - ${{ matrix.arch }}
+
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - arch: x86_64
+            runner: ubuntu-24.04
+          - arch: aarch64
+            runner: ubuntu-24.04-arm
+
+    runs-on: ${{ matrix.runner }}
+
+    container:
+      image: fedora:44
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Install build dependencies
+        run: |
+          dnf -y install \
+            cmake \
+            ninja-build \
+            gcc-c++ \
+            qt6-qtbase-devel \
+            qt6-qtdeclarative-devel \
+            rpm-build \
+            desktop-file-utils \
+            appstream
+
+      - name: Verify release tag
+        if: startsWith(github.ref, 'refs/tags/v')
+        shell: bash
+        run: |
+          set -euo pipefail
+
+          VERSION="$(sed -n -E \
+            's/^[[:space:]]*VERSION[[:space:]]+([0-9.]+).*/\1/p' \
+            CMakeLists.txt | head -n1)"
+
+          test -n "$VERSION"
+          test "${GITHUB_REF_NAME}" = "v${VERSION}"
+
+      - name: Configure
+        run: |
+          cmake -S . -B build -G Ninja \
+            -DCMAKE_BUILD_TYPE=Release \
+            -DCMAKE_INSTALL_PREFIX=/usr
+
+      - name: Build
+        run: cmake --build build --parallel
+
+      - name: Validate desktop metadata
+        run: |
+          desktop-file-validate \
+            build/org.projectro.RoStore.desktop
+
+          appstreamcli validate --no-net \
+            build/org.projectro.RoStore.metainfo.xml
+
+      - name: Build RPM
+        run: |
+          rm -rf packages
+
+          cpack \
+            --config build/CPackConfig.cmake \
+            -G RPM \
+            -B packages
+
+      - name: Verify RPM
+        shell: bash
+        run: |
+          set -euo pipefail
+
+          RPM_FILE="$(find packages -maxdepth 1 -type f -name '*.rpm' -print -quit)"
+
+          test -n "$RPM_FILE"
+
+          test "$(rpm -qp --qf '%{NAME}' "$RPM_FILE")" = "ro-store"
+          test "$(rpm -qp --qf '%{VERSION}' "$RPM_FILE")" = "0.1.0"
+          test "$(rpm -qp --qf '%{RELEASE}' "$RPM_FILE")" = "1.fc44"
+          test "$(rpm -qp --qf '%{ARCH}' "$RPM_FILE")" = "${{ matrix.arch }}"
+
+          rpm -qpl "$RPM_FILE" | grep -Fx '/usr/bin/ro-store'
+          rpm -qpl "$RPM_FILE" | grep -Fx '/usr/share/applications/org.projectro.RoStore.desktop'
+          rpm -qpl "$RPM_FILE" | grep -Fx '/usr/share/metainfo/org.projectro.RoStore.metainfo.xml'
+
+      - name: Install RPM
+        shell: bash
+        run: |
+          set -euo pipefail
+
+          RPM_FILE="$(find packages -maxdepth 1 -type f -name '*.rpm' -print -quit)"
+
+          dnf -y install --nogpgcheck --allowerasing "$RPM_FILE"
+
+          rpm -q ro-store
+          command -v ro-store
+          ldd /usr/bin/ro-store
+
+      - name: QML startup smoke test
+        shell: bash
+        run: |
+          set -euo pipefail
+
+          set +e
+          QT_QPA_PLATFORM=offscreen timeout 4s /usr/bin/ro-store \
+            > /tmp/ro-store.log 2>&1
+          STATUS=$?
+          set -e
+
+          cat /tmp/ro-store.log
+
+          if grep -Ei \
+            'failed to load component|contains no type named|module .* is not installed' \
+            /tmp/ro-store.log; then
+              exit 1
+          fi
+
+          if [ "$STATUS" -ne 0 ] && [ "$STATUS" -ne 124 ]; then
+              exit "$STATUS"
+          fi
+
+      - name: Collect RPM
+        shell: bash
+        run: |
+          mkdir -p release-assets
+
+          RPM_FILE="$(find packages -maxdepth 1 -type f -name '*.rpm' -print -quit)"
+
+          cp "$RPM_FILE" release-assets/
+
+      - name: Upload RPM artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: ro-store-${{ matrix.arch }}
+          path: release-assets/*.rpm
+          if-no-files-found: error
+
+  release:
+    name: Publish GitHub Release
+
+    if: startsWith(github.ref, 'refs/tags/v')
+
+    needs:
+      - build-rpm
+
+    runs-on: ubuntu-24.04
+
+    permissions:
+      contents: write
+
+    steps:
+      - name: Download RPMs
+        uses: actions/download-artifact@v4
+        with:
+          pattern: ro-store-*
+          path: release-assets
+          merge-multiple: true
+
+      - name: Generate checksums
+        run: |
+          cd release-assets
+          sha256sum *.rpm > SHA256SUMS.txt
+          cat SHA256SUMS.txt
+
+      - name: Publish release
+        env:
+          GH_TOKEN: ${{ github.token }}
+        shell: bash
+        run: |
+          VERSION="${GITHUB_REF_NAME#v}"
+
+          gh release create "${GITHUB_REF_NAME}" \
+            release-assets/*.rpm \
+            release-assets/SHA256SUMS.txt \
+            --repo "${GITHUB_REPOSITORY}" \
+            --title "Ro-Store ${VERSION}" \
+            --generate-notes

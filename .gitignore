@@ -1,4 +1,5 @@
 build/
+build-*/
 *.bak
 CMakeFiles/
 CMakeCache.txt
