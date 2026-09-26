@@ -23,8 +23,6 @@ qt_add_executable(ro-store
     src/CatalogModel.cpp
     src/PackageStatus.h
     src/PackageStatus.cpp
-    src/PackageInstaller.h
-    src/PackageInstaller.cpp
     src/packages/PackageTransaction.h
     src/packages/PackageTransaction.cpp
     src/packages/PackageTransactionModel.h
@@ -113,8 +111,8 @@ set(CPACK_RPM_PACKAGE_RELEASE_DIST ON)
 set(CPACK_RPM_PACKAGE_AUTOREQ ON)
 set(CPACK_RPM_PACKAGE_AUTOPROV ON)
 
-# Ro-Store paket işlemlerini bunlarla yapıyor.
-set(CPACK_RPM_PACKAGE_REQUIRES "/usr/bin/pkcon, /usr/bin/pkexec")
+# Ro-Store package transactions use the DNF5 daemon over D-Bus.
+set(CPACK_RPM_PACKAGE_REQUIRES "dnf5daemon-server, dnf5daemon-server-polkit")
 
 set(CPACK_RPM_FILE_NAME "RPM-DEFAULT")
 
