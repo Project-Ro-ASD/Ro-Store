@@ -18,37 +18,6 @@ ApplicationWindow {
 
     Dnf5Backend {
         id: dnf5Backend
-
-        onPackageQueryFinished: function(package) {
-            console.log("DNF5 AVAILABLE QUERY DONE")
-            dnf5Backend.queryInstalledPackage("ro-assist")
-        }
-
-        onInstalledPackageQueryFinished: function(package) {
-            if (Object.keys(package).length === 0) {
-                console.log("DNF5 PACKAGE STATE: NOT_INSTALLED")
-            } else {
-                console.log(
-                    "DNF5 INSTALLED VERSION:",
-                    package.version,
-                    package.release
-                )
-
-                dnf5Backend.queryUpgradePackage("ro-assist")
-            }
-        }
-
-        onUpgradePackageQueryFinished: function(package) {
-            if (Object.keys(package).length === 0) {
-                console.log("DNF5 PACKAGE STATE: INSTALLED")
-            } else {
-                console.log(
-                    "DNF5 PACKAGE STATE: UPDATE_AVAILABLE",
-                    package.version,
-                    package.release
-                )
-            }
-        }
     }
 
     StackView {
@@ -88,12 +57,6 @@ ApplicationWindow {
 
     Component.onCompleted: {
         catalogModel.load("https://repo.ro-asd.org/rpm/fedora/44/beta/store/catalog.json")
-
-        if (dnf5Backend.openSession()) {
-            console.log("DNF5 SESSION OPEN:", dnf5Backend.sessionPath)
-            dnf5Backend.queryPackage("ro-assist")
-        } else {
-            console.warn("DNF5 OPEN ERROR:", dnf5Backend.lastError)
-        }
+        dnf5Backend.queryPackageState("ro-assist")
     }
 }

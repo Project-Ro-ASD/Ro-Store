@@ -92,6 +92,11 @@ bool Dnf5Backend::busy() const
     return m_busy;
 }
 
+Dnf5Backend::PackageState Dnf5Backend::packageState() const
+{
+    return m_packageState;
+}
+
 bool Dnf5Backend::openSession()
 {
     if (sessionOpen()) {
@@ -833,6 +838,135 @@ void Dnf5Backend::queryUpgradePackage(const QString &packageName)
     );
 }
 
+
+void Dnf5Backend::queryPackageState(const QString &packageName)
+{
+    const QString cleanName = packageName.trimmed();
+
+    if (cleanName.isEmpty()) {
+        const QString error = QStringLiteral("Paket adı boş.");
+        setLastError(error);
+        return;
+    }
+
+    if (m_busy) {
+        setLastError(
+            QStringLiteral("DNF5 şu anda başka bir işlem yürütüyor.")
+        );
+        return;
+    }
+
+    m_stateAvailablePackage.clear();
+    m_stateInstalledPackage.clear();
+
+    setPackageState(PackageState::Unknown);
+
+    auto *availableConnection =
+        new QMetaObject::Connection;
+
+    *availableConnection = connect(
+        this,
+        &Dnf5Backend::packageQueryFinished,
+        this,
+        [this, cleanName, availableConnection](const QVariantMap &package) {
+
+            disconnect(*availableConnection);
+            delete availableConnection;
+
+            m_stateAvailablePackage = package;
+
+            auto *installedConnection =
+                new QMetaObject::Connection;
+
+            *installedConnection = connect(
+                this,
+                &Dnf5Backend::installedPackageQueryFinished,
+                this,
+                [this, cleanName, installedConnection](
+                    const QVariantMap &installedPackage
+                ) {
+
+                    disconnect(*installedConnection);
+                    delete installedConnection;
+
+                    m_stateInstalledPackage = installedPackage;
+
+                    if (installedPackage.isEmpty()) {
+                        setPackageState(PackageState::NotInstalled);
+
+                        qInfo()
+                            << "DNF5 PACKAGE STATE:"
+                            << "NOT_INSTALLED";
+
+                        emit packageStateQueryFinished(
+                            PackageState::NotInstalled,
+                            m_stateAvailablePackage,
+                            QVariantMap{},
+                            QVariantMap{}
+                        );
+
+                        return;
+                    }
+
+                    auto *upgradeConnection =
+                        new QMetaObject::Connection;
+
+                    *upgradeConnection = connect(
+                        this,
+                        &Dnf5Backend::upgradePackageQueryFinished,
+                        this,
+                        [this, upgradeConnection](
+                            const QVariantMap &upgradePackage
+                        ) {
+
+                            disconnect(*upgradeConnection);
+                            delete upgradeConnection;
+
+                            if (upgradePackage.isEmpty()) {
+                                setPackageState(
+                                    PackageState::Installed
+                                );
+
+                                qInfo()
+                                    << "DNF5 PACKAGE STATE:"
+                                    << "INSTALLED";
+
+                                emit packageStateQueryFinished(
+                                    PackageState::Installed,
+                                    m_stateAvailablePackage,
+                                    m_stateInstalledPackage,
+                                    QVariantMap{}
+                                );
+                            } else {
+                                setPackageState(
+                                    PackageState::UpdateAvailable
+                                );
+
+                                qInfo()
+                                    << "DNF5 PACKAGE STATE:"
+                                    << "UPDATE_AVAILABLE";
+
+                                emit packageStateQueryFinished(
+                                    PackageState::UpdateAvailable,
+                                    m_stateAvailablePackage,
+                                    m_stateInstalledPackage,
+                                    upgradePackage
+                                );
+                            }
+                        }
+                    );
+
+                    queryUpgradePackage(cleanName);
+                }
+            );
+
+            queryInstalledPackage(cleanName);
+        }
+    );
+
+    queryPackage(cleanName);
+}
+
 void Dnf5Backend::setLastError(const QString &error)
 {
     if (m_lastError == error) {
@@ -851,6 +985,16 @@ void Dnf5Backend::setBusy(bool value)
 
     m_busy = value;
     emit busyChanged();
+}
+
+void Dnf5Backend::setPackageState(PackageState state)
+{
+    if (m_packageState == state) {
+        return;
+    }
+
+    m_packageState = state;
+    emit packageStateChanged();
 }
 
 void Dnf5Backend::clearSession()
