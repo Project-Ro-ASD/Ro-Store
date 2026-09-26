@@ -58,6 +58,106 @@ QList<QVariantMap> readPackageArray(const QVariant &value)
     return packages;
 }
 
+QList<QVariantMap> readTransactionItemArray(const QVariant &value)
+{
+    QList<QVariantMap> items;
+
+    if (!value.canConvert<QDBusArgument>()) {
+        return items;
+    }
+
+    const QDBusArgument argument =
+        value.value<QDBusArgument>();
+
+    argument.beginArray();
+
+    while (!argument.atEnd()) {
+        QString objectType;
+        QString action;
+        QString reason;
+
+        QVariantMap itemAttributes;
+        QVariantMap object;
+
+        argument.beginStructure();
+
+        argument >> objectType;
+        argument >> action;
+        argument >> reason;
+
+        argument.beginMap();
+
+        while (!argument.atEnd()) {
+            QString key;
+            QVariant itemValue;
+
+            argument.beginMapEntry();
+            argument >> key >> itemValue;
+            argument.endMapEntry();
+
+            itemAttributes.insert(
+                key,
+                itemValue
+            );
+        }
+
+        argument.endMap();
+
+        argument.beginMap();
+
+        while (!argument.atEnd()) {
+            QString key;
+            QVariant objectValue;
+
+            argument.beginMapEntry();
+            argument >> key >> objectValue;
+            argument.endMapEntry();
+
+            object.insert(
+                key,
+                objectValue
+            );
+        }
+
+        argument.endMap();
+
+        argument.endStructure();
+
+        QVariantMap item;
+
+        item.insert(
+            QStringLiteral("objectType"),
+            objectType
+        );
+
+        item.insert(
+            QStringLiteral("action"),
+            action
+        );
+
+        item.insert(
+            QStringLiteral("reason"),
+            reason
+        );
+
+        item.insert(
+            QStringLiteral("attributes"),
+            itemAttributes
+        );
+
+        item.insert(
+            QStringLiteral("object"),
+            object
+        );
+
+        items.append(item);
+    }
+
+    argument.endArray();
+
+    return items;
+}
+
 }
 
 Dnf5Backend::Dnf5Backend(QObject *parent)
@@ -1202,6 +1302,85 @@ void Dnf5Backend::resolveTransaction(
 
                                 resolveWatcher->deleteLater();
                                 return;
+                            }
+
+                            const QList<QVariantMap> transactionItems =
+                                readTransactionItemArray(
+                                    arguments.at(0)
+                                );
+
+                            qInfo()
+                                << "DNF5 TRANSACTION ITEM COUNT:"
+                                << transactionItems.size();
+
+                            for (const QVariantMap &item : transactionItems) {
+                                const QVariantMap object =
+                                    item.value(
+                                        QStringLiteral("object")
+                                    ).toMap();
+
+                                qInfo()
+                                    << "DNF5 TRANSACTION ITEM";
+
+                                qInfo()
+                                    << " type:"
+                                    << item.value(
+                                        QStringLiteral("objectType")
+                                    );
+
+                                qInfo()
+                                    << " action:"
+                                    << item.value(
+                                        QStringLiteral("action")
+                                    );
+
+                                qInfo()
+                                    << " reason:"
+                                    << item.value(
+                                        QStringLiteral("reason")
+                                    );
+
+                                qInfo()
+                                    << " name:"
+                                    << object.value(
+                                        QStringLiteral("name")
+                                    );
+
+                                qInfo()
+                                    << " version:"
+                                    << object.value(
+                                        QStringLiteral("version")
+                                    );
+
+                                qInfo()
+                                    << " release:"
+                                    << object.value(
+                                        QStringLiteral("release")
+                                    );
+
+                                qInfo()
+                                    << " arch:"
+                                    << object.value(
+                                        QStringLiteral("arch")
+                                    );
+
+                                qInfo()
+                                    << " repo:"
+                                    << object.value(
+                                        QStringLiteral("repo_id")
+                                    );
+
+                                qInfo()
+                                    << " package size:"
+                                    << object.value(
+                                        QStringLiteral("package_size")
+                                    );
+
+                                qInfo()
+                                    << " install size:"
+                                    << object.value(
+                                        QStringLiteral("install_size")
+                                    );
                             }
 
                             bool ok = false;
