@@ -10,7 +10,7 @@ project(RoStore
 set(CMAKE_CXX_STANDARD 20)
 set(CMAKE_CXX_STANDARD_REQUIRED ON)
 
-find_package(Qt6 REQUIRED COMPONENTS Core Quick Network)
+find_package(Qt6 REQUIRED COMPONENTS Core Quick Network DBus)
 
 qt_standard_project_setup()
 
@@ -27,6 +27,8 @@ qt_add_executable(ro-store
     src/PackageInstaller.cpp
     src/AppLauncher.h
     src/AppLauncher.cpp
+    src/packages/backends/Dnf5Backend.h
+    src/packages/backends/Dnf5Backend.cpp
 )
 
 qt_add_qml_module(ro-store
@@ -44,6 +46,7 @@ target_link_libraries(ro-store
         Qt6::Core
         Qt6::Quick
         Qt6::Network
+        Qt6::DBus
 )
 
 target_include_directories(ro-store
