@@ -2,6 +2,7 @@
 
 #include <QObject>
 #include <QQueue>
+#include <QHash>
 #include <QString>
 
 #include "PackageTransaction.h"
@@ -98,4 +99,7 @@ private:
     QQueue<PackageTransaction *> m_queue;
 
     PackageTransaction *m_activeTransaction = nullptr;
+
+    QHash<QString, qulonglong> m_downloadedById;
+    QHash<QString, qulonglong> m_downloadTotalById;
 };

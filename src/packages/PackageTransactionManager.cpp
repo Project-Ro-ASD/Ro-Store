@@ -189,6 +189,245 @@ PackageTransactionManager::PackageTransactionManager(
             failActive(error);
         }
     );
+
+    connect(
+        m_backend,
+        &Dnf5Backend::downloadStarted,
+        this,
+        [this](
+            const QString &downloadId,
+            const QString &description,
+            qlonglong totalBytes
+        ) {
+            if (!m_activeTransaction ||
+                !downloadId.startsWith(
+                    QStringLiteral("package:")
+                )) {
+                return;
+            }
+
+            const qulonglong safeTotal =
+                totalBytes > 0
+                    ? static_cast<qulonglong>(totalBytes)
+                    : 0;
+
+            m_downloadTotalById.insert(
+                downloadId,
+                safeTotal
+            );
+
+            m_downloadedById.insert(
+                downloadId,
+                0
+            );
+
+            m_activeTransaction->setState(
+                PackageTransaction::State::Downloading
+            );
+
+            qInfo()
+                << "TRANSACTION PACKAGE DOWNLOAD START:"
+                << downloadId
+                << description
+                << safeTotal;
+        }
+    );
+
+    connect(
+        m_backend,
+        &Dnf5Backend::downloadProgressChanged,
+        this,
+        [this](
+            const QString &downloadId,
+            qlonglong totalBytes,
+            qlonglong downloadedBytes
+        ) {
+            if (!m_activeTransaction ||
+                !downloadId.startsWith(
+                    QStringLiteral("package:")
+                )) {
+                return;
+            }
+
+            const qulonglong safeTotal =
+                totalBytes > 0
+                    ? static_cast<qulonglong>(totalBytes)
+                    : 0;
+
+            const qulonglong safeDownloaded =
+                downloadedBytes > 0
+                    ? static_cast<qulonglong>(downloadedBytes)
+                    : 0;
+
+            m_downloadTotalById.insert(
+                downloadId,
+                safeTotal
+            );
+
+            m_downloadedById.insert(
+                downloadId,
+                safeDownloaded
+            );
+
+            qulonglong downloadedSum = 0;
+
+            for (auto it = m_downloadedById.cbegin();
+                 it != m_downloadedById.cend();
+                 ++it) {
+                downloadedSum += it.value();
+            }
+
+            m_activeTransaction->setDownloadedBytes(
+                downloadedSum
+            );
+
+            const qulonglong transactionTotal =
+                m_activeTransaction->totalBytes();
+
+            if (transactionTotal > 0) {
+                const int percent =
+                    static_cast<int>(
+                        qMin<qulonglong>(
+                            100,
+                            downloadedSum * 100 /
+                                transactionTotal
+                        )
+                    );
+
+                m_activeTransaction->setProgress(
+                    percent
+                );
+            }
+        }
+    );
+
+    connect(
+        m_backend,
+        &Dnf5Backend::downloadFinished,
+        this,
+        [this](
+            const QString &downloadId,
+            uint status,
+            const QString &message
+        ) {
+            if (!m_activeTransaction ||
+                !downloadId.startsWith(
+                    QStringLiteral("package:")
+                )) {
+                return;
+            }
+
+            if (status == 2) {
+                qWarning()
+                    << "TRANSACTION PACKAGE DOWNLOAD FAILED:"
+                    << downloadId
+                    << message;
+
+                return;
+            }
+
+            const qulonglong total =
+                m_downloadTotalById.value(
+                    downloadId,
+                    0
+                );
+
+            if (total > 0) {
+                m_downloadedById.insert(
+                    downloadId,
+                    total
+                );
+            }
+
+            qInfo()
+                << "TRANSACTION PACKAGE DOWNLOAD END:"
+                << downloadId
+                << "status:"
+                << status;
+        }
+    );
+
+    connect(
+        m_backend,
+        &Dnf5Backend::rpmActionStarted,
+        this,
+        [this](
+            const QString &nevra,
+            uint action,
+            qulonglong total
+        ) {
+            if (!m_activeTransaction) {
+                return;
+            }
+
+            m_activeTransaction->setState(
+                PackageTransaction::State::Running
+            );
+
+            qInfo()
+                << "TRANSACTION RPM START:"
+                << nevra
+                << action
+                << total;
+        }
+    );
+
+    connect(
+        m_backend,
+        &Dnf5Backend::rpmActionProgressChanged,
+        this,
+        [this](
+            const QString &nevra,
+            qulonglong processed,
+            qulonglong total
+        ) {
+            if (!m_activeTransaction ||
+                total == 0) {
+                return;
+            }
+
+            const int percent =
+                static_cast<int>(
+                    qMin<qulonglong>(
+                        100,
+                        processed * 100 / total
+                    )
+                );
+
+            m_activeTransaction->setProgress(
+                percent
+            );
+
+            qInfo()
+                << "TRANSACTION RPM PROGRESS:"
+                << nevra
+                << percent;
+        }
+    );
+
+    connect(
+        m_backend,
+        &Dnf5Backend::rpmTransactionFinished,
+        this,
+        [this](bool success) {
+            if (!m_activeTransaction) {
+                return;
+            }
+
+            qInfo()
+                << "TRANSACTION RPM COMPLETE:"
+                << success;
+
+            if (!success) {
+                failActive(
+                    QStringLiteral(
+                        "RPM transaction başarısız."
+                    )
+                );
+            }
+        }
+    );
+
 }
 
 PackageTransactionModel *
@@ -282,6 +521,9 @@ void PackageTransactionManager::startNext()
     }
 
     m_activeTransaction = m_queue.dequeue();
+
+    m_downloadedById.clear();
+    m_downloadTotalById.clear();
 
     emit queuedCountChanged();
     emit activeTransactionChanged();
