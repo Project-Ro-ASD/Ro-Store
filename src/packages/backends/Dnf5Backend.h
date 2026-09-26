@@ -1,6 +1,7 @@
 #pragma once
 
 #include <QObject>
+#include <QDBusObjectPath>
 #include <QString>
 #include <QVariantMap>
 #include <QVariantList>
@@ -98,6 +99,90 @@ signals:
 
     void transactionExecutionFailed(QString error);
 
+    void downloadStarted(
+        QString downloadId,
+        QString description,
+        qlonglong totalBytes
+    );
+
+    void downloadProgressChanged(
+        QString downloadId,
+        qlonglong totalBytes,
+        qlonglong downloadedBytes
+    );
+
+    void downloadFinished(
+        QString downloadId,
+        uint status,
+        QString message
+    );
+
+    void rpmActionStarted(
+        QString nevra,
+        uint action,
+        qulonglong total
+    );
+
+    void rpmActionProgressChanged(
+        QString nevra,
+        qulonglong processed,
+        qulonglong total
+    );
+
+    void rpmActionFinished(
+        QString nevra,
+        qulonglong total
+    );
+
+    void rpmTransactionFinished(bool success);
+
+private slots:
+    void onDownloadAddNew(
+        const QDBusObjectPath &sessionPath,
+        const QString &downloadId,
+        const QString &description,
+        qlonglong totalBytes
+    );
+
+    void onDownloadProgress(
+        const QDBusObjectPath &sessionPath,
+        const QString &downloadId,
+        qlonglong totalBytes,
+        qlonglong downloadedBytes
+    );
+
+    void onDownloadEnd(
+        const QDBusObjectPath &sessionPath,
+        const QString &downloadId,
+        uint status,
+        const QString &message
+    );
+
+    void onRpmActionStart(
+        const QDBusObjectPath &sessionPath,
+        const QString &nevra,
+        uint action,
+        qulonglong total
+    );
+
+    void onRpmActionProgress(
+        const QDBusObjectPath &sessionPath,
+        const QString &nevra,
+        qulonglong processed,
+        qulonglong total
+    );
+
+    void onRpmActionStop(
+        const QDBusObjectPath &sessionPath,
+        const QString &nevra,
+        qulonglong total
+    );
+
+    void onRpmTransactionAfterComplete(
+        const QDBusObjectPath &sessionPath,
+        bool success
+    );
+
 private:
     void queryPackage(const QString &packageName);
     void queryInstalledPackage(const QString &packageName);
@@ -107,6 +192,7 @@ private:
     void setBusy(bool value);
     void setPackageState(PackageState state);
     void ensureSessionAsync(std::function<void(bool)> callback);
+    void connectProgressSignals();
     void finishSessionOpen(bool success);
     void clearSession();
 

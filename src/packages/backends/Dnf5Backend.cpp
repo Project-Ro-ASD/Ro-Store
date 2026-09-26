@@ -18,6 +18,7 @@ namespace {
 constexpr auto DNF5_SERVICE = "org.rpm.dnf.v0";
 constexpr auto DNF5_ROOT_PATH = "/org/rpm/dnf/v0";
 constexpr auto DNF5_SESSION_MANAGER = "org.rpm.dnf.v0.SessionManager";
+constexpr auto DNF5_BASE_INTERFACE = "org.rpm.dnf.v0.Base";
 constexpr auto DNF5_RPM_INTERFACE = "org.rpm.dnf.v0.rpm.Rpm";
 
 QList<QVariantMap> readPackageArray(const QVariant &value)
@@ -1622,6 +1623,302 @@ void Dnf5Backend::executeResolvedTransaction(
 }
 
 
+
+void Dnf5Backend::connectProgressSignals()
+{
+    if (m_sessionPath.isEmpty()) {
+        return;
+    }
+
+    QDBusConnection bus =
+        QDBusConnection::systemBus();
+
+    const QString service =
+        QString::fromLatin1(DNF5_SERVICE);
+
+    const QString baseInterface =
+        QString::fromLatin1(DNF5_BASE_INTERFACE);
+
+    const QString rpmInterface =
+        QString::fromLatin1(DNF5_RPM_INTERFACE);
+
+    bool success = true;
+
+    success &= bus.connect(
+        service,
+        m_sessionPath,
+        baseInterface,
+        QStringLiteral("download_add_new"),
+        this,
+        SLOT(onDownloadAddNew(
+            QDBusObjectPath,
+            QString,
+            QString,
+            qlonglong
+        ))
+    );
+
+    success &= bus.connect(
+        service,
+        m_sessionPath,
+        baseInterface,
+        QStringLiteral("download_progress"),
+        this,
+        SLOT(onDownloadProgress(
+            QDBusObjectPath,
+            QString,
+            qlonglong,
+            qlonglong
+        ))
+    );
+
+    success &= bus.connect(
+        service,
+        m_sessionPath,
+        baseInterface,
+        QStringLiteral("download_end"),
+        this,
+        SLOT(onDownloadEnd(
+            QDBusObjectPath,
+            QString,
+            uint,
+            QString
+        ))
+    );
+
+    success &= bus.connect(
+        service,
+        m_sessionPath,
+        rpmInterface,
+        QStringLiteral("transaction_action_start"),
+        this,
+        SLOT(onRpmActionStart(
+            QDBusObjectPath,
+            QString,
+            uint,
+            qulonglong
+        ))
+    );
+
+    success &= bus.connect(
+        service,
+        m_sessionPath,
+        rpmInterface,
+        QStringLiteral("transaction_action_progress"),
+        this,
+        SLOT(onRpmActionProgress(
+            QDBusObjectPath,
+            QString,
+            qulonglong,
+            qulonglong
+        ))
+    );
+
+    success &= bus.connect(
+        service,
+        m_sessionPath,
+        rpmInterface,
+        QStringLiteral("transaction_action_stop"),
+        this,
+        SLOT(onRpmActionStop(
+            QDBusObjectPath,
+            QString,
+            qulonglong
+        ))
+    );
+
+    success &= bus.connect(
+        service,
+        m_sessionPath,
+        rpmInterface,
+        QStringLiteral("transaction_after_complete"),
+        this,
+        SLOT(onRpmTransactionAfterComplete(
+            QDBusObjectPath,
+            bool
+        ))
+    );
+
+    if (success) {
+        qInfo()
+            << "DNF5 PROGRESS SIGNALS CONNECTED";
+    } else {
+        qWarning()
+            << "DNF5 PROGRESS SIGNAL CONNECTION ERROR";
+    }
+}
+
+
+void Dnf5Backend::onDownloadAddNew(
+    const QDBusObjectPath &sessionPath,
+    const QString &downloadId,
+    const QString &description,
+    qlonglong totalBytes
+)
+{
+    if (sessionPath.path() != m_sessionPath) {
+        return;
+    }
+
+    qInfo()
+        << "DNF5 DOWNLOAD START:"
+        << downloadId
+        << description
+        << totalBytes;
+
+    emit downloadStarted(
+        downloadId,
+        description,
+        totalBytes
+    );
+}
+
+
+void Dnf5Backend::onDownloadProgress(
+    const QDBusObjectPath &sessionPath,
+    const QString &downloadId,
+    qlonglong totalBytes,
+    qlonglong downloadedBytes
+)
+{
+    if (sessionPath.path() != m_sessionPath) {
+        return;
+    }
+
+    qInfo()
+        << "DNF5 DOWNLOAD PROGRESS:"
+        << downloadId
+        << downloadedBytes
+        << "/"
+        << totalBytes;
+
+    emit downloadProgressChanged(
+        downloadId,
+        totalBytes,
+        downloadedBytes
+    );
+}
+
+
+void Dnf5Backend::onDownloadEnd(
+    const QDBusObjectPath &sessionPath,
+    const QString &downloadId,
+    uint status,
+    const QString &message
+)
+{
+    if (sessionPath.path() != m_sessionPath) {
+        return;
+    }
+
+    qInfo()
+        << "DNF5 DOWNLOAD END:"
+        << downloadId
+        << "status:"
+        << status
+        << message;
+
+    emit downloadFinished(
+        downloadId,
+        status,
+        message
+    );
+}
+
+
+void Dnf5Backend::onRpmActionStart(
+    const QDBusObjectPath &sessionPath,
+    const QString &nevra,
+    uint action,
+    qulonglong total
+)
+{
+    if (sessionPath.path() != m_sessionPath) {
+        return;
+    }
+
+    qInfo()
+        << "DNF5 RPM ACTION START:"
+        << nevra
+        << "action:"
+        << action
+        << "total:"
+        << total;
+
+    emit rpmActionStarted(
+        nevra,
+        action,
+        total
+    );
+}
+
+
+void Dnf5Backend::onRpmActionProgress(
+    const QDBusObjectPath &sessionPath,
+    const QString &nevra,
+    qulonglong processed,
+    qulonglong total
+)
+{
+    if (sessionPath.path() != m_sessionPath) {
+        return;
+    }
+
+    qInfo()
+        << "DNF5 RPM ACTION PROGRESS:"
+        << nevra
+        << processed
+        << "/"
+        << total;
+
+    emit rpmActionProgressChanged(
+        nevra,
+        processed,
+        total
+    );
+}
+
+
+void Dnf5Backend::onRpmActionStop(
+    const QDBusObjectPath &sessionPath,
+    const QString &nevra,
+    qulonglong total
+)
+{
+    if (sessionPath.path() != m_sessionPath) {
+        return;
+    }
+
+    qInfo()
+        << "DNF5 RPM ACTION STOP:"
+        << nevra
+        << "total:"
+        << total;
+
+    emit rpmActionFinished(
+        nevra,
+        total
+    );
+}
+
+
+void Dnf5Backend::onRpmTransactionAfterComplete(
+    const QDBusObjectPath &sessionPath,
+    bool success
+)
+{
+    if (sessionPath.path() != m_sessionPath) {
+        return;
+    }
+
+    qInfo()
+        << "DNF5 RPM TRANSACTION COMPLETE:"
+        << success;
+
+    emit rpmTransactionFinished(success);
+}
+
+
 void Dnf5Backend::ensureSessionAsync(std::function<void(bool)> callback)
 {
     if (sessionOpen()) {
@@ -1730,6 +2027,8 @@ void Dnf5Backend::ensureSessionAsync(std::function<void(bool)> callback)
 
             emit sessionPathChanged();
             emit sessionOpenChanged();
+
+            connectProgressSignals();
 
             setLastError(QString());
 
