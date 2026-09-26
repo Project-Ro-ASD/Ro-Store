@@ -51,6 +51,10 @@ public:
         TransactionOperation operation
     );
 
+    void executeResolvedTransaction(
+        bool downloadOnly = false
+    );
+
 signals:
     void sessionOpenChanged();
     void sessionPathChanged();
@@ -87,6 +91,12 @@ signals:
         QString packageName,
         QString error
     );
+
+    void transactionExecutionStarted(bool downloadOnly);
+
+    void transactionExecutionFinished(bool downloadOnly);
+
+    void transactionExecutionFailed(QString error);
 
 private:
     void queryPackage(const QString &packageName);

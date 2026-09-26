@@ -1481,6 +1481,147 @@ void Dnf5Backend::resolveTransaction(
 }
 
 
+
+void Dnf5Backend::executeResolvedTransaction(
+    bool downloadOnly
+)
+{
+    if (!sessionOpen()) {
+        const QString error =
+            QStringLiteral("DNF5 oturumu açık değil.");
+
+        setLastError(error);
+        emit transactionExecutionFailed(error);
+        return;
+    }
+
+    if (m_busy) {
+        const QString error =
+            QStringLiteral(
+                "DNF5 şu anda başka bir işlem yürütüyor."
+            );
+
+        setLastError(error);
+        emit transactionExecutionFailed(error);
+        return;
+    }
+
+    QDBusInterface goal(
+        QString::fromLatin1(DNF5_SERVICE),
+        m_sessionPath,
+        QStringLiteral("org.rpm.dnf.v0.Goal"),
+        QDBusConnection::systemBus()
+    );
+
+    if (!goal.isValid()) {
+        const QString error =
+            QStringLiteral(
+                "DNF5 Goal arayüzü kullanılamıyor: %1"
+            ).arg(
+                goal.lastError().message()
+            );
+
+        setLastError(error);
+        emit transactionExecutionFailed(error);
+        return;
+    }
+
+    QVariantMap options;
+
+    options.insert(
+        QStringLiteral("interactive"),
+        true
+    );
+
+    options.insert(
+        QStringLiteral("offline"),
+        false
+    );
+
+    options.insert(
+        QStringLiteral("downloadonly"),
+        downloadOnly
+    );
+
+    options.insert(
+        QStringLiteral("comment"),
+        QStringLiteral("Ro-Store")
+    );
+
+    setBusy(true);
+    setLastError(QString());
+
+    qInfo()
+        << "DNF5 DO TRANSACTION START"
+        << "downloadOnly:"
+        << downloadOnly;
+
+    emit transactionExecutionStarted(
+        downloadOnly
+    );
+
+    QDBusPendingCall pending =
+        goal.asyncCall(
+            QStringLiteral("do_transaction"),
+            options
+        );
+
+    auto *watcher =
+        new QDBusPendingCallWatcher(
+            pending,
+            this
+        );
+
+    connect(
+        watcher,
+        &QDBusPendingCallWatcher::finished,
+        this,
+        [this, watcher, downloadOnly]() {
+
+            setBusy(false);
+
+            QDBusPendingReply<> reply =
+                *watcher;
+
+            if (reply.isError()) {
+                const QString error =
+                    QStringLiteral(
+                        "DNF5 transaction çalıştırılamadı: %1"
+                    ).arg(
+                        reply.error().message()
+                    );
+
+                setLastError(error);
+
+                qWarning()
+                    << "DNF5 DO TRANSACTION ERROR:"
+                    << error;
+
+                emit transactionExecutionFailed(
+                    error
+                );
+
+                watcher->deleteLater();
+                return;
+            }
+
+            setLastError(QString());
+
+            qInfo()
+                << "DNF5 DO TRANSACTION FINISHED"
+                << "downloadOnly:"
+                << downloadOnly;
+
+            emit transactionExecutionFinished(
+                downloadOnly
+            );
+
+            watcher->deleteLater();
+        }
+    );
+}
+
+
 void Dnf5Backend::ensureSessionAsync(std::function<void(bool)> callback)
 {
     if (sessionOpen()) {

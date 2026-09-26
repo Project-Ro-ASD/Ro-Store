@@ -61,6 +61,8 @@ public:
         const QString &packageName
     );
 
+    Q_INVOKABLE void testDownloadOnlyActive();
+
     void finishActive();
     void failActive(const QString &errorMessage);
 

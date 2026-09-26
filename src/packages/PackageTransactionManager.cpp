@@ -119,6 +119,76 @@ PackageTransactionManager::PackageTransactionManager(
             failActive(error);
         }
     );
+
+    connect(
+        m_backend,
+        &Dnf5Backend::transactionExecutionStarted,
+        this,
+        [this](bool downloadOnly) {
+            if (!m_activeTransaction) {
+                return;
+            }
+
+            qInfo()
+                << "TRANSACTION MANAGER EXECUTION STARTED:"
+                << m_activeTransaction->packageName()
+                << "downloadOnly:"
+                << downloadOnly;
+        }
+    );
+
+    connect(
+        m_backend,
+        &Dnf5Backend::transactionExecutionFinished,
+        this,
+        [this](bool downloadOnly) {
+            if (!m_activeTransaction) {
+                return;
+            }
+
+            qInfo()
+                << "TRANSACTION MANAGER EXECUTION FINISHED:"
+                << m_activeTransaction->packageName()
+                << "downloadOnly:"
+                << downloadOnly;
+
+            if (downloadOnly) {
+                m_activeTransaction->setDownloadedBytes(
+                    m_activeTransaction->totalBytes()
+                );
+
+                // Henüz gerçek RPM işlemi yapılmadı.
+                // Transaction tekrar çalıştırılmaya hazır.
+                m_activeTransaction->setProgress(0);
+
+                m_activeTransaction->setState(
+                    PackageTransaction::State::Ready
+                );
+
+                return;
+            }
+
+            finishActive();
+        }
+    );
+
+    connect(
+        m_backend,
+        &Dnf5Backend::transactionExecutionFailed,
+        this,
+        [this](const QString &error) {
+            if (!m_activeTransaction) {
+                return;
+            }
+
+            qWarning()
+                << "TRANSACTION MANAGER EXECUTION FAILED:"
+                << m_activeTransaction->packageName()
+                << error;
+
+            failActive(error);
+        }
+    );
 }
 
 PackageTransactionModel *
@@ -244,6 +314,37 @@ void PackageTransactionManager::resolveActive()
         )
     );
 }
+
+
+void PackageTransactionManager::testDownloadOnlyActive()
+{
+    if (!m_activeTransaction) {
+        qWarning()
+            << "TRANSACTION MANAGER:"
+            << "no active transaction";
+        return;
+    }
+
+    if (m_activeTransaction->state() !=
+        PackageTransaction::State::Ready) {
+
+        qWarning()
+            << "TRANSACTION MANAGER:"
+            << "transaction is not ready";
+        return;
+    }
+
+    qInfo()
+        << "TRANSACTION MANAGER DOWNLOAD-ONLY TEST:"
+        << m_activeTransaction->packageName();
+
+    m_activeTransaction->setState(
+        PackageTransaction::State::Downloading
+    );
+
+    m_backend->executeResolvedTransaction(true);
+}
+
 
 void PackageTransactionManager::finishActive()
 {
