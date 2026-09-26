@@ -145,6 +145,7 @@ Item {
                                            : (packageStatus.installed ? "#6ee7b7" : "#fbbf24")
 
     signal backRequested()
+    signal downloadsRequested()
 
     PackageStatus {
         id: packageStatus
@@ -234,8 +235,22 @@ Item {
             text: "Ro-Store"
             color: "#9aa4b2"
             font.pixelSize: 14
+            anchors.right: downloadsButton.left
+            anchors.rightMargin: 14
+            anchors.verticalCenter: parent.verticalCenter
+        }
+
+        Button {
+            id: downloadsButton
+
+            text: "Yüklemeler"
+            width: 110
+            height: 36
+
             anchors.right: parent.right
             anchors.verticalCenter: parent.verticalCenter
+
+            onClicked: page.downloadsRequested()
         }
     }
 

@@ -92,6 +92,10 @@ ApplicationWindow {
             onBackRequested: {
                 stackView.pop()
             }
+
+            onDownloadsRequested: {
+                stackView.push(downloadsPageComponent)
+            }
         }
     }
 
