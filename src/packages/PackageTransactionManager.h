@@ -62,6 +62,7 @@ public:
     );
 
     Q_INVOKABLE void testDownloadOnlyActive();
+    Q_INVOKABLE void executeActive();
 
     void finishActive();
     void failActive(const QString &errorMessage);

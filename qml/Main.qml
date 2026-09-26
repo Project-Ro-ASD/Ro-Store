@@ -38,8 +38,6 @@ ApplicationWindow {
                 transaction.totalBytes
             )
 
-            console.log("STARTING SAFE DOWNLOAD-ONLY TEST")
-            transactionManager.testDownloadOnlyActive()
         }
     }
 

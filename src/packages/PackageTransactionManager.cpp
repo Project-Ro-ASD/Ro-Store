@@ -346,6 +346,39 @@ void PackageTransactionManager::testDownloadOnlyActive()
 }
 
 
+
+void PackageTransactionManager::executeActive()
+{
+    if (!m_activeTransaction) {
+        qWarning()
+            << "TRANSACTION MANAGER:"
+            << "no active transaction";
+        return;
+    }
+
+    if (m_activeTransaction->state() !=
+        PackageTransaction::State::Ready) {
+
+        qWarning()
+            << "TRANSACTION MANAGER:"
+            << "transaction is not ready";
+        return;
+    }
+
+    qInfo()
+        << "TRANSACTION MANAGER EXECUTE:"
+        << m_activeTransaction->packageName();
+
+    m_activeTransaction->setProgress(0);
+
+    m_activeTransaction->setState(
+        PackageTransaction::State::Running
+    );
+
+    m_backend->executeResolvedTransaction(false);
+}
+
+
 void PackageTransactionManager::finishActive()
 {
     if (!m_activeTransaction) {
