@@ -235,6 +235,21 @@ PackageTransactionManager::PackageTransactionManager(
                 0
             );
 
+            qulonglong totalDownloadBytes = 0;
+
+            for (auto it = m_downloadTotalById.cbegin();
+                 it != m_downloadTotalById.cend();
+                 ++it) {
+                totalDownloadBytes += it.value();
+            }
+
+            m_activeTransaction->setTotalBytes(
+                totalDownloadBytes
+            );
+
+            m_activeTransaction->setDownloadedBytes(0);
+            m_activeTransaction->setProgress(0);
+
             m_activeTransaction->setState(
                 PackageTransaction::State::Downloading
             );
@@ -273,10 +288,12 @@ PackageTransactionManager::PackageTransactionManager(
                     ? static_cast<qulonglong>(downloadedBytes)
                     : 0;
 
-            m_downloadTotalById.insert(
-                downloadId,
-                safeTotal
-            );
+            if (safeTotal > 0) {
+                m_downloadTotalById.insert(
+                    downloadId,
+                    safeTotal
+                );
+            }
 
             m_downloadedById.insert(
                 downloadId,
@@ -353,11 +370,45 @@ PackageTransactionManager::PackageTransactionManager(
                 );
             }
 
+            qulonglong downloadedSum = 0;
+
+            for (auto it = m_downloadedById.cbegin();
+                 it != m_downloadedById.cend();
+                 ++it) {
+                downloadedSum += it.value();
+            }
+
+            m_activeTransaction->setDownloadedBytes(
+                downloadedSum
+            );
+
+            const qulonglong transactionTotal =
+                m_activeTransaction->totalBytes();
+
+            if (transactionTotal > 0) {
+                const int percent =
+                    static_cast<int>(
+                        qMin<qulonglong>(
+                            100,
+                            downloadedSum * 100 /
+                                transactionTotal
+                        )
+                    );
+
+                m_activeTransaction->setProgress(
+                    percent
+                );
+            }
+
             qInfo()
                 << "TRANSACTION PACKAGE DOWNLOAD END:"
                 << downloadId
                 << "status:"
-                << status;
+                << status
+                << "downloaded:"
+                << downloadedSum
+                << "/"
+                << transactionTotal;
         }
     );
 
