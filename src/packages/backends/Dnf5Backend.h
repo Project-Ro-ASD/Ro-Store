@@ -25,6 +25,13 @@ public:
     };
     Q_ENUM(PackageState)
 
+    enum class TransactionOperation {
+        Install,
+        Remove,
+        Upgrade
+    };
+    Q_ENUM(TransactionOperation)
+
     explicit Dnf5Backend(QObject *parent = nullptr);
     ~Dnf5Backend() override;
 
@@ -37,6 +44,11 @@ public:
     Q_INVOKABLE bool closeSession();
 
     Q_INVOKABLE void queryPackageState(const QString &packageName);
+
+    Q_INVOKABLE void resolveTransaction(
+        const QString &packageName,
+        TransactionOperation operation
+    );
 
 signals:
     void sessionOpenChanged();
@@ -59,6 +71,18 @@ signals:
         QVariantMap availablePackage,
         QVariantMap installedPackage,
         QVariantMap upgradePackage
+    );
+
+    void transactionResolved(
+        TransactionOperation operation,
+        QString packageName,
+        uint result
+    );
+
+    void transactionResolveFailed(
+        TransactionOperation operation,
+        QString packageName,
+        QString error
     );
 
 private:

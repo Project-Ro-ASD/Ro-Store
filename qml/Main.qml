@@ -18,6 +18,24 @@ ApplicationWindow {
 
     Dnf5Backend {
         id: dnf5Backend
+
+        onPackageStateQueryFinished: function(
+            state,
+            availablePackage,
+            installedPackage,
+            upgradePackage
+        ) {
+            if (Object.keys(installedPackage).length > 0) {
+                console.log(
+                    "DNF5 SAFE REMOVE RESOLVE TEST"
+                )
+
+                dnf5Backend.resolveTransaction(
+                    "ro-assist",
+                    Dnf5Backend.Remove
+                )
+            }
+        }
     }
 
     StackView {

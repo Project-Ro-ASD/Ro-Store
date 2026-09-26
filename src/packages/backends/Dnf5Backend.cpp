@@ -922,6 +922,360 @@ void Dnf5Backend::queryPackageState(const QString &packageName)
 }
 
 
+
+void Dnf5Backend::resolveTransaction(
+    const QString &packageName,
+    TransactionOperation operation
+)
+{
+    const QString cleanName = packageName.trimmed();
+
+    if (cleanName.isEmpty()) {
+        const QString error =
+            QStringLiteral("Paket adı boş.");
+
+        setLastError(error);
+
+        emit transactionResolveFailed(
+            operation,
+            cleanName,
+            error
+        );
+
+        return;
+    }
+
+    if (m_busy) {
+        const QString error =
+            QStringLiteral(
+                "DNF5 şu anda başka bir işlem yürütüyor."
+            );
+
+        setLastError(error);
+
+        emit transactionResolveFailed(
+            operation,
+            cleanName,
+            error
+        );
+
+        return;
+    }
+
+    ensureSessionAsync(
+        [this, cleanName, operation](bool success) {
+            if (!success) {
+                emit transactionResolveFailed(
+                    operation,
+                    cleanName,
+                    m_lastError
+                );
+                return;
+            }
+
+            QDBusInterface rpm(
+                QString::fromLatin1(DNF5_SERVICE),
+                m_sessionPath,
+                QString::fromLatin1(DNF5_RPM_INTERFACE),
+                QDBusConnection::systemBus()
+            );
+
+            if (!rpm.isValid()) {
+                const QString error =
+                    QStringLiteral(
+                        "DNF5 RPM arayüzü kullanılamıyor: %1"
+                    ).arg(
+                        rpm.lastError().message()
+                    );
+
+                setLastError(error);
+
+                emit transactionResolveFailed(
+                    operation,
+                    cleanName,
+                    error
+                );
+
+                return;
+            }
+
+            QString method;
+            QVariantMap operationOptions;
+
+            switch (operation) {
+            case TransactionOperation::Install:
+                method = QStringLiteral("install");
+
+                operationOptions.insert(
+                    QStringLiteral("repo_ids"),
+                    QStringList {
+                        QStringLiteral("ro-asd-beta")
+                    }
+                );
+                break;
+
+            case TransactionOperation::Remove:
+                method = QStringLiteral("remove");
+                break;
+
+            case TransactionOperation::Upgrade:
+                method = QStringLiteral("upgrade");
+
+                operationOptions.insert(
+                    QStringLiteral("repo_ids"),
+                    QStringList {
+                        QStringLiteral("ro-asd-beta")
+                    }
+                );
+                break;
+            }
+
+            setBusy(true);
+            setLastError(QString());
+
+            qInfo()
+                << "DNF5 TRANSACTION MARK:"
+                << method
+                << cleanName;
+
+            QDBusPendingCall pending =
+                rpm.asyncCall(
+                    method,
+                    QStringList { cleanName },
+                    operationOptions
+                );
+
+            auto *markWatcher =
+                new QDBusPendingCallWatcher(
+                    pending,
+                    this
+                );
+
+            connect(
+                markWatcher,
+                &QDBusPendingCallWatcher::finished,
+                this,
+                [this,
+                 markWatcher,
+                 cleanName,
+                 operation]() {
+
+                    QDBusPendingReply<> markReply =
+                        *markWatcher;
+
+                    if (markReply.isError()) {
+                        const QString error =
+                            QStringLiteral(
+                                "DNF5 transaction hazırlığı başarısız: %1"
+                            ).arg(
+                                markReply.error().message()
+                            );
+
+                        setBusy(false);
+                        setLastError(error);
+
+                        qWarning()
+                            << "DNF5 TRANSACTION MARK ERROR:"
+                            << error;
+
+                        emit transactionResolveFailed(
+                            operation,
+                            cleanName,
+                            error
+                        );
+
+                        markWatcher->deleteLater();
+                        return;
+                    }
+
+                    markWatcher->deleteLater();
+
+                    QDBusInterface goal(
+                        QString::fromLatin1(DNF5_SERVICE),
+                        m_sessionPath,
+                        QStringLiteral(
+                            "org.rpm.dnf.v0.Goal"
+                        ),
+                        QDBusConnection::systemBus()
+                    );
+
+                    if (!goal.isValid()) {
+                        const QString error =
+                            QStringLiteral(
+                                "DNF5 Goal arayüzü kullanılamıyor: %1"
+                            ).arg(
+                                goal.lastError().message()
+                            );
+
+                        setBusy(false);
+                        setLastError(error);
+
+                        emit transactionResolveFailed(
+                            operation,
+                            cleanName,
+                            error
+                        );
+
+                        return;
+                    }
+
+                    QVariantMap resolveOptions;
+
+                    resolveOptions.insert(
+                        QStringLiteral("interactive"),
+                        false
+                    );
+
+                    qInfo()
+                        << "DNF5 RESOLVE START:"
+                        << cleanName;
+
+                    QDBusPendingCall resolvePending =
+                        goal.asyncCall(
+                            QStringLiteral("resolve"),
+                            resolveOptions
+                        );
+
+                    auto *resolveWatcher =
+                        new QDBusPendingCallWatcher(
+                            resolvePending,
+                            this
+                        );
+
+                    connect(
+                        resolveWatcher,
+                        &QDBusPendingCallWatcher::finished,
+                        this,
+                        [this,
+                         resolveWatcher,
+                         cleanName,
+                         operation]() {
+
+                            setBusy(false);
+
+                            QDBusPendingReply<> reply =
+                                *resolveWatcher;
+
+                            if (reply.isError()) {
+                                const QString error =
+                                    QStringLiteral(
+                                        "DNF5 resolve başarısız: %1"
+                                    ).arg(
+                                        reply.error().message()
+                                    );
+
+                                setLastError(error);
+
+                                qWarning()
+                                    << "DNF5 RESOLVE ERROR:"
+                                    << error;
+
+                                emit transactionResolveFailed(
+                                    operation,
+                                    cleanName,
+                                    error
+                                );
+
+                                resolveWatcher->deleteLater();
+                                return;
+                            }
+
+                            const QDBusMessage message =
+                                resolveWatcher->reply();
+
+                            const QList<QVariant> arguments =
+                                message.arguments();
+
+                            if (arguments.size() < 2) {
+                                const QString error =
+                                    QStringLiteral(
+                                        "DNF5 resolve beklenmeyen cevap döndürdü."
+                                    );
+
+                                setLastError(error);
+
+                                emit transactionResolveFailed(
+                                    operation,
+                                    cleanName,
+                                    error
+                                );
+
+                                resolveWatcher->deleteLater();
+                                return;
+                            }
+
+                            bool ok = false;
+
+                            const uint result =
+                                arguments.at(1).toUInt(&ok);
+
+                            if (!ok) {
+                                const QString error =
+                                    QStringLiteral(
+                                        "DNF5 resolve result değeri okunamadı."
+                                    );
+
+                                setLastError(error);
+
+                                emit transactionResolveFailed(
+                                    operation,
+                                    cleanName,
+                                    error
+                                );
+
+                                resolveWatcher->deleteLater();
+                                return;
+                            }
+
+                            qInfo()
+                                << "DNF5 RESOLVE RESULT:"
+                                << result;
+
+                            if (result >= 2) {
+                                const QString error =
+                                    QStringLiteral(
+                                        "DNF5 transaction çözümlenemedi "
+                                        "(result=%1)."
+                                    ).arg(result);
+
+                                setLastError(error);
+
+                                qWarning()
+                                    << "DNF5 RESOLVE FAILED:"
+                                    << error;
+
+                                emit transactionResolveFailed(
+                                    operation,
+                                    cleanName,
+                                    error
+                                );
+
+                                resolveWatcher->deleteLater();
+                                return;
+                            }
+
+                            setLastError(QString());
+
+                            qInfo()
+                                << "DNF5 TRANSACTION RESOLVED:"
+                                << cleanName;
+
+                            emit transactionResolved(
+                                operation,
+                                cleanName,
+                                result
+                            );
+
+                            resolveWatcher->deleteLater();
+                        }
+                    );
+                }
+            );
+        }
+    );
+}
+
+
 void Dnf5Backend::ensureSessionAsync(std::function<void(bool)> callback)
 {
     if (sessionOpen()) {
