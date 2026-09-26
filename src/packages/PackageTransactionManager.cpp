@@ -1,11 +1,124 @@
 #include "PackageTransactionManager.h"
+#include "backends/Dnf5Backend.h"
+
+#include <QDebug>
+
+namespace {
+
+Dnf5Backend::TransactionOperation toBackendOperation(
+    PackageTransaction::Operation operation
+)
+{
+    switch (operation) {
+    case PackageTransaction::Operation::Install:
+        return Dnf5Backend::TransactionOperation::Install;
+
+    case PackageTransaction::Operation::Remove:
+        return Dnf5Backend::TransactionOperation::Remove;
+
+    case PackageTransaction::Operation::Upgrade:
+        return Dnf5Backend::TransactionOperation::Upgrade;
+    }
+
+    return Dnf5Backend::TransactionOperation::Install;
+}
+
+}
 
 PackageTransactionManager::PackageTransactionManager(
     QObject *parent
 )
     : QObject(parent),
-      m_model(new PackageTransactionModel(this))
+      m_model(new PackageTransactionModel(this)),
+      m_backend(new Dnf5Backend(this))
 {
+    connect(
+        m_backend,
+        &Dnf5Backend::transactionResolved,
+        this,
+        [this](
+            Dnf5Backend::TransactionOperation operation,
+            const QString &packageName,
+            uint result,
+            const QVariantList &resolvedItems,
+            qulonglong totalDownloadBytes
+        ) {
+            if (!m_activeTransaction) {
+                return;
+            }
+
+            if (m_activeTransaction->packageName() != packageName) {
+                return;
+            }
+
+            if (toBackendOperation(
+                    m_activeTransaction->operation()
+                ) != operation) {
+                return;
+            }
+
+            m_activeTransaction->setResolvedItems(
+                resolvedItems
+            );
+
+            m_activeTransaction->setTotalBytes(
+                totalDownloadBytes
+            );
+
+            m_activeTransaction->setDownloadedBytes(0);
+            m_activeTransaction->setProgress(0);
+
+            m_activeTransaction->setState(
+                PackageTransaction::State::Ready
+            );
+
+            qInfo()
+                << "TRANSACTION MANAGER READY:"
+                << packageName
+                << "items:"
+                << resolvedItems.size()
+                << "download:"
+                << totalDownloadBytes
+                << "resolve result:"
+                << result;
+
+            emit transactionResolved(
+                m_activeTransaction
+            );
+        }
+    );
+
+    connect(
+        m_backend,
+        &Dnf5Backend::transactionResolveFailed,
+        this,
+        [this](
+            Dnf5Backend::TransactionOperation operation,
+            const QString &packageName,
+            const QString &error
+        ) {
+            if (!m_activeTransaction) {
+                return;
+            }
+
+            if (m_activeTransaction->packageName() != packageName) {
+                return;
+            }
+
+            if (toBackendOperation(
+                    m_activeTransaction->operation()
+                ) != operation) {
+                return;
+            }
+
+            qWarning()
+                << "TRANSACTION MANAGER RESOLVE FAILED:"
+                << packageName
+                << error;
+
+            failActive(error);
+        }
+    );
 }
 
 PackageTransactionModel *
@@ -109,6 +222,26 @@ void PackageTransactionManager::startNext()
 
     emit transactionActivated(
         m_activeTransaction
+    );
+
+    resolveActive();
+}
+
+void PackageTransactionManager::resolveActive()
+{
+    if (!m_activeTransaction) {
+        return;
+    }
+
+    qInfo()
+        << "TRANSACTION MANAGER RESOLVING:"
+        << m_activeTransaction->packageName();
+
+    m_backend->resolveTransaction(
+        m_activeTransaction->packageName(),
+        toBackendOperation(
+            m_activeTransaction->operation()
+        )
     );
 }
 

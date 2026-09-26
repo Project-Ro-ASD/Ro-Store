@@ -7,6 +7,8 @@
 #include "PackageTransaction.h"
 #include "PackageTransactionModel.h"
 
+class Dnf5Backend;
+
 class PackageTransactionManager : public QObject
 {
     Q_OBJECT
@@ -74,6 +76,10 @@ signals:
         PackageTransaction *transaction
     );
 
+    void transactionResolved(
+        PackageTransaction *transaction
+    );
+
 private:
     PackageTransaction *enqueue(
         const QString &packageName,
@@ -81,8 +87,10 @@ private:
     );
 
     void startNext();
+    void resolveActive();
 
     PackageTransactionModel *m_model = nullptr;
+    Dnf5Backend *m_backend = nullptr;
 
     QQueue<PackageTransaction *> m_queue;
 

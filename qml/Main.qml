@@ -16,25 +16,27 @@ ApplicationWindow {
         id: catalogModel
     }
 
-    Dnf5Backend {
-        id: dnf5Backend
+    PackageTransactionManager {
+        id: transactionManager
 
-        onPackageStateQueryFinished: function(
-            state,
-            availablePackage,
-            installedPackage,
-            upgradePackage
-        ) {
-            if (Object.keys(installedPackage).length > 0) {
-                console.log(
-                    "DNF5 SAFE REMOVE RESOLVE TEST"
-                )
+        onTransactionActivated: function(transaction) {
+            console.log(
+                "MANAGER ACTIVE:",
+                transaction.packageName
+            )
+        }
 
-                dnf5Backend.resolveTransaction(
-                    "ro-assist",
-                    Dnf5Backend.Remove
-                )
-            }
+        onTransactionResolved: function(transaction) {
+            console.log(
+                "MANAGER READY:",
+                transaction.packageName,
+                "state:",
+                transaction.state,
+                "items:",
+                transaction.resolvedItemCount,
+                "download:",
+                transaction.totalBytes
+            )
         }
     }
 
@@ -75,6 +77,6 @@ ApplicationWindow {
 
     Component.onCompleted: {
         catalogModel.load("https://repo.ro-asd.org/rpm/fedora/44/beta/store/catalog.json")
-        dnf5Backend.queryPackageState("ro-assist")
+        transactionManager.enqueueRemove("ro-assist")
     }
 }

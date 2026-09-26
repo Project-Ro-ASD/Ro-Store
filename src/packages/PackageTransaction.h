@@ -29,6 +29,7 @@ public:
     enum class State {
         Queued,
         Resolving,
+        Ready,
         Downloading,
         Running,
         Finished,
