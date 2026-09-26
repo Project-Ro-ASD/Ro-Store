@@ -964,7 +964,153 @@ void Dnf5Backend::queryPackageState(const QString &packageName)
         }
     );
 
-    queryPackage(cleanName);
+    ensureSessionAsync(
+        [this, cleanName](bool success) {
+            if (!success) {
+                qWarning()
+                    << "DNF5 PACKAGE STATE ERROR:"
+                    << m_lastError;
+                return;
+            }
+
+            queryPackage(cleanName);
+        }
+    );
+}
+
+
+void Dnf5Backend::ensureSessionAsync(std::function<void(bool)> callback)
+{
+    if (sessionOpen()) {
+        callback(true);
+        return;
+    }
+
+    m_sessionWaiters.append(std::move(callback));
+
+    if (m_sessionOpening) {
+        return;
+    }
+
+    m_sessionOpening = true;
+
+    QDBusConnection bus = QDBusConnection::systemBus();
+
+    if (!bus.isConnected()) {
+        setLastError(
+            QStringLiteral("Sistem D-Bus bağlantısı kurulamadı.")
+        );
+
+        finishSessionOpen(false);
+        return;
+    }
+
+    QDBusInterface manager(
+        QString::fromLatin1(DNF5_SERVICE),
+        QString::fromLatin1(DNF5_ROOT_PATH),
+        QString::fromLatin1(DNF5_SESSION_MANAGER),
+        bus
+    );
+
+    if (!manager.isValid()) {
+        setLastError(
+            QStringLiteral("DNF5 SessionManager kullanılamıyor: %1")
+                .arg(manager.lastError().message())
+        );
+
+        finishSessionOpen(false);
+        return;
+    }
+
+    QVariantMap options;
+
+    QMap<QString, QString> config;
+    config.insert(
+        QStringLiteral("skip_if_unavailable"),
+        QStringLiteral("1")
+    );
+
+    options.insert(
+        QStringLiteral("config"),
+        QVariant::fromValue(config)
+    );
+
+    qInfo() << "DNF5 SESSION OPEN START";
+
+    QDBusPendingCall pending =
+        manager.asyncCall(
+            QStringLiteral("open_session"),
+            options
+        );
+
+    auto *watcher =
+        new QDBusPendingCallWatcher(pending, this);
+
+    connect(
+        watcher,
+        &QDBusPendingCallWatcher::finished,
+        this,
+        [this, watcher]() {
+
+            QDBusPendingReply<QDBusObjectPath> reply = *watcher;
+
+            if (reply.isError()) {
+                setLastError(
+                    QStringLiteral("DNF5 oturumu açılamadı: %1")
+                        .arg(reply.error().message())
+                );
+
+                qWarning()
+                    << "DNF5 SESSION OPEN ERROR:"
+                    << m_lastError;
+
+                watcher->deleteLater();
+                finishSessionOpen(false);
+                return;
+            }
+
+            const QString path = reply.value().path();
+
+            if (path.isEmpty()) {
+                setLastError(
+                    QStringLiteral(
+                        "DNF5 boş session path döndürdü."
+                    )
+                );
+
+                watcher->deleteLater();
+                finishSessionOpen(false);
+                return;
+            }
+
+            m_sessionPath = path;
+
+            emit sessionPathChanged();
+            emit sessionOpenChanged();
+
+            setLastError(QString());
+
+            qInfo()
+                << "DNF5 SESSION OPEN:"
+                << m_sessionPath;
+
+            watcher->deleteLater();
+
+            finishSessionOpen(true);
+        }
+    );
+}
+
+void Dnf5Backend::finishSessionOpen(bool success)
+{
+    m_sessionOpening = false;
+
+    const auto waiters = std::move(m_sessionWaiters);
+    m_sessionWaiters.clear();
+
+    for (const auto &callback : waiters) {
+        callback(success);
+    }
 }
 
 void Dnf5Backend::setLastError(const QString &error)

@@ -3,6 +3,8 @@
 #include <QObject>
 #include <QString>
 #include <QVariantMap>
+#include <functional>
+#include <QList>
 
 class Dnf5Backend : public QObject
 {
@@ -67,6 +69,8 @@ private:
     void setLastError(const QString &error);
     void setBusy(bool value);
     void setPackageState(PackageState state);
+    void ensureSessionAsync(std::function<void(bool)> callback);
+    void finishSessionOpen(bool success);
     void clearSession();
 
     QString m_sessionPath;
@@ -76,4 +80,7 @@ private:
     PackageState m_packageState = PackageState::Unknown;
     QVariantMap m_stateAvailablePackage;
     QVariantMap m_stateInstalledPackage;
+
+    bool m_sessionOpening = false;
+    QList<std::function<void(bool)>> m_sessionWaiters;
 };
