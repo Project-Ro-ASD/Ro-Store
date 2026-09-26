@@ -1624,6 +1624,185 @@ void Dnf5Backend::executeResolvedTransaction(
 
 
 
+
+void Dnf5Backend::resetTransaction()
+{
+    if (!sessionOpen()) {
+        const QString error =
+            QStringLiteral("DNF5 oturumu açık değil.");
+
+        emit transactionResetFailed(error);
+        return;
+    }
+
+    QDBusInterface goal(
+        QString::fromLatin1(DNF5_SERVICE),
+        m_sessionPath,
+        QStringLiteral("org.rpm.dnf.v0.Goal"),
+        QDBusConnection::systemBus()
+    );
+
+    if (!goal.isValid()) {
+        const QString error =
+            QStringLiteral(
+                "DNF5 Goal reset arayüzü kullanılamıyor: %1"
+            ).arg(goal.lastError().message());
+
+        clearSession();
+        emit transactionResetFailed(error);
+        return;
+    }
+
+    qInfo() << "DNF5 GOAL RESET START";
+
+    QDBusPendingCall pending =
+        goal.asyncCall(
+            QStringLiteral("reset")
+        );
+
+    auto *watcher =
+        new QDBusPendingCallWatcher(
+            pending,
+            this
+        );
+
+    connect(
+        watcher,
+        &QDBusPendingCallWatcher::finished,
+        this,
+        [this, watcher]() {
+            QDBusPendingReply<> reply =
+                *watcher;
+
+            if (reply.isError()) {
+                const QString error =
+                    QStringLiteral(
+                        "DNF5 Goal reset başarısız: %1"
+                    ).arg(
+                        reply.error().message()
+                    );
+
+                qWarning()
+                    << "DNF5 GOAL RESET ERROR:"
+                    << error;
+
+                clearSession();
+
+                emit transactionResetFailed(
+                    error
+                );
+
+                watcher->deleteLater();
+                return;
+            }
+
+            qInfo()
+                << "DNF5 GOAL RESET FINISHED";
+
+            emit transactionResetFinished();
+
+            watcher->deleteLater();
+        }
+    );
+}
+
+
+void Dnf5Backend::cancelTransaction()
+{
+    if (!sessionOpen()) {
+        emit transactionCancelFinished(
+            false,
+            QStringLiteral(
+                "DNF5 oturumu açık değil."
+            )
+        );
+        return;
+    }
+
+    QDBusInterface goal(
+        QString::fromLatin1(DNF5_SERVICE),
+        m_sessionPath,
+        QStringLiteral("org.rpm.dnf.v0.Goal"),
+        QDBusConnection::systemBus()
+    );
+
+    if (!goal.isValid()) {
+        emit transactionCancelFinished(
+            false,
+            QStringLiteral(
+                "DNF5 Goal cancel arayüzü kullanılamıyor: %1"
+            ).arg(
+                goal.lastError().message()
+            )
+        );
+        return;
+    }
+
+    qInfo()
+        << "DNF5 CANCEL REQUEST";
+
+    QDBusPendingCall pending =
+        goal.asyncCall(
+            QStringLiteral("cancel")
+        );
+
+    auto *watcher =
+        new QDBusPendingCallWatcher(
+            pending,
+            this
+        );
+
+    connect(
+        watcher,
+        &QDBusPendingCallWatcher::finished,
+        this,
+        [this, watcher]() {
+            QDBusPendingReply<bool, QString> reply =
+                *watcher;
+
+            if (reply.isError()) {
+                const QString error =
+                    QStringLiteral(
+                        "DNF5 cancel çağrısı başarısız: %1"
+                    ).arg(
+                        reply.error().message()
+                    );
+
+                qWarning()
+                    << "DNF5 CANCEL ERROR:"
+                    << error;
+
+                emit transactionCancelFinished(
+                    false,
+                    error
+                );
+
+                watcher->deleteLater();
+                return;
+            }
+
+            const bool success =
+                reply.argumentAt<0>();
+
+            const QString error =
+                reply.argumentAt<1>();
+
+            qInfo()
+                << "DNF5 CANCEL RESULT:"
+                << success
+                << error;
+
+            emit transactionCancelFinished(
+                success,
+                error
+            );
+
+            watcher->deleteLater();
+        }
+    );
+}
+
+
 void Dnf5Backend::connectProgressSignals()
 {
     if (m_sessionPath.isEmpty()) {

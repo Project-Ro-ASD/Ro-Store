@@ -64,6 +64,7 @@ public:
 
     Q_INVOKABLE void testDownloadOnlyActive();
     Q_INVOKABLE void executeActive();
+    Q_INVOKABLE void cancelActive();
 
     void finishActive();
     void failActive(const QString &errorMessage);
@@ -93,6 +94,10 @@ private:
     void startNext();
     void resolveActive();
 
+    void resetAndReleaseActive();
+    void releaseActiveAndStartNext();
+    void cancelActiveFinished();
+
     PackageTransactionModel *m_model = nullptr;
     Dnf5Backend *m_backend = nullptr;
 
@@ -102,4 +107,7 @@ private:
 
     QHash<QString, qulonglong> m_downloadedById;
     QHash<QString, qulonglong> m_downloadTotalById;
+
+    bool m_cancelRequested = false;
+    bool m_resetInProgress = false;
 };

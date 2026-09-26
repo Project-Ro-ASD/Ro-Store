@@ -56,6 +56,9 @@ public:
         bool downloadOnly = false
     );
 
+    void resetTransaction();
+    void cancelTransaction();
+
 signals:
     void sessionOpenChanged();
     void sessionPathChanged();
@@ -98,6 +101,14 @@ signals:
     void transactionExecutionFinished(bool downloadOnly);
 
     void transactionExecutionFailed(QString error);
+
+    void transactionResetFinished();
+    void transactionResetFailed(QString error);
+
+    void transactionCancelFinished(
+        bool success,
+        QString error
+    );
 
     void downloadStarted(
         QString downloadId,

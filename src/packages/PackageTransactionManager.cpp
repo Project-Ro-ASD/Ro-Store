@@ -186,6 +186,20 @@ PackageTransactionManager::PackageTransactionManager(
                 << m_activeTransaction->packageName()
                 << error;
 
+            if (m_cancelRequested) {
+                cancelActiveFinished();
+                return;
+            }
+
+            if (m_cancelRequested) {
+                qInfo()
+                    << "TRANSACTION MANAGER CANCELLED:"
+                    << m_activeTransaction->packageName();
+
+                cancelActiveFinished();
+                return;
+            }
+
             failActive(error);
         }
     );
@@ -418,15 +432,65 @@ PackageTransactionManager::PackageTransactionManager(
                 << "TRANSACTION RPM COMPLETE:"
                 << success;
 
-            if (!success) {
-                failActive(
-                    QStringLiteral(
-                        "RPM transaction başarısız."
-                    )
-                );
-            }
+            // Terminal sonucu do_transaction() cevabı belirler.
+            // Burada yalnızca RPM sonucunu gözlemliyoruz.
         }
     );
+
+    connect(
+        m_backend,
+        &Dnf5Backend::transactionResetFinished,
+        this,
+        [this]() {
+            qInfo()
+                << "TRANSACTION MANAGER RESET FINISHED";
+
+            releaseActiveAndStartNext();
+        }
+    );
+
+    connect(
+        m_backend,
+        &Dnf5Backend::transactionResetFailed,
+        this,
+        [this](const QString &error) {
+            qWarning()
+                << "TRANSACTION MANAGER RESET FAILED:"
+                << error;
+
+            // Backend başarısız reset durumunda session'ı temizliyor.
+            // Sonraki işlem yeni session açabilir.
+            releaseActiveAndStartNext();
+        }
+    );
+
+    connect(
+        m_backend,
+        &Dnf5Backend::transactionCancelFinished,
+        this,
+        [this](
+            bool success,
+            const QString &error
+        ) {
+            if (!m_activeTransaction) {
+                return;
+            }
+
+            if (!success) {
+                m_cancelRequested = false;
+
+                qWarning()
+                    << "TRANSACTION MANAGER CANCEL REJECTED:"
+                    << error;
+                return;
+            }
+
+            qInfo()
+                << "TRANSACTION MANAGER CANCEL ACCEPTED:"
+                << m_activeTransaction->packageName();
+        }
+    );
+
 
 }
 
@@ -524,6 +588,8 @@ void PackageTransactionManager::startNext()
 
     m_downloadedById.clear();
     m_downloadTotalById.clear();
+    m_cancelRequested = false;
+    m_resetInProgress = false;
 
     emit queuedCountChanged();
     emit activeTransactionChanged();
@@ -614,10 +680,89 @@ void PackageTransactionManager::executeActive()
     m_activeTransaction->setProgress(0);
 
     m_activeTransaction->setState(
-        PackageTransaction::State::Running
+        PackageTransaction::State::Downloading
     );
 
     m_backend->executeResolvedTransaction(false);
+}
+
+
+
+void PackageTransactionManager::cancelActive()
+{
+    if (!m_activeTransaction) {
+        qWarning()
+            << "TRANSACTION MANAGER:"
+            << "no active transaction";
+        return;
+    }
+
+    if (m_activeTransaction->state() !=
+        PackageTransaction::State::Downloading) {
+
+        qWarning()
+            << "TRANSACTION MANAGER CANCEL:"
+            << "cancellation is only allowed while downloading";
+        return;
+    }
+
+    if (m_cancelRequested) {
+        return;
+    }
+
+    m_cancelRequested = true;
+
+    qInfo()
+        << "TRANSACTION MANAGER CANCEL REQUEST:"
+        << m_activeTransaction->packageName();
+
+    m_backend->cancelTransaction();
+}
+
+
+void PackageTransactionManager::cancelActiveFinished()
+{
+    if (!m_activeTransaction) {
+        return;
+    }
+
+    m_activeTransaction->setState(
+        PackageTransaction::State::Cancelled
+    );
+
+    resetAndReleaseActive();
+}
+
+
+void PackageTransactionManager::resetAndReleaseActive()
+{
+    if (!m_activeTransaction ||
+        m_resetInProgress) {
+        return;
+    }
+
+    m_resetInProgress = true;
+
+    qInfo()
+        << "TRANSACTION MANAGER RESETTING GOAL";
+
+    m_backend->resetTransaction();
+}
+
+
+void PackageTransactionManager::releaseActiveAndStartNext()
+{
+    m_resetInProgress = false;
+    m_cancelRequested = false;
+
+    m_downloadedById.clear();
+    m_downloadTotalById.clear();
+
+    m_activeTransaction = nullptr;
+
+    emit activeTransactionChanged();
+
+    startNext();
 }
 
 
@@ -633,11 +778,7 @@ void PackageTransactionManager::finishActive()
         PackageTransaction::State::Finished
     );
 
-    m_activeTransaction = nullptr;
-
-    emit activeTransactionChanged();
-
-    startNext();
+    resetAndReleaseActive();
 }
 
 void PackageTransactionManager::failActive(
@@ -650,9 +791,5 @@ void PackageTransactionManager::failActive(
 
     m_activeTransaction->fail(errorMessage);
 
-    m_activeTransaction = nullptr;
-
-    emit activeTransactionChanged();
-
-    startNext();
+    resetAndReleaseActive();
 }
