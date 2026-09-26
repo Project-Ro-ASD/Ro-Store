@@ -13,6 +13,54 @@ Item {
     property string packageName: ""
     property string iconUrl: ""
 
+    property var packageTransactionManager: null
+    property var trackedTransaction: null
+
+    property bool transactionRunning:
+        trackedTransaction !== null
+        && trackedTransaction.state !== PackageTransaction.Finished
+        && trackedTransaction.state !== PackageTransaction.Failed
+        && trackedTransaction.state !== PackageTransaction.Cancelled
+
+    function startInstallTransaction() {
+        if (!packageTransactionManager || transactionRunning)
+            return
+
+        page.logsExpanded = false
+        page.lastActionMessage = ""
+
+        page.trackedTransaction =
+            packageTransactionManager.enqueueInstall(
+                page.packageName
+            )
+    }
+
+    function startUpgradeTransaction() {
+        if (!packageTransactionManager || transactionRunning)
+            return
+
+        page.logsExpanded = false
+        page.lastActionMessage = ""
+
+        page.trackedTransaction =
+            packageTransactionManager.enqueueUpgrade(
+                page.packageName
+            )
+    }
+
+    function startRemoveTransaction() {
+        if (!packageTransactionManager || transactionRunning)
+            return
+
+        page.logsExpanded = false
+        page.lastActionMessage = ""
+
+        page.trackedTransaction =
+            packageTransactionManager.enqueueRemove(
+                page.packageName
+            )
+    }
+
     property bool narrow: width < 760
     property int sideMargin: narrow ? 22 : 36
     property int contentWidth: Math.max(320, width - sideMargin * 2)
@@ -675,11 +723,11 @@ Item {
                     page.lastActionMessage = ""
 
                     if (!packageStatus.installed) {
-                        packageInstaller.installPackage(page.packageName)
+                        page.startInstallTransaction()
                     } else if (packageStatus.updateAvailable) {
                         page.logsExpanded = false
                         page.lastActionMessage = ""
-                        packageInstaller.updatePackage(page.packageName)
+                        page.startUpgradeTransaction()
                     } else {
                         removeConfirmDialog.open()
                     }
@@ -786,11 +834,11 @@ Item {
                     page.lastActionMessage = ""
 
                     if (!packageStatus.installed) {
-                        packageInstaller.installPackage(page.packageName)
+                        page.startInstallTransaction()
                     } else if (packageStatus.updateAvailable) {
                         page.logsExpanded = false
                         page.lastActionMessage = ""
-                        packageInstaller.updatePackage(page.packageName)
+                        page.startUpgradeTransaction()
                     } else {
                         removeConfirmDialog.open()
                     }
@@ -994,7 +1042,7 @@ Item {
                         removeConfirmDialog.close()
                         page.logsExpanded = false
                         page.lastActionMessage = ""
-                        packageInstaller.removePackage(page.packageName)
+                        page.startRemoveTransaction()
                     }
                 }
             }

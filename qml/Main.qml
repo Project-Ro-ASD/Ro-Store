@@ -38,6 +38,7 @@ ApplicationWindow {
                 transaction.totalBytes
             )
 
+            transactionManager.executeActive()
         }
     }
 
@@ -70,6 +71,8 @@ ApplicationWindow {
         id: detailPageComponent
 
         AppDetailPage {
+            packageTransactionManager: transactionManager
+
             onBackRequested: {
                 stackView.pop()
             }
