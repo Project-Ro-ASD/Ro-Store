@@ -94,8 +94,13 @@ jobs:
 
           test -n "$RPM_FILE"
 
+          VERSION="$(sed -n -E \
+            's/^[[:space:]]*VERSION[[:space:]]+([0-9.]+).*/\1/p' \
+            CMakeLists.txt | head -n1)"
+
+          test -n "$VERSION"
           test "$(rpm -qp --qf '%{NAME}' "$RPM_FILE")" = "ro-store"
-          test "$(rpm -qp --qf '%{VERSION}' "$RPM_FILE")" = "0.1.0"
+          test "$(rpm -qp --qf '%{VERSION}' "$RPM_FILE")" = "$VERSION"
           test "$(rpm -qp --qf '%{RELEASE}' "$RPM_FILE")" = "1.fc44"
           test "$(rpm -qp --qf '%{ARCH}' "$RPM_FILE")" = "${{ matrix.arch }}"
 
