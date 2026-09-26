@@ -2,6 +2,7 @@
 
 #include <QObject>
 #include <QString>
+#include <QVariantList>
 
 class PackageTransaction : public QObject
 {
@@ -14,6 +15,8 @@ class PackageTransaction : public QObject
     Q_PROPERTY(qulonglong downloadedBytes READ downloadedBytes NOTIFY downloadedBytesChanged)
     Q_PROPERTY(qulonglong totalBytes READ totalBytes NOTIFY totalBytesChanged)
     Q_PROPERTY(QString errorMessage READ errorMessage NOTIFY errorMessageChanged)
+    Q_PROPERTY(QVariantList resolvedItems READ resolvedItems NOTIFY resolvedItemsChanged)
+    Q_PROPERTY(int resolvedItemCount READ resolvedItemCount NOTIFY resolvedItemsChanged)
 
 public:
     enum class Operation {
@@ -51,6 +54,9 @@ public:
 
     QString errorMessage() const;
 
+    QVariantList resolvedItems() const;
+    int resolvedItemCount() const;
+
     bool isFinished() const;
 
     void setState(State state);
@@ -60,6 +66,7 @@ public:
     void setTotalBytes(qulonglong bytes);
 
     void setErrorMessage(const QString &message);
+    void setResolvedItems(const QVariantList &items);
 
     void fail(const QString &message);
 
@@ -69,6 +76,7 @@ signals:
     void downloadedBytesChanged();
     void totalBytesChanged();
     void errorMessageChanged();
+    void resolvedItemsChanged();
 
 private:
     QString m_packageName;
@@ -82,4 +90,5 @@ private:
     qulonglong m_totalBytes = 0;
 
     QString m_errorMessage;
+    QVariantList m_resolvedItems;
 };

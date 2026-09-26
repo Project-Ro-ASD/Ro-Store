@@ -188,6 +188,13 @@ void PackageTransactionModel::connectTransaction(
 
     connect(
         transaction,
+        &PackageTransaction::resolvedItemsChanged,
+        this,
+        updateRow
+    );
+
+    connect(
+        transaction,
         &QObject::destroyed,
         this,
         [this, transaction]() {

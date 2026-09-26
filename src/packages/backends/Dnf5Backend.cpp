@@ -1313,7 +1313,12 @@ void Dnf5Backend::resolveTransaction(
                                 << "DNF5 TRANSACTION ITEM COUNT:"
                                 << transactionItems.size();
 
+                            QVariantList resolvedItems;
+                            qulonglong totalDownloadBytes = 0;
+
                             for (const QVariantMap &item : transactionItems) {
+                                resolvedItems.append(item);
+
                                 const QVariantMap object =
                                     item.value(
                                         QStringLiteral("object")
@@ -1381,7 +1386,26 @@ void Dnf5Backend::resolveTransaction(
                                     << object.value(
                                         QStringLiteral("install_size")
                                     );
+
+                                const QVariant packageSize =
+                                    object.value(
+                                        QStringLiteral("package_size")
+                                    );
+
+                                if (packageSize.isValid() &&
+                                    item.value(
+                                        QStringLiteral("action")
+                                    ).toString() !=
+                                        QStringLiteral("Remove")) {
+
+                                    totalDownloadBytes +=
+                                        packageSize.toULongLong();
+                                }
                             }
+
+                            qInfo()
+                                << "DNF5 TOTAL DOWNLOAD BYTES:"
+                                << totalDownloadBytes;
 
                             bool ok = false;
 
@@ -1442,7 +1466,9 @@ void Dnf5Backend::resolveTransaction(
                             emit transactionResolved(
                                 operation,
                                 cleanName,
-                                result
+                                result,
+                                resolvedItems,
+                                totalDownloadBytes
                             );
 
                             resolveWatcher->deleteLater();

@@ -48,6 +48,16 @@ QString PackageTransaction::errorMessage() const
     return m_errorMessage;
 }
 
+QVariantList PackageTransaction::resolvedItems() const
+{
+    return m_resolvedItems;
+}
+
+int PackageTransaction::resolvedItemCount() const
+{
+    return m_resolvedItems.size();
+}
+
 bool PackageTransaction::isFinished() const
 {
     return m_state == State::Finished ||
@@ -105,6 +115,18 @@ void PackageTransaction::setErrorMessage(const QString &message)
 
     m_errorMessage = message;
     emit errorMessageChanged();
+}
+
+void PackageTransaction::setResolvedItems(
+    const QVariantList &items
+)
+{
+    if (m_resolvedItems == items) {
+        return;
+    }
+
+    m_resolvedItems = items;
+    emit resolvedItemsChanged();
 }
 
 void PackageTransaction::fail(const QString &message)

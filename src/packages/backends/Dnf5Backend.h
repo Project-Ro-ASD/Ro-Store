@@ -3,6 +3,7 @@
 #include <QObject>
 #include <QString>
 #include <QVariantMap>
+#include <QVariantList>
 #include <functional>
 #include <QList>
 
@@ -76,7 +77,9 @@ signals:
     void transactionResolved(
         TransactionOperation operation,
         QString packageName,
-        uint result
+        uint result,
+        QVariantList resolvedItems,
+        qulonglong totalDownloadBytes
     );
 
     void transactionResolveFailed(
