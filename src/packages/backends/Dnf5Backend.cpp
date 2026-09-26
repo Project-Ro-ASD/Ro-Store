@@ -415,6 +415,424 @@ void Dnf5Backend::queryPackage(const QString &packageName)
     );
 }
 
+
+void Dnf5Backend::queryInstalledPackage(const QString &packageName)
+{
+    const QString cleanName = packageName.trimmed();
+
+    if (cleanName.isEmpty()) {
+        const QString error = QStringLiteral("Paket adı boş.");
+        setLastError(error);
+        emit installedPackageQueryFailed(error);
+        return;
+    }
+
+    if (m_busy) {
+        const QString error =
+            QStringLiteral("DNF5 şu anda başka bir işlem yürütüyor.");
+
+        setLastError(error);
+        emit installedPackageQueryFailed(error);
+        return;
+    }
+
+    if (!sessionOpen() && !openSession()) {
+        emit installedPackageQueryFailed(m_lastError);
+        return;
+    }
+
+    QDBusInterface rpm(
+        QString::fromLatin1(DNF5_SERVICE),
+        m_sessionPath,
+        QString::fromLatin1(DNF5_RPM_INTERFACE),
+        QDBusConnection::systemBus()
+    );
+
+    if (!rpm.isValid()) {
+        const QString error =
+            QStringLiteral("DNF5 RPM arayüzü kullanılamıyor: %1")
+                .arg(rpm.lastError().message());
+
+        setLastError(error);
+        emit installedPackageQueryFailed(error);
+        return;
+    }
+
+    QVariantMap options;
+
+    options.insert(
+        QStringLiteral("patterns"),
+        QStringList { cleanName }
+    );
+
+    options.insert(
+        QStringLiteral("scope"),
+        QStringLiteral("installed")
+    );
+
+    options.insert(
+        QStringLiteral("latest-limit"),
+        1
+    );
+
+    options.insert(
+        QStringLiteral("with_src"),
+        false
+    );
+
+    options.insert(
+        QStringLiteral("with_provides"),
+        false
+    );
+
+    options.insert(
+        QStringLiteral("with_filenames"),
+        false
+    );
+
+    options.insert(
+        QStringLiteral("with_binaries"),
+        false
+    );
+
+    options.insert(
+        QStringLiteral("interactive"),
+        false
+    );
+
+    options.insert(
+        QStringLiteral("package_attrs"),
+        QStringList {
+            QStringLiteral("name"),
+            QStringLiteral("epoch"),
+            QStringLiteral("version"),
+            QStringLiteral("release"),
+            QStringLiteral("arch"),
+            QStringLiteral("repo_id"),
+            QStringLiteral("from_repo_id"),
+            QStringLiteral("is_installed"),
+            QStringLiteral("install_size"),
+            QStringLiteral("summary")
+        }
+    );
+
+    setBusy(true);
+    setLastError(QString());
+
+    qInfo() << "DNF5 INSTALLED QUERY START:" << cleanName;
+
+    QDBusPendingCall pending =
+        rpm.asyncCall(
+            QStringLiteral("list"),
+            options
+        );
+
+    auto *watcher =
+        new QDBusPendingCallWatcher(pending, this);
+
+    connect(
+        watcher,
+        &QDBusPendingCallWatcher::finished,
+        this,
+        [this, watcher, cleanName]() {
+
+            setBusy(false);
+
+            QDBusPendingReply<> reply = *watcher;
+
+            if (reply.isError()) {
+                const QString error =
+                    QStringLiteral("DNF5 kurulu paket sorgusu başarısız: %1")
+                        .arg(reply.error().message());
+
+                setLastError(error);
+
+                qWarning()
+                    << "DNF5 INSTALLED QUERY ERROR:"
+                    << error;
+
+                emit installedPackageQueryFailed(error);
+
+                watcher->deleteLater();
+                return;
+            }
+
+            const QDBusMessage message = watcher->reply();
+
+            if (message.arguments().isEmpty()) {
+                const QString error =
+                    QStringLiteral(
+                        "DNF5 kurulu paket sorgusu boş cevap döndürdü."
+                    );
+
+                setLastError(error);
+                emit installedPackageQueryFailed(error);
+
+                watcher->deleteLater();
+                return;
+            }
+
+            const QList<QVariantMap> packages =
+                readPackageArray(
+                    message.arguments().first()
+                );
+
+            QVariantMap installedPackage;
+
+            for (const QVariantMap &package : packages) {
+                if (package.value(QStringLiteral("name")).toString() ==
+                        cleanName &&
+                    package.value(QStringLiteral("is_installed")).toBool()) {
+
+                    installedPackage = package;
+                    break;
+                }
+            }
+
+            if (installedPackage.isEmpty()) {
+                qInfo()
+                    << "DNF5 INSTALLED:"
+                    << cleanName
+                    << "NOT INSTALLED";
+
+                setLastError(QString());
+
+                emit installedPackageQueryFinished(QVariantMap{});
+
+                watcher->deleteLater();
+                return;
+            }
+
+            qInfo() << "DNF5 INSTALLED PACKAGE";
+            qInfo()
+                << " name:"
+                << installedPackage.value("name");
+            qInfo()
+                << " version:"
+                << installedPackage.value("version");
+            qInfo()
+                << " release:"
+                << installedPackage.value("release");
+            qInfo()
+                << " arch:"
+                << installedPackage.value("arch");
+            qInfo()
+                << " repo:"
+                << installedPackage.value("repo_id");
+            qInfo()
+                << " from repo:"
+                << installedPackage.value("from_repo_id");
+            qInfo()
+                << " installed:"
+                << installedPackage.value("is_installed");
+
+            setLastError(QString());
+
+            emit installedPackageQueryFinished(installedPackage);
+
+            watcher->deleteLater();
+        }
+    );
+}
+
+
+void Dnf5Backend::queryUpgradePackage(const QString &packageName)
+{
+    const QString cleanName = packageName.trimmed();
+
+    if (cleanName.isEmpty()) {
+        const QString error = QStringLiteral("Paket adı boş.");
+        setLastError(error);
+        emit upgradePackageQueryFailed(error);
+        return;
+    }
+
+    if (m_busy) {
+        const QString error =
+            QStringLiteral("DNF5 şu anda başka bir işlem yürütüyor.");
+
+        setLastError(error);
+        emit upgradePackageQueryFailed(error);
+        return;
+    }
+
+    if (!sessionOpen() && !openSession()) {
+        emit upgradePackageQueryFailed(m_lastError);
+        return;
+    }
+
+    QDBusInterface rpm(
+        QString::fromLatin1(DNF5_SERVICE),
+        m_sessionPath,
+        QString::fromLatin1(DNF5_RPM_INTERFACE),
+        QDBusConnection::systemBus()
+    );
+
+    if (!rpm.isValid()) {
+        const QString error =
+            QStringLiteral("DNF5 RPM arayüzü kullanılamıyor: %1")
+                .arg(rpm.lastError().message());
+
+        setLastError(error);
+        emit upgradePackageQueryFailed(error);
+        return;
+    }
+
+    QVariantMap options;
+
+    options.insert(
+        QStringLiteral("patterns"),
+        QStringList { cleanName }
+    );
+
+    options.insert(
+        QStringLiteral("scope"),
+        QStringLiteral("upgrades")
+    );
+
+    options.insert(
+        QStringLiteral("repo"),
+        QStringList { QStringLiteral("ro-asd-beta") }
+    );
+
+    options.insert(
+        QStringLiteral("latest-limit"),
+        1
+    );
+
+    options.insert(
+        QStringLiteral("with_src"),
+        false
+    );
+
+    options.insert(
+        QStringLiteral("with_provides"),
+        false
+    );
+
+    options.insert(
+        QStringLiteral("with_filenames"),
+        false
+    );
+
+    options.insert(
+        QStringLiteral("with_binaries"),
+        false
+    );
+
+    options.insert(
+        QStringLiteral("interactive"),
+        false
+    );
+
+    options.insert(
+        QStringLiteral("package_attrs"),
+        QStringList {
+            QStringLiteral("name"),
+            QStringLiteral("epoch"),
+            QStringLiteral("version"),
+            QStringLiteral("release"),
+            QStringLiteral("arch"),
+            QStringLiteral("repo_id"),
+            QStringLiteral("download_size"),
+            QStringLiteral("install_size"),
+            QStringLiteral("summary")
+        }
+    );
+
+    setBusy(true);
+    setLastError(QString());
+
+    qInfo() << "DNF5 UPGRADE QUERY START:" << cleanName;
+
+    QDBusPendingCall pending =
+        rpm.asyncCall(
+            QStringLiteral("list"),
+            options
+        );
+
+    auto *watcher =
+        new QDBusPendingCallWatcher(pending, this);
+
+    connect(
+        watcher,
+        &QDBusPendingCallWatcher::finished,
+        this,
+        [this, watcher, cleanName]() {
+
+            setBusy(false);
+
+            QDBusPendingReply<> reply = *watcher;
+
+            if (reply.isError()) {
+                const QString error =
+                    QStringLiteral("DNF5 güncelleme sorgusu başarısız: %1")
+                        .arg(reply.error().message());
+
+                setLastError(error);
+
+                qWarning()
+                    << "DNF5 UPGRADE QUERY ERROR:"
+                    << error;
+
+                emit upgradePackageQueryFailed(error);
+
+                watcher->deleteLater();
+                return;
+            }
+
+            const QDBusMessage message = watcher->reply();
+
+            if (message.arguments().isEmpty()) {
+                const QString error =
+                    QStringLiteral(
+                        "DNF5 güncelleme sorgusu boş cevap döndürdü."
+                    );
+
+                setLastError(error);
+                emit upgradePackageQueryFailed(error);
+
+                watcher->deleteLater();
+                return;
+            }
+
+            const QList<QVariantMap> packages =
+                readPackageArray(
+                    message.arguments().first()
+                );
+
+            if (packages.isEmpty()) {
+                qInfo()
+                    << "DNF5 UPGRADE:"
+                    << cleanName
+                    << "NO UPDATE";
+
+                setLastError(QString());
+
+                emit upgradePackageQueryFinished(QVariantMap{});
+
+                watcher->deleteLater();
+                return;
+            }
+
+            const QVariantMap package = packages.first();
+
+            qInfo() << "DNF5 UPGRADE AVAILABLE";
+            qInfo() << " name:" << package.value("name");
+            qInfo() << " version:" << package.value("version");
+            qInfo() << " release:" << package.value("release");
+            qInfo() << " arch:" << package.value("arch");
+            qInfo() << " repo:" << package.value("repo_id");
+
+            setLastError(QString());
+
+            emit upgradePackageQueryFinished(package);
+
+            watcher->deleteLater();
+        }
+    );
+}
+
 void Dnf5Backend::setLastError(const QString &error)
 {
     if (m_lastError == error) {

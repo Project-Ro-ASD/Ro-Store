@@ -26,6 +26,8 @@ public:
     Q_INVOKABLE bool closeSession();
 
     Q_INVOKABLE void queryPackage(const QString &packageName);
+    Q_INVOKABLE void queryInstalledPackage(const QString &packageName);
+    Q_INVOKABLE void queryUpgradePackage(const QString &packageName);
 
 signals:
     void sessionOpenChanged();
@@ -35,6 +37,12 @@ signals:
 
     void packageQueryFinished(QVariantMap package);
     void packageQueryFailed(QString error);
+
+    void installedPackageQueryFinished(QVariantMap package);
+    void installedPackageQueryFailed(QString error);
+
+    void upgradePackageQueryFinished(QVariantMap package);
+    void upgradePackageQueryFailed(QString error);
 
 private:
     void setLastError(const QString &error);

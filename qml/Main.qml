@@ -18,6 +18,37 @@ ApplicationWindow {
 
     Dnf5Backend {
         id: dnf5Backend
+
+        onPackageQueryFinished: function(package) {
+            console.log("DNF5 AVAILABLE QUERY DONE")
+            dnf5Backend.queryInstalledPackage("ro-assist")
+        }
+
+        onInstalledPackageQueryFinished: function(package) {
+            if (Object.keys(package).length === 0) {
+                console.log("DNF5 PACKAGE STATE: NOT_INSTALLED")
+            } else {
+                console.log(
+                    "DNF5 INSTALLED VERSION:",
+                    package.version,
+                    package.release
+                )
+
+                dnf5Backend.queryUpgradePackage("ro-assist")
+            }
+        }
+
+        onUpgradePackageQueryFinished: function(package) {
+            if (Object.keys(package).length === 0) {
+                console.log("DNF5 PACKAGE STATE: INSTALLED")
+            } else {
+                console.log(
+                    "DNF5 PACKAGE STATE: UPDATE_AVAILABLE",
+                    package.version,
+                    package.release
+                )
+            }
+        }
     }
 
     StackView {
