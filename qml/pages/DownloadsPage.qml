@@ -464,6 +464,167 @@ Item {
                 }
             }
 
+            // İŞLEM GEÇMİŞİ
+            Item {
+                width: page.contentWidth
+                height: 34
+                x: page.sideMargin
+
+                Text {
+                    anchors.left: parent.left
+                    anchors.verticalCenter: parent.verticalCenter
+
+                    text: "İşlem geçmişi"
+                    color: "#ffffff"
+                    font.pixelSize: 19
+                    font.bold: true
+                }
+
+                Text {
+                    anchors.right: parent.right
+                    anchors.verticalCenter: parent.verticalCenter
+
+                    text: "Bu oturum"
+                    color: "#7f8b99"
+                    font.pixelSize: 12
+                }
+            }
+
+            Repeater {
+                model: page.packageTransactionManager
+                       ? page.packageTransactionManager.model
+                       : null
+
+                delegate: Rectangle {
+                    property var tx: page.packageTransactionManager
+                                     ? page.packageTransactionManager.model.get(index)
+                                     : null
+
+                    readonly property bool terminalState:
+                        tx !== null
+                        && (
+                            tx.state === PackageTransaction.Finished
+                            || tx.state === PackageTransaction.Failed
+                            || tx.state === PackageTransaction.Cancelled
+                        )
+
+                    visible: terminalState
+
+                    x: page.sideMargin
+                    width: page.contentWidth
+
+                    height: visible
+                            ? (
+                                tx
+                                && tx.errorMessage.length > 0
+                                ? 112
+                                : 88
+                              )
+                            : 0
+
+                    radius: 16
+                    color: "#121a22"
+
+                    border.color: tx
+                                  && tx.state === PackageTransaction.Failed
+                                  ? "#7f1d1d"
+                                  : tx
+                                    && tx.state === PackageTransaction.Cancelled
+                                    ? "#78350f"
+                                    : "#243447"
+
+                    border.width: 1
+
+                    Text {
+                        x: 18
+                        y: 14
+                        width: parent.width - 150
+
+                        text: parent.tx
+                              ? parent.tx.packageName
+                              : ""
+
+                        color: "#e5edf5"
+                        font.pixelSize: 15
+                        font.bold: true
+                        elide: Text.ElideRight
+                    }
+
+                    Text {
+                        anchors.right: parent.right
+                        anchors.rightMargin: 18
+                        y: 15
+
+                        text: {
+                            if (!parent.tx)
+                                return ""
+
+                            if (parent.tx.state === PackageTransaction.Finished)
+                                return "Tamamlandı"
+
+                            if (parent.tx.state === PackageTransaction.Failed)
+                                return "Başarısız"
+
+                            if (parent.tx.state === PackageTransaction.Cancelled)
+                                return "İptal edildi"
+
+                            return ""
+                        }
+
+                        color: {
+                            if (!parent.tx)
+                                return "#9aa4b2"
+
+                            if (parent.tx.state === PackageTransaction.Finished)
+                                return "#6ee7b7"
+
+                            if (parent.tx.state === PackageTransaction.Failed)
+                                return "#f87171"
+
+                            if (parent.tx.state === PackageTransaction.Cancelled)
+                                return "#fbbf24"
+
+                            return "#9aa4b2"
+                        }
+
+                        font.pixelSize: 12
+                        font.bold: true
+                    }
+
+                    Text {
+                        x: 18
+                        y: 44
+                        width: parent.width - 36
+
+                        text: parent.tx
+                              ? page.operationText(parent.tx.operation)
+                                + " • "
+                                + page.stateText(parent.tx.state)
+                              : ""
+
+                        color: "#9aa4b2"
+                        font.pixelSize: 13
+                    }
+
+                    Text {
+                        visible: parent.tx
+                                 && parent.tx.errorMessage.length > 0
+
+                        x: 18
+                        y: 72
+                        width: parent.width - 36
+
+                        text: parent.tx
+                              ? parent.tx.errorMessage
+                              : ""
+
+                        color: "#f87171"
+                        font.pixelSize: 12
+                        elide: Text.ElideRight
+                    }
+                }
+            }
+
             Item {
                 width: 1
                 height: 24
