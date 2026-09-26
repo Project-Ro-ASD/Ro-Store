@@ -78,6 +78,5 @@ ApplicationWindow {
 
     Component.onCompleted: {
         catalogModel.load("https://repo.ro-asd.org/rpm/fedora/44/beta/store/catalog.json")
-        transactionManager.enqueueRemove("ro-assist")
     }
 }
