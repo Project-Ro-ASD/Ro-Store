@@ -72,6 +72,15 @@ Item {
         return value.toFixed(2) + " GB"
     }
 
+    function formatSpeed(bytesPerSecond) {
+        var value = Number(bytesPerSecond)
+
+        if (!isFinite(value) || value <= 0)
+            return "Hesaplanıyor..."
+
+        return formatBytes(value) + "/sn"
+    }
+
     // ÜST BAR
     Item {
         id: topBar
@@ -299,6 +308,12 @@ Item {
                                + page.formatBytes(activeCard.tx.totalBytes)
                                + "   •   Kalan: "
                                + page.formatBytes(remaining)
+                               + (activeCard.tx.state === PackageTransaction.Downloading
+                                  ? "   •   Hız: "
+                                    + page.formatSpeed(
+                                        activeCard.tx.downloadSpeedBytesPerSecond
+                                      )
+                                  : "")
                     }
 
                     color: "#b5c0cc"

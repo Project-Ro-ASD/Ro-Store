@@ -14,6 +14,7 @@ class PackageTransaction : public QObject
     Q_PROPERTY(int progress READ progress NOTIFY progressChanged)
     Q_PROPERTY(qulonglong downloadedBytes READ downloadedBytes NOTIFY downloadedBytesChanged)
     Q_PROPERTY(qulonglong totalBytes READ totalBytes NOTIFY totalBytesChanged)
+    Q_PROPERTY(qulonglong downloadSpeedBytesPerSecond READ downloadSpeedBytesPerSecond NOTIFY downloadSpeedBytesPerSecondChanged)
     Q_PROPERTY(QString errorMessage READ errorMessage NOTIFY errorMessageChanged)
     Q_PROPERTY(QVariantList resolvedItems READ resolvedItems NOTIFY resolvedItemsChanged)
     Q_PROPERTY(int resolvedItemCount READ resolvedItemCount NOTIFY resolvedItemsChanged)
@@ -52,6 +53,7 @@ public:
 
     qulonglong downloadedBytes() const;
     qulonglong totalBytes() const;
+    qulonglong downloadSpeedBytesPerSecond() const;
 
     QString errorMessage() const;
 
@@ -65,6 +67,7 @@ public:
 
     void setDownloadedBytes(qulonglong bytes);
     void setTotalBytes(qulonglong bytes);
+    void setDownloadSpeedBytesPerSecond(qulonglong bytesPerSecond);
 
     void setErrorMessage(const QString &message);
     void setResolvedItems(const QVariantList &items);
@@ -76,6 +79,7 @@ signals:
     void progressChanged();
     void downloadedBytesChanged();
     void totalBytesChanged();
+    void downloadSpeedBytesPerSecondChanged();
     void errorMessageChanged();
     void resolvedItemsChanged();
 
@@ -89,6 +93,7 @@ private:
 
     qulonglong m_downloadedBytes = 0;
     qulonglong m_totalBytes = 0;
+    qulonglong m_downloadSpeedBytesPerSecond = 0;
 
     QString m_errorMessage;
     QVariantList m_resolvedItems;

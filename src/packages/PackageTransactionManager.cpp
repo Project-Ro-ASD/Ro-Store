@@ -68,6 +68,16 @@ PackageTransactionManager::PackageTransactionManager(
             m_activeTransaction->setDownloadedBytes(0);
             m_activeTransaction->setProgress(0);
 
+            if (!m_downloadSpeedTimer.isValid()) {
+                m_lastSpeedSampleBytes = 0;
+                m_smoothedDownloadSpeed = 0.0;
+
+                m_activeTransaction
+                    ->setDownloadSpeedBytesPerSecond(0);
+
+                m_downloadSpeedTimer.start();
+            }
+
             m_activeTransaction->setState(
                 PackageTransaction::State::Ready
             );
@@ -312,6 +322,8 @@ PackageTransactionManager::PackageTransactionManager(
                 downloadedSum
             );
 
+            updateDownloadSpeed(downloadedSum);
+
             const qulonglong transactionTotal =
                 m_activeTransaction->totalBytes();
 
@@ -382,6 +394,8 @@ PackageTransactionManager::PackageTransactionManager(
                 downloadedSum
             );
 
+            updateDownloadSpeed(downloadedSum);
+
             const qulonglong transactionTotal =
                 m_activeTransaction->totalBytes();
 
@@ -424,6 +438,11 @@ PackageTransactionManager::PackageTransactionManager(
             if (!m_activeTransaction) {
                 return;
             }
+
+            m_activeTransaction
+                ->setDownloadSpeedBytesPerSecond(0);
+
+            resetDownloadSpeedTracking();
 
             m_activeTransaction->setState(
                 PackageTransaction::State::Running
@@ -639,6 +658,7 @@ void PackageTransactionManager::startNext()
 
     m_downloadedById.clear();
     m_downloadTotalById.clear();
+    resetDownloadSpeedTracking();
     m_cancelRequested = false;
     m_resetInProgress = false;
 
@@ -771,6 +791,77 @@ void PackageTransactionManager::cancelActive()
 }
 
 
+void PackageTransactionManager::updateDownloadSpeed(
+    qulonglong downloadedBytes
+)
+{
+    if (!m_activeTransaction) {
+        return;
+    }
+
+    if (!m_downloadSpeedTimer.isValid()) {
+        m_lastSpeedSampleBytes = downloadedBytes;
+        m_downloadSpeedTimer.start();
+        return;
+    }
+
+    if (downloadedBytes < m_lastSpeedSampleBytes) {
+        m_lastSpeedSampleBytes = downloadedBytes;
+        m_downloadSpeedTimer.restart();
+        return;
+    }
+
+    const qulonglong deltaBytes =
+        downloadedBytes - m_lastSpeedSampleBytes;
+
+    if (deltaBytes == 0) {
+        return;
+    }
+
+    const qint64 elapsedNanoseconds =
+        m_downloadSpeedTimer.nsecsElapsed();
+
+    if (elapsedNanoseconds <= 0) {
+        return;
+    }
+
+    const double instantaneousSpeed =
+        static_cast<double>(deltaBytes)
+        * 1000000000.0
+        / static_cast<double>(elapsedNanoseconds);
+
+    if (m_smoothedDownloadSpeed <= 0.0) {
+        m_smoothedDownloadSpeed = instantaneousSpeed;
+    } else {
+        // Ani dalgalanmaları azaltmak için hafif exponential smoothing.
+        constexpr double newSampleWeight = 0.30;
+
+        m_smoothedDownloadSpeed =
+            (m_smoothedDownloadSpeed
+             * (1.0 - newSampleWeight))
+            + (instantaneousSpeed
+               * newSampleWeight);
+    }
+
+    m_activeTransaction->setDownloadSpeedBytesPerSecond(
+        static_cast<qulonglong>(
+            m_smoothedDownloadSpeed
+        )
+    );
+
+    m_lastSpeedSampleBytes = downloadedBytes;
+    m_downloadSpeedTimer.restart();
+}
+
+
+void PackageTransactionManager::resetDownloadSpeedTracking()
+{
+    m_downloadSpeedTimer.invalidate();
+    m_lastSpeedSampleBytes = 0;
+    m_smoothedDownloadSpeed = 0.0;
+}
+
+
 void PackageTransactionManager::cancelActiveFinished()
 {
     if (!m_activeTransaction) {
@@ -808,6 +899,7 @@ void PackageTransactionManager::releaseActiveAndStartNext()
 
     m_downloadedById.clear();
     m_downloadTotalById.clear();
+    resetDownloadSpeedTracking();
 
     m_activeTransaction = nullptr;
 

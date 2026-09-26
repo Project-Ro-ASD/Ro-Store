@@ -43,6 +43,11 @@ qulonglong PackageTransaction::totalBytes() const
     return m_totalBytes;
 }
 
+qulonglong PackageTransaction::downloadSpeedBytesPerSecond() const
+{
+    return m_downloadSpeedBytesPerSecond;
+}
+
 QString PackageTransaction::errorMessage() const
 {
     return m_errorMessage;
@@ -105,6 +110,18 @@ void PackageTransaction::setTotalBytes(qulonglong bytes)
 
     m_totalBytes = bytes;
     emit totalBytesChanged();
+}
+
+void PackageTransaction::setDownloadSpeedBytesPerSecond(
+    qulonglong bytesPerSecond
+)
+{
+    if (m_downloadSpeedBytesPerSecond == bytesPerSecond) {
+        return;
+    }
+
+    m_downloadSpeedBytesPerSecond = bytesPerSecond;
+    emit downloadSpeedBytesPerSecondChanged();
 }
 
 void PackageTransaction::setErrorMessage(const QString &message)

@@ -3,6 +3,7 @@
 #include <QObject>
 #include <QQueue>
 #include <QHash>
+#include <QElapsedTimer>
 #include <QString>
 
 #include "PackageTransaction.h"
@@ -94,6 +95,9 @@ private:
     void startNext();
     void resolveActive();
 
+    void updateDownloadSpeed(qulonglong downloadedBytes);
+    void resetDownloadSpeedTracking();
+
     void resetAndReleaseActive();
     void releaseActiveAndStartNext();
     void cancelActiveFinished();
@@ -107,6 +111,10 @@ private:
 
     QHash<QString, qulonglong> m_downloadedById;
     QHash<QString, qulonglong> m_downloadTotalById;
+
+    QElapsedTimer m_downloadSpeedTimer;
+    qulonglong m_lastSpeedSampleBytes = 0;
+    double m_smoothedDownloadSpeed = 0.0;
 
     bool m_cancelRequested = false;
     bool m_resetInProgress = false;
