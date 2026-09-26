@@ -22,6 +22,69 @@ Item {
         && trackedTransaction.state !== PackageTransaction.Failed
         && trackedTransaction.state !== PackageTransaction.Cancelled
 
+    property int transactionProgress:
+        trackedTransaction !== null
+        ? trackedTransaction.progress
+        : 0
+
+    property string transactionPhaseText: {
+        if (trackedTransaction === null)
+            return ""
+
+        switch (trackedTransaction.state) {
+        case PackageTransaction.Queued:
+            return "Sırada"
+        case PackageTransaction.Resolving:
+            return "Hazırlanıyor"
+        case PackageTransaction.Ready:
+            return "Hazır"
+        case PackageTransaction.Downloading:
+            return "İndiriliyor"
+        case PackageTransaction.Running:
+            if (trackedTransaction.operation === PackageTransaction.Remove)
+                return "Kaldırılıyor"
+
+            if (trackedTransaction.operation === PackageTransaction.Upgrade)
+                return "Güncelleniyor"
+
+            return "Kuruluyor"
+        case PackageTransaction.Finished:
+            return "Tamamlandı"
+        case PackageTransaction.Failed:
+            return "Başarısız"
+        case PackageTransaction.Cancelled:
+            return "İptal edildi"
+        }
+
+        return "İşleniyor"
+    }
+
+    property string transactionTechnicalText: {
+        if (trackedTransaction === null)
+            return "Henüz işlem bilgisi yok."
+
+        var lines = []
+
+        lines.push("Paket: " + trackedTransaction.packageName)
+        lines.push("Durum: " + transactionPhaseText)
+        lines.push("İlerleme: %" + transactionProgress)
+
+        if (trackedTransaction.totalBytes > 0) {
+            lines.push(
+                "İndirilen: "
+                + trackedTransaction.downloadedBytes
+                + " / "
+                + trackedTransaction.totalBytes
+                + " bayt"
+            )
+        }
+
+        if (trackedTransaction.errorMessage.length > 0)
+            lines.push("Hata: " + trackedTransaction.errorMessage)
+
+        return lines.join("\n")
+    }
+
     function startInstallTransaction() {
         if (!packageTransactionManager || transactionRunning)
             return
@@ -69,13 +132,13 @@ Item {
     property string lastActionMessage: ""
     property bool lastActionSuccess: true
 
-    property string displayStatusText: packageInstaller.running
-                                       ? packageInstaller.statusText
+    property string displayStatusText: page.transactionRunning
+                                       ? page.transactionPhaseText
                                        : lastActionMessage.length > 0
                                            ? lastActionMessage
                                            : packageStatus.statusText
 
-    property color displayStatusColor: packageInstaller.running
+    property color displayStatusColor: page.transactionRunning
                                        ? "#fbbf24"
                                        : lastActionMessage.length > 0
                                            ? (lastActionSuccess ? "#6ee7b7" : "#f87171")
@@ -91,14 +154,54 @@ Item {
         id: appLauncher
     }
 
-    PackageInstaller {
-        id: packageInstaller
+    Connections {
+        target: page.trackedTransaction
 
-        onFinished: function(success, message) {
-            page.lastActionMessage = message
-            page.lastActionSuccess = success
-            page.logsExpanded = false
-            packageStatus.checkInstalled(page.packageName, page.versionText)
+        function onStateChanged() {
+            if (!page.trackedTransaction)
+                return
+
+            if (page.trackedTransaction.state === PackageTransaction.Finished) {
+                if (page.trackedTransaction.operation === PackageTransaction.Remove) {
+                    page.lastActionMessage = "Uygulama başarıyla kaldırıldı."
+                } else if (page.trackedTransaction.operation === PackageTransaction.Upgrade) {
+                    page.lastActionMessage = "Uygulama başarıyla güncellendi."
+                } else {
+                    page.lastActionMessage = "Uygulama başarıyla kuruldu."
+                }
+
+                page.lastActionSuccess = true
+                page.logsExpanded = false
+
+                packageStatus.checkInstalled(
+                    page.packageName,
+                    page.versionText
+                )
+
+            } else if (page.trackedTransaction.state === PackageTransaction.Failed) {
+                page.lastActionMessage =
+                    page.trackedTransaction.errorMessage.length > 0
+                    ? page.trackedTransaction.errorMessage
+                    : "İşlem başarısız."
+
+                page.lastActionSuccess = false
+                page.logsExpanded = false
+
+                packageStatus.checkInstalled(
+                    page.packageName,
+                    page.versionText
+                )
+
+            } else if (page.trackedTransaction.state === PackageTransaction.Cancelled) {
+                page.lastActionMessage = "İşlem iptal edildi."
+                page.lastActionSuccess = false
+                page.logsExpanded = false
+
+                packageStatus.checkInstalled(
+                    page.packageName,
+                    page.versionText
+                )
+            }
         }
     }
 
@@ -123,7 +226,7 @@ Item {
             height: 36
             anchors.left: parent.left
             anchors.verticalCenter: parent.verticalCenter
-            enabled: !packageInstaller.running
+            enabled: !page.transactionRunning
             onClicked: page.backRequested()
         }
 
@@ -455,7 +558,7 @@ Item {
                         width: parent.width
                         text: packageStatus.installed
                               ? "Bu uygulama sistemde yüklü."
-                              : "Kur/Güncelle/Kaldır işlemleri PackageKit üzerinden yapılır."
+                              : "Kur/Güncelle/Kaldır işlemleri DNF5 üzerinden yapılır."
                         color: "#7f8b99"
                         font.pixelSize: 13
                         wrapMode: Text.WordWrap
@@ -465,7 +568,7 @@ Item {
 
             // TEKNİK LOG AYRINTILARI - varsayılan kapalı
             Item {
-                visible: packageInstaller.running || packageInstaller.output.length > 0
+                visible: page.trackedTransaction !== null
 
                 width: page.contentWidth
                 height: visible ? (page.logsExpanded ? (page.narrow ? 260 : 285) : 42) : 0
@@ -513,8 +616,8 @@ Item {
                         }
 
                         Text {
-                            text: packageInstaller.running ? "• işlem devam ediyor" : "• ayrıntılar hazır"
-                            color: packageInstaller.running ? "#fbbf24" : "#475569"
+                            text: page.transactionRunning ? "• işlem devam ediyor" : "• ayrıntılar hazır"
+                            color: page.transactionRunning ? "#fbbf24" : "#475569"
                             font.pixelSize: 12
                             font.italic: true
                             anchors.verticalCenter: parent.verticalCenter
@@ -557,7 +660,7 @@ Item {
                         anchors.right: parent.right
                         anchors.rightMargin: 16
                         y: 14
-                        text: "pkcon / PackageKit çıktısı"
+                        text: "DNF5 işlem bilgisi"
                         color: "#475569"
                         font.pixelSize: 12
                     }
@@ -578,9 +681,7 @@ Item {
                         clip: true
 
                         TextArea {
-                            text: packageInstaller.output.length > 0
-                                  ? packageInstaller.output
-                                  : "Henüz işlem çıktısı yok."
+                            text: page.transactionTechnicalText
 
                             readOnly: true
                             selectByMouse: true
@@ -612,7 +713,7 @@ Item {
         x: page.sideMargin
         y: parent.height - height - 20
         width: page.contentWidth
-        height: page.narrow ? (packageInstaller.running ? 132 : 104) : 62
+        height: page.narrow ? (page.transactionRunning ? 132 : 104) : 62
 
         radius: 16
         color: "#101820"
@@ -632,13 +733,13 @@ Item {
                 anchors.left: parent.left
                 anchors.leftMargin: 12
                 anchors.verticalCenter: parent.verticalCenter
-                enabled: !packageStatus.checking && !packageInstaller.running
+                enabled: !packageStatus.checking && !page.transactionRunning
                 onClicked: packageStatus.checkInstalled(page.packageName, page.versionText)
             }
 
             Text {
                 x: 155
-                width: parent.width - (packageInstaller.running ? 665 : 455)
+                width: parent.width - (page.transactionRunning ? 665 : 455)
                 anchors.verticalCenter: parent.verticalCenter
                 text: page.displayStatusText
                 color: page.displayStatusColor
@@ -647,7 +748,7 @@ Item {
             }
 
             Rectangle {
-                visible: packageInstaller.running
+                visible: page.transactionRunning
                 width: 185
                 height: 30
                 anchors.right: parent.right
@@ -662,7 +763,7 @@ Item {
                 antialiasing: true
 
                 Rectangle {
-                    width: Math.max(0, parent.width * packageInstaller.progress / 100)
+                    width: Math.max(0, parent.width * page.transactionProgress / 100)
                     height: parent.height
                     radius: 10
                     color: "#2563eb"
@@ -678,7 +779,7 @@ Item {
 
                 Text {
                     anchors.centerIn: parent
-                    text: packageInstaller.phaseText + "  %" + packageInstaller.progress
+                    text: page.transactionPhaseText + "  %" + page.transactionProgress
                     color: "#dbeafe"
                     font.pixelSize: 12
                     font.bold: true
@@ -686,7 +787,7 @@ Item {
             }
 
             Button {
-                visible: packageStatus.installed && !packageInstaller.running
+                visible: packageStatus.installed && !page.transactionRunning
                 text: "Çalıştır"
                 width: 120
                 height: 38
@@ -702,7 +803,7 @@ Item {
             }
 
             Button {
-                text: packageInstaller.running
+                text: page.transactionRunning
                       ? "İşlem sürüyor..."
                       : !packageStatus.installed
                           ? "Kur"
@@ -716,7 +817,7 @@ Item {
                 anchors.rightMargin: 12
                 anchors.verticalCenter: parent.verticalCenter
 
-                enabled: !packageStatus.checking && !packageInstaller.running
+                enabled: !packageStatus.checking && !page.transactionRunning
 
                 onClicked: {
                     page.logsExpanded = false
@@ -751,7 +852,7 @@ Item {
             }
 
             Rectangle {
-                visible: packageInstaller.running
+                visible: page.transactionRunning
                 x: 12
                 y: 38
                 width: parent.width - 24
@@ -765,7 +866,7 @@ Item {
                 antialiasing: true
 
                 Rectangle {
-                    width: Math.max(0, parent.width * packageInstaller.progress / 100)
+                    width: Math.max(0, parent.width * page.transactionProgress / 100)
                     height: parent.height
                     radius: 10
                     color: "#2563eb"
@@ -781,7 +882,7 @@ Item {
 
                 Text {
                     anchors.centerIn: parent
-                    text: packageInstaller.phaseText + "  %" + packageInstaller.progress
+                    text: page.transactionPhaseText + "  %" + page.transactionProgress
                     color: "#dbeafe"
                     font.pixelSize: 12
                     font.bold: true
@@ -789,7 +890,7 @@ Item {
             }
 
             Button {
-                visible: packageStatus.installed && !packageInstaller.running
+                visible: packageStatus.installed && !page.transactionRunning
                 text: "Çalıştır"
                 x: 12
                 y: 54
@@ -805,16 +906,16 @@ Item {
 
             Button {
                 text: "Durumu Yenile"
-                x: packageStatus.installed && !packageInstaller.running ? 12 + ((parent.width - 48) / 3) + 12 : 12
-                y: packageInstaller.running ? 82 : 54
-                width: packageStatus.installed && !packageInstaller.running ? (parent.width - 48) / 3 : (parent.width - 36) / 2
+                x: packageStatus.installed && !page.transactionRunning ? 12 + ((parent.width - 48) / 3) + 12 : 12
+                y: page.transactionRunning ? 82 : 54
+                width: packageStatus.installed && !page.transactionRunning ? (parent.width - 48) / 3 : (parent.width - 36) / 2
                 height: 38
-                enabled: !packageStatus.checking && !packageInstaller.running
+                enabled: !packageStatus.checking && !page.transactionRunning
                 onClicked: packageStatus.checkInstalled(page.packageName, page.versionText)
             }
 
             Button {
-                text: packageInstaller.running
+                text: page.transactionRunning
                       ? "İşlem..."
                       : !packageStatus.installed
                           ? "Kur"
@@ -822,12 +923,12 @@ Item {
                               ? "Güncelle"
                               : "Kaldır"
 
-                x: packageStatus.installed && !packageInstaller.running ? 36 + 2 * ((parent.width - 48) / 3) : 24 + (parent.width - 36) / 2
-                y: packageInstaller.running ? 82 : 54
-                width: packageStatus.installed && !packageInstaller.running ? (parent.width - 48) / 3 : (parent.width - 36) / 2
+                x: packageStatus.installed && !page.transactionRunning ? 36 + 2 * ((parent.width - 48) / 3) : 24 + (parent.width - 36) / 2
+                y: page.transactionRunning ? 82 : 54
+                width: packageStatus.installed && !page.transactionRunning ? (parent.width - 48) / 3 : (parent.width - 36) / 2
                 height: 38
 
-                enabled: !packageStatus.checking && !packageInstaller.running
+                enabled: !packageStatus.checking && !page.transactionRunning
 
                 onClicked: {
                     page.logsExpanded = false
