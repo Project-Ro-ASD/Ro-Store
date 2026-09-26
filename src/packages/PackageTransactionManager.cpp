@@ -628,6 +628,18 @@ PackageTransactionManager::enqueue(
         return nullptr;
     }
 
+    if (auto *existing = findPendingTransaction(cleanName)) {
+        qInfo()
+            << "TRANSACTION MANAGER REUSING PENDING:"
+            << cleanName
+            << "existing operation:"
+            << static_cast<int>(existing->operation())
+            << "requested operation:"
+            << static_cast<int>(operation);
+
+        return existing;
+    }
+
     auto *transaction =
         new PackageTransaction(
             cleanName,
@@ -646,6 +658,48 @@ PackageTransactionManager::enqueue(
 
     return transaction;
 }
+
+PackageTransaction *
+PackageTransactionManager::findPendingTransaction(
+    const QString &packageName
+) const
+{
+    const QString cleanName = packageName.trimmed();
+
+    if (cleanName.isEmpty()) {
+        return nullptr;
+    }
+
+    if (m_activeTransaction
+        && !m_activeTransaction->isFinished()
+        && m_activeTransaction->packageName() == cleanName) {
+
+        return m_activeTransaction;
+    }
+
+    for (PackageTransaction *transaction : m_queue) {
+        if (!transaction) {
+            continue;
+        }
+
+        if (!transaction->isFinished()
+            && transaction->packageName() == cleanName) {
+
+            return transaction;
+        }
+    }
+
+    return nullptr;
+}
+
+
+QObject *PackageTransactionManager::pendingTransaction(
+    const QString &packageName
+) const
+{
+    return findPendingTransaction(packageName);
+}
+
 
 void PackageTransactionManager::startNext()
 {

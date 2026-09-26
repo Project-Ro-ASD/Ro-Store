@@ -67,6 +67,10 @@ public:
     Q_INVOKABLE void executeActive();
     Q_INVOKABLE void cancelActive();
 
+    Q_INVOKABLE QObject *pendingTransaction(
+        const QString &packageName
+    ) const;
+
     void finishActive();
     void failActive(const QString &errorMessage);
 
@@ -91,6 +95,10 @@ private:
         const QString &packageName,
         PackageTransaction::Operation operation
     );
+
+    PackageTransaction *findPendingTransaction(
+        const QString &packageName
+    ) const;
 
     void startNext();
     void resolveActive();

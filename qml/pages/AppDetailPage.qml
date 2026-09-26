@@ -207,7 +207,20 @@ Item {
     }
 
     Component.onCompleted: {
-        packageStatus.checkInstalled(page.packageName, page.versionText)
+        if (packageTransactionManager) {
+            var pending =
+                packageTransactionManager.pendingTransaction(
+                    page.packageName
+                )
+
+            if (pending)
+                page.trackedTransaction = pending
+        }
+
+        packageStatus.checkInstalled(
+            page.packageName,
+            page.versionText
+        )
     }
 
     // ÜST BAR
