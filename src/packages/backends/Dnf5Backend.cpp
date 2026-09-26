@@ -97,75 +97,6 @@ Dnf5Backend::PackageState Dnf5Backend::packageState() const
     return m_packageState;
 }
 
-bool Dnf5Backend::openSession()
-{
-    if (sessionOpen()) {
-        return true;
-    }
-
-    QDBusConnection bus = QDBusConnection::systemBus();
-
-    if (!bus.isConnected()) {
-        setLastError(QStringLiteral("Sistem D-Bus bağlantısı kurulamadı."));
-        return false;
-    }
-
-    QDBusInterface manager(
-        QString::fromLatin1(DNF5_SERVICE),
-        QString::fromLatin1(DNF5_ROOT_PATH),
-        QString::fromLatin1(DNF5_SESSION_MANAGER),
-        bus
-    );
-
-    if (!manager.isValid()) {
-        setLastError(
-            QStringLiteral("DNF5 SessionManager kullanılamıyor: %1")
-                .arg(manager.lastError().message())
-        );
-        return false;
-    }
-
-    QVariantMap options;
-
-    QMap<QString, QString> config;
-    config.insert(
-        QStringLiteral("skip_if_unavailable"),
-        QStringLiteral("1")
-    );
-
-    options.insert(
-        QStringLiteral("config"),
-        QVariant::fromValue(config)
-    );
-
-    QDBusReply<QDBusObjectPath> reply =
-        manager.call(QStringLiteral("open_session"), options);
-
-    if (!reply.isValid()) {
-        setLastError(
-            QStringLiteral("DNF5 oturumu açılamadı: %1")
-                .arg(reply.error().message())
-        );
-        return false;
-    }
-
-    const QString path = reply.value().path();
-
-    if (path.isEmpty()) {
-        setLastError(QStringLiteral("DNF5 boş session path döndürdü."));
-        return false;
-    }
-
-    m_sessionPath = path;
-
-    emit sessionPathChanged();
-    emit sessionOpenChanged();
-
-    setLastError(QString());
-
-    return true;
-}
-
 bool Dnf5Backend::closeSession()
 {
     if (!sessionOpen()) {
@@ -226,8 +157,12 @@ void Dnf5Backend::queryPackage(const QString &packageName)
         return;
     }
 
-    if (!sessionOpen() && !openSession()) {
-        emit packageQueryFailed(m_lastError);
+    if (!sessionOpen()) {
+        const QString error =
+            QStringLiteral("DNF5 oturumu açık değil.");
+
+        setLastError(error);
+        emit packageQueryFailed(error);
         return;
     }
 
@@ -441,8 +376,12 @@ void Dnf5Backend::queryInstalledPackage(const QString &packageName)
         return;
     }
 
-    if (!sessionOpen() && !openSession()) {
-        emit installedPackageQueryFailed(m_lastError);
+    if (!sessionOpen()) {
+        const QString error =
+            QStringLiteral("DNF5 oturumu açık değil.");
+
+        setLastError(error);
+        emit installedPackageQueryFailed(error);
         return;
     }
 
@@ -661,8 +600,12 @@ void Dnf5Backend::queryUpgradePackage(const QString &packageName)
         return;
     }
 
-    if (!sessionOpen() && !openSession()) {
-        emit upgradePackageQueryFailed(m_lastError);
+    if (!sessionOpen()) {
+        const QString error =
+            QStringLiteral("DNF5 oturumu açık değil.");
+
+        setLastError(error);
+        emit upgradePackageQueryFailed(error);
         return;
     }
 

@@ -34,12 +34,8 @@ public:
     bool busy() const;
     PackageState packageState() const;
 
-    Q_INVOKABLE bool openSession();
     Q_INVOKABLE bool closeSession();
 
-    Q_INVOKABLE void queryPackage(const QString &packageName);
-    Q_INVOKABLE void queryInstalledPackage(const QString &packageName);
-    Q_INVOKABLE void queryUpgradePackage(const QString &packageName);
     Q_INVOKABLE void queryPackageState(const QString &packageName);
 
 signals:
@@ -66,6 +62,10 @@ signals:
     );
 
 private:
+    void queryPackage(const QString &packageName);
+    void queryInstalledPackage(const QString &packageName);
+    void queryUpgradePackage(const QString &packageName);
+
     void setLastError(const QString &error);
     void setBusy(bool value);
     void setPackageState(PackageState state);
