@@ -12,6 +12,7 @@ Item {
     property int contentWidth: Math.max(320, width - sideMargin * 2)
 
     signal reloadRequested()
+    signal downloadsRequested()
     signal appSelected(
         string title,
         string summary,
@@ -82,7 +83,7 @@ Item {
 
                     TextField {
                         id: searchFieldWide
-                        width: 310
+                        width: 240
                         height: 36
                         placeholderText: "Uygulama ara..."
                         text: page.catalog ? page.catalog.searchText : ""
@@ -96,7 +97,7 @@ Item {
 
                     ComboBox {
                         id: categoryBoxWide
-                        width: 170
+                        width: 145
                         height: 36
                         model: page.catalog ? page.catalog.categories : ["Tümü"]
 
@@ -109,9 +110,16 @@ Item {
 
                     Button {
                         text: "Yenile"
-                        width: 90
+                        width: 80
                         height: 36
                         onClicked: page.reloadRequested()
+                    }
+
+                    Button {
+                        text: "Yüklemeler"
+                        width: 110
+                        height: 36
+                        onClicked: page.downloadsRequested()
                     }
                 }
             }
@@ -120,7 +128,7 @@ Item {
             Item {
                 visible: page.narrow
                 width: page.contentWidth
-                height: visible ? 92 : 0
+                height: visible ? 142 : 0
                 x: page.sideMargin
 
                 TextField {
@@ -165,6 +173,16 @@ Item {
                         height: 38
                         onClicked: page.reloadRequested()
                     }
+                }
+
+                Button {
+                    x: 0
+                    y: 100
+                    width: parent.width
+                    height: 38
+
+                    text: "Yüklemeler"
+                    onClicked: page.downloadsRequested()
                 }
             }
 

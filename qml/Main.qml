@@ -53,6 +53,10 @@ ApplicationWindow {
                 catalogModel.load("https://repo.ro-asd.org/rpm/fedora/44/beta/store/catalog.json")
             }
 
+            onDownloadsRequested: {
+                stackView.push(downloadsPageComponent)
+            }
+
             onAppSelected: function(title, summary, description, category, version, packageName, iconUrl) {
                 stackView.push(detailPageComponent, {
                     appName: title,
@@ -63,6 +67,18 @@ ApplicationWindow {
                     packageName: packageName,
                     iconUrl: iconUrl
                 })
+            }
+        }
+    }
+
+    Component {
+        id: downloadsPageComponent
+
+        DownloadsPage {
+            packageTransactionManager: transactionManager
+
+            onBackRequested: {
+                stackView.pop()
             }
         }
     }

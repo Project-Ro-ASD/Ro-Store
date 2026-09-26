@@ -42,6 +42,7 @@ qt_add_qml_module(ro-store
         qml/Main.qml
         qml/pages/HomePage.qml
         qml/pages/AppDetailPage.qml
+        qml/pages/DownloadsPage.qml
         qml/components/AppCard.qml
 )
 
