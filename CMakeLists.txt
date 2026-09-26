@@ -29,6 +29,8 @@ qt_add_executable(ro-store
     src/packages/PackageTransaction.cpp
     src/packages/PackageTransactionModel.h
     src/packages/PackageTransactionModel.cpp
+    src/packages/PackageTransactionManager.h
+    src/packages/PackageTransactionManager.cpp
     src/AppLauncher.h
     src/AppLauncher.cpp
     src/packages/backends/Dnf5Backend.h
