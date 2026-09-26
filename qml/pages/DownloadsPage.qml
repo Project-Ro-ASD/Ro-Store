@@ -81,6 +81,45 @@ Item {
         return formatBytes(value) + "/sn"
     }
 
+    function formatEta(remainingBytes, bytesPerSecond) {
+        var remaining = Number(remainingBytes)
+        var speed = Number(bytesPerSecond)
+
+        if (!isFinite(remaining)
+                || !isFinite(speed)
+                || remaining <= 0
+                || speed <= 0)
+            return ""
+
+        var seconds = Math.ceil(remaining / speed)
+
+        if (seconds <= 1)
+            return "< 1 sn"
+
+        if (seconds < 60)
+            return seconds + " sn"
+
+        var minutes = Math.floor(seconds / 60)
+        var remainingSeconds = seconds % 60
+
+        if (minutes < 60) {
+            if (remainingSeconds === 0)
+                return minutes + " dk"
+
+            return minutes + " dk "
+                   + remainingSeconds + " sn"
+        }
+
+        var hours = Math.floor(minutes / 60)
+        var remainingMinutes = minutes % 60
+
+        if (remainingMinutes === 0)
+            return hours + " sa"
+
+        return hours + " sa "
+               + remainingMinutes + " dk"
+    }
+
     // ÜST BAR
     Item {
         id: topBar
@@ -311,6 +350,15 @@ Item {
                                + (activeCard.tx.state === PackageTransaction.Downloading
                                   ? "   •   Hız: "
                                     + page.formatSpeed(
+                                        activeCard.tx.downloadSpeedBytesPerSecond
+                                      )
+                                  : "")
+                               + (activeCard.tx.state === PackageTransaction.Downloading
+                                  && activeCard.tx.downloadSpeedBytesPerSecond > 0
+                                  && remaining > 0
+                                  ? "   •   Tahmini: "
+                                    + page.formatEta(
+                                        remaining,
                                         activeCard.tx.downloadSpeedBytesPerSecond
                                       )
                                   : "")
