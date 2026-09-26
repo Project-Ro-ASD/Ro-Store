@@ -204,6 +204,8 @@ bool Dnf5Backend::closeSession()
         return true;
     }
 
+    const QString closingSessionPath = m_sessionPath;
+
     QDBusConnection bus = QDBusConnection::systemBus();
 
     QDBusInterface manager(
@@ -232,6 +234,7 @@ bool Dnf5Backend::closeSession()
         return false;
     }
 
+    disconnectProgressSignals(closingSessionPath);
     clearSession();
     setLastError(QString());
 
@@ -1635,29 +1638,50 @@ void Dnf5Backend::resetTransaction()
         return;
     }
 
-    QDBusInterface goal(
+    const QString closingSessionPath = m_sessionPath;
+
+    // Transaction sonrasında aynı DNF5 session'ını tekrar kullanmak
+    // RPM package sack'in eski @System durumunu taşımasına neden olabilir.
+    // Eski session bağlantılarını bırakıp yeni işlem için yeni session açacağız.
+    disconnectProgressSignals(closingSessionPath);
+
+    QDBusConnection bus =
+        QDBusConnection::systemBus();
+
+    QDBusInterface manager(
         QString::fromLatin1(DNF5_SERVICE),
-        m_sessionPath,
-        QStringLiteral("org.rpm.dnf.v0.Goal"),
-        QDBusConnection::systemBus()
+        QString::fromLatin1(DNF5_ROOT_PATH),
+        QString::fromLatin1(DNF5_SESSION_MANAGER),
+        bus
     );
 
-    if (!goal.isValid()) {
+    if (!manager.isValid()) {
         const QString error =
             QStringLiteral(
-                "DNF5 Goal reset arayüzü kullanılamıyor: %1"
-            ).arg(goal.lastError().message());
+                "DNF5 SessionManager kullanılamıyor: %1"
+            ).arg(
+                manager.lastError().message()
+            );
 
-        clearSession();
+        if (m_sessionPath == closingSessionPath) {
+            clearSession();
+        }
+
+        setLastError(error);
         emit transactionResetFailed(error);
         return;
     }
 
-    qInfo() << "DNF5 GOAL RESET START";
+    qInfo()
+        << "DNF5 SESSION RECYCLE START:"
+        << closingSessionPath;
 
     QDBusPendingCall pending =
-        goal.asyncCall(
-            QStringLiteral("reset")
+        manager.asyncCall(
+            QStringLiteral("close_session"),
+            QVariant::fromValue(
+                QDBusObjectPath(closingSessionPath)
+            )
         );
 
     auto *watcher =
@@ -1670,23 +1694,27 @@ void Dnf5Backend::resetTransaction()
         watcher,
         &QDBusPendingCallWatcher::finished,
         this,
-        [this, watcher]() {
-            QDBusPendingReply<> reply =
+        [this, watcher, closingSessionPath]() {
+            QDBusPendingReply<bool> reply =
                 *watcher;
 
             if (reply.isError()) {
                 const QString error =
                     QStringLiteral(
-                        "DNF5 Goal reset başarısız: %1"
+                        "DNF5 session yenilenirken kapatma başarısız: %1"
                     ).arg(
                         reply.error().message()
                     );
 
                 qWarning()
-                    << "DNF5 GOAL RESET ERROR:"
+                    << "DNF5 SESSION RECYCLE ERROR:"
                     << error;
 
-                clearSession();
+                if (m_sessionPath == closingSessionPath) {
+                    clearSession();
+                }
+
+                setLastError(error);
 
                 emit transactionResetFailed(
                     error
@@ -1696,8 +1724,39 @@ void Dnf5Backend::resetTransaction()
                 return;
             }
 
+            if (!reply.value()) {
+                const QString error =
+                    QStringLiteral(
+                        "DNF5 session yenileme sırasında "
+                        "close_session isteğini reddetti."
+                    );
+
+                qWarning()
+                    << "DNF5 SESSION RECYCLE REJECTED";
+
+                if (m_sessionPath == closingSessionPath) {
+                    clearSession();
+                }
+
+                setLastError(error);
+
+                emit transactionResetFailed(
+                    error
+                );
+
+                watcher->deleteLater();
+                return;
+            }
+
+            if (m_sessionPath == closingSessionPath) {
+                clearSession();
+            }
+
+            setLastError(QString());
+
             qInfo()
-                << "DNF5 GOAL RESET FINISHED";
+                << "DNF5 SESSION RECYCLE FINISHED:"
+                << closingSessionPath;
 
             emit transactionResetFinished();
 
@@ -1800,6 +1859,127 @@ void Dnf5Backend::cancelTransaction()
             watcher->deleteLater();
         }
     );
+}
+
+
+void Dnf5Backend::disconnectProgressSignals(
+    const QString &sessionPath
+)
+{
+    if (sessionPath.isEmpty()) {
+        return;
+    }
+
+    QDBusConnection bus =
+        QDBusConnection::systemBus();
+
+    const QString service =
+        QString::fromLatin1(DNF5_SERVICE);
+
+    const QString baseInterface =
+        QString::fromLatin1(DNF5_BASE_INTERFACE);
+
+    const QString rpmInterface =
+        QString::fromLatin1(DNF5_RPM_INTERFACE);
+
+    bus.disconnect(
+        service,
+        sessionPath,
+        baseInterface,
+        QStringLiteral("download_add_new"),
+        this,
+        SLOT(onDownloadAddNew(
+            QDBusObjectPath,
+            QString,
+            QString,
+            qlonglong
+        ))
+    );
+
+    bus.disconnect(
+        service,
+        sessionPath,
+        baseInterface,
+        QStringLiteral("download_progress"),
+        this,
+        SLOT(onDownloadProgress(
+            QDBusObjectPath,
+            QString,
+            qlonglong,
+            qlonglong
+        ))
+    );
+
+    bus.disconnect(
+        service,
+        sessionPath,
+        baseInterface,
+        QStringLiteral("download_end"),
+        this,
+        SLOT(onDownloadEnd(
+            QDBusObjectPath,
+            QString,
+            uint,
+            QString
+        ))
+    );
+
+    bus.disconnect(
+        service,
+        sessionPath,
+        rpmInterface,
+        QStringLiteral("transaction_action_start"),
+        this,
+        SLOT(onRpmActionStart(
+            QDBusObjectPath,
+            QString,
+            uint,
+            qulonglong
+        ))
+    );
+
+    bus.disconnect(
+        service,
+        sessionPath,
+        rpmInterface,
+        QStringLiteral("transaction_action_progress"),
+        this,
+        SLOT(onRpmActionProgress(
+            QDBusObjectPath,
+            QString,
+            qulonglong,
+            qulonglong
+        ))
+    );
+
+    bus.disconnect(
+        service,
+        sessionPath,
+        rpmInterface,
+        QStringLiteral("transaction_action_stop"),
+        this,
+        SLOT(onRpmActionStop(
+            QDBusObjectPath,
+            QString,
+            qulonglong
+        ))
+    );
+
+    bus.disconnect(
+        service,
+        sessionPath,
+        rpmInterface,
+        QStringLiteral("transaction_after_complete"),
+        this,
+        SLOT(onRpmTransactionAfterComplete(
+            QDBusObjectPath,
+            bool
+        ))
+    );
+
+    qInfo()
+        << "DNF5 PROGRESS SIGNALS DISCONNECTED:"
+        << sessionPath;
 }
 
 

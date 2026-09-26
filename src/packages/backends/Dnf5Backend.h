@@ -204,6 +204,7 @@ private:
     void setPackageState(PackageState state);
     void ensureSessionAsync(std::function<void(bool)> callback);
     void connectProgressSignals();
+    void disconnectProgressSignals(const QString &sessionPath);
     void finishSessionOpen(bool success);
     void clearSession();
 

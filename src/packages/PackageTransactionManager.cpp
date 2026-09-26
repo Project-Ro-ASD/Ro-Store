@@ -494,7 +494,7 @@ PackageTransactionManager::PackageTransactionManager(
         this,
         [this]() {
             qInfo()
-                << "TRANSACTION MANAGER RESET FINISHED";
+                << "TRANSACTION MANAGER SESSION REFRESH FINISHED";
 
             releaseActiveAndStartNext();
         }
@@ -506,7 +506,7 @@ PackageTransactionManager::PackageTransactionManager(
         this,
         [this](const QString &error) {
             qWarning()
-                << "TRANSACTION MANAGER RESET FAILED:"
+                << "TRANSACTION MANAGER SESSION REFRESH FAILED:"
                 << error;
 
             // Backend başarısız reset durumunda session'ı temizliyor.
@@ -795,7 +795,7 @@ void PackageTransactionManager::resetAndReleaseActive()
     m_resetInProgress = true;
 
     qInfo()
-        << "TRANSACTION MANAGER RESETTING GOAL";
+        << "TRANSACTION MANAGER REFRESHING DNF5 SESSION";
 
     m_backend->resetTransaction();
 }
