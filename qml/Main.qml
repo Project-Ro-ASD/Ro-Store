@@ -16,6 +16,32 @@ ApplicationWindow {
         id: catalogModel
     }
 
+    PackageTransactionManager {
+        id: transactionManager
+
+        onTransactionActivated: function(transaction) {
+            console.log(
+                "MANAGER ACTIVE:",
+                transaction.packageName
+            )
+        }
+
+        onTransactionResolved: function(transaction) {
+            console.log(
+                "MANAGER READY:",
+                transaction.packageName,
+                "state:",
+                transaction.state,
+                "items:",
+                transaction.resolvedItemCount,
+                "download:",
+                transaction.totalBytes
+            )
+
+            transactionManager.executeActive()
+        }
+    }
+
     StackView {
         id: stackView
         anchors.fill: parent
@@ -25,6 +51,10 @@ ApplicationWindow {
 
             onReloadRequested: {
                 catalogModel.load("https://repo.ro-asd.org/rpm/fedora/44/beta/store/catalog.json")
+            }
+
+            onDownloadsRequested: {
+                stackView.push(downloadsPageComponent)
             }
 
             onAppSelected: function(title, summary, description, category, version, packageName, iconUrl) {
@@ -42,11 +72,29 @@ ApplicationWindow {
     }
 
     Component {
+        id: downloadsPageComponent
+
+        DownloadsPage {
+            packageTransactionManager: transactionManager
+
+            onBackRequested: {
+                stackView.pop()
+            }
+        }
+    }
+
+    Component {
         id: detailPageComponent
 
         AppDetailPage {
+            packageTransactionManager: transactionManager
+
             onBackRequested: {
                 stackView.pop()
+            }
+
+            onDownloadsRequested: {
+                stackView.push(downloadsPageComponent)
             }
         }
     }

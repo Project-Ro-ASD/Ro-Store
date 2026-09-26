@@ -10,7 +10,7 @@ project(RoStore
 set(CMAKE_CXX_STANDARD 20)
 set(CMAKE_CXX_STANDARD_REQUIRED ON)
 
-find_package(Qt6 REQUIRED COMPONENTS Core Quick Network)
+find_package(Qt6 REQUIRED COMPONENTS Core Quick Network DBus)
 
 qt_standard_project_setup()
 
@@ -23,10 +23,16 @@ qt_add_executable(ro-store
     src/CatalogModel.cpp
     src/PackageStatus.h
     src/PackageStatus.cpp
-    src/PackageInstaller.h
-    src/PackageInstaller.cpp
+    src/packages/PackageTransaction.h
+    src/packages/PackageTransaction.cpp
+    src/packages/PackageTransactionModel.h
+    src/packages/PackageTransactionModel.cpp
+    src/packages/PackageTransactionManager.h
+    src/packages/PackageTransactionManager.cpp
     src/AppLauncher.h
     src/AppLauncher.cpp
+    src/packages/backends/Dnf5Backend.h
+    src/packages/backends/Dnf5Backend.cpp
 )
 
 qt_add_qml_module(ro-store
@@ -36,6 +42,7 @@ qt_add_qml_module(ro-store
         qml/Main.qml
         qml/pages/HomePage.qml
         qml/pages/AppDetailPage.qml
+        qml/pages/DownloadsPage.qml
         qml/components/AppCard.qml
 )
 
@@ -44,6 +51,7 @@ target_link_libraries(ro-store
         Qt6::Core
         Qt6::Quick
         Qt6::Network
+        Qt6::DBus
 )
 
 target_include_directories(ro-store
@@ -104,8 +112,8 @@ set(CPACK_RPM_PACKAGE_RELEASE_DIST ON)
 set(CPACK_RPM_PACKAGE_AUTOREQ ON)
 set(CPACK_RPM_PACKAGE_AUTOPROV ON)
 
-# Ro-Store paket işlemlerini bunlarla yapıyor.
-set(CPACK_RPM_PACKAGE_REQUIRES "/usr/bin/pkcon, /usr/bin/pkexec")
+# Ro-Store package transactions use the DNF5 daemon over D-Bus.
+set(CPACK_RPM_PACKAGE_REQUIRES "dnf5daemon-server, dnf5daemon-server-polkit")
 
 set(CPACK_RPM_FILE_NAME "RPM-DEFAULT")
 
