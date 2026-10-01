@@ -48,6 +48,7 @@ ApplicationWindow {
 
         initialItem: HomePage {
             catalog: catalogModel
+            packageTransactionManager: transactionManager
 
             onReloadRequested: {
                 catalogModel.load("https://repo.ro-asd.org/rpm/fedora/44/beta/store/catalog.json")

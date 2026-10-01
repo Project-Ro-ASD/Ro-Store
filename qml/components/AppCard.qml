@@ -14,6 +14,9 @@ Rectangle {
     property string descriptionText: ""
     property string iconUrl: ""
 
+    property var packageTransactionManager: null
+    property int statusRefreshSerial: 0
+
     signal detailRequested(
         string title,
         string summary,
@@ -45,12 +48,39 @@ Rectangle {
         cardPackageStatus.checkInstalled(card.packageText, card.versionText)
     }
 
+    Connections {
+        target: card.packageTransactionManager
+
+        function onPackageStateChanged(packageName) {
+            if (packageName !== card.packageText)
+                return
+
+            cardPackageStatus.checkInstalled(
+                card.packageText,
+                card.versionText
+            )
+        }
+    }
+
     onPackageTextChanged: {
         cardPackageStatus.checkInstalled(card.packageText, card.versionText)
     }
 
     onVersionTextChanged: {
         cardPackageStatus.checkInstalled(card.packageText, card.versionText)
+    }
+
+    onStatusRefreshSerialChanged: {
+        console.log(
+            "CARD PACKAGE STATUS REFRESH:",
+            card.packageText,
+            statusRefreshSerial
+        )
+
+        cardPackageStatus.checkInstalled(
+            card.packageText,
+            card.versionText
+        )
     }
 
     Behavior on color {

@@ -969,11 +969,16 @@ void PackageTransactionManager::finishActive()
         return;
     }
 
+    const QString packageName =
+        m_activeTransaction->packageName();
+
     m_activeTransaction->setProgress(100);
 
     m_activeTransaction->setState(
         PackageTransaction::State::Finished
     );
+
+    emit packageStateChanged(packageName);
 
     resetAndReleaseActive();
 }

@@ -90,6 +90,10 @@ signals:
         PackageTransaction *transaction
     );
 
+    void packageStateChanged(
+        const QString &packageName
+    );
+
 private:
     PackageTransaction *enqueue(
         const QString &packageName,
