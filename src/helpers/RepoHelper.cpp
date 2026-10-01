@@ -2,6 +2,7 @@
 #include <QDir>
 #include <QFile>
 #include <QFileInfo>
+#include <QProcess>
 #include <QSaveFile>
 #include <QStringList>
 #include <QTextStream>
@@ -293,10 +294,9 @@ bool installRepository(QString *error)
 
 bool enableRepository(QString *error)
 {
-    const QString path =
-        findRepositoryFile();
-
-    if (path.isEmpty()) {
+    // Önce gerçekten ro-asd-beta tanımının sistemde
+    // bulunduğunu doğrula.
+    if (findRepositoryFile().isEmpty()) {
         if (error) {
             *error =
                 QStringLiteral(
@@ -307,138 +307,99 @@ bool enableRepository(QString *error)
         return false;
     }
 
-    QFile input(path);
+    const QString dnf5Path =
+        QStringLiteral("/usr/bin/dnf5");
 
-    if (!input.open(
-            QIODevice::ReadOnly
-            | QIODevice::Text
-        )) {
-
+    if (!QFileInfo::exists(dnf5Path)) {
         if (error) {
             *error =
                 QStringLiteral(
-                    "Repository dosyası okunamadı: %1"
-                ).arg(path);
-        }
-
-        return false;
-    }
-
-    QStringList lines;
-
-    while (!input.atEnd()) {
-        lines.append(
-            QString::fromUtf8(
-                input.readLine()
-            )
-        );
-    }
-
-    input.close();
-
-    bool inTargetSection = false;
-    bool targetFound = false;
-    bool enabledWritten = false;
-
-    QStringList output;
-
-    for (QString line : lines) {
-        const QString trimmed =
-            line.trimmed();
-
-        if (trimmed.startsWith('[')
-            && trimmed.endsWith(']')) {
-
-            if (inTargetSection
-                && !enabledWritten) {
-
-                output.append(
-                    QStringLiteral(
-                        "enabled=1\n"
-                    )
-                );
-
-                enabledWritten = true;
-            }
-
-            const QString section =
-                trimmed.mid(
-                    1,
-                    trimmed.size() - 2
-                ).trimmed();
-
-            inTargetSection =
-                section.compare(
-                    QString::fromLatin1(
-                        repoSection
-                    ),
-                    Qt::CaseInsensitive
-                ) == 0;
-
-            if (inTargetSection) {
-                targetFound = true;
-            }
-
-            output.append(line);
-            continue;
-        }
-
-        if (inTargetSection) {
-            const qsizetype separator =
-                trimmed.indexOf('=');
-
-            if (separator >= 0) {
-                const QString key =
-                    trimmed.left(separator)
-                        .trimmed()
-                        .toLower();
-
-                if (key
-                    == QStringLiteral(
-                        "enabled"
-                    )) {
-
-                    output.append(
-                        QStringLiteral(
-                            "enabled=1\n"
-                        )
-                    );
-
-                    enabledWritten = true;
-                    continue;
-                }
-            }
-        }
-
-        output.append(line);
-    }
-
-    if (!targetFound) {
-        if (error) {
-            *error =
-                QStringLiteral(
-                    "ro-asd-beta repository bölümü bulunamadı."
+                    "DNF5 sistemde bulunamadı."
                 );
         }
 
         return false;
     }
 
-    if (inTargetSection
-        && !enabledWritten) {
+    QProcess process;
 
-        output.append(
-            QStringLiteral(
-                "enabled=1\n"
-            )
-        );
-    }
-
-    return writeSystemFile(
-        path,
-        output.join(QString()).toUtf8(),
-        error
+    process.setProgram(
+        dnf5Path
     );
+
+    // Shell kullanılmaz ve kullanıcıdan hiçbir argüman
+    // alınmaz. Repository kimliği sabittir.
+    process.setArguments(
+        {
+            QStringLiteral("config-manager"),
+            QStringLiteral("setopt"),
+            QStringLiteral(
+                "ro-asd-beta.enabled=1"
+            )
+        }
+    );
+
+    process.start();
+
+    if (!process.waitForStarted(5000)) {
+        if (error) {
+            *error =
+                QStringLiteral(
+                    "DNF5 repository etkinleştirme "
+                    "işlemi başlatılamadı."
+                );
+        }
+
+        return false;
+    }
+
+    if (!process.waitForFinished(30000)) {
+        process.kill();
+        process.waitForFinished();
+
+        if (error) {
+            *error =
+                QStringLiteral(
+                    "DNF5 repository etkinleştirme "
+                    "işlemi zaman aşımına uğradı."
+                );
+        }
+
+        return false;
+    }
+
+    if (process.exitStatus()
+            == QProcess::NormalExit
+        && process.exitCode() == 0) {
+
+        return true;
+    }
+
+    QString processError =
+        QString::fromUtf8(
+            process.readAllStandardError()
+        ).trimmed();
+
+    if (processError.isEmpty()) {
+        processError =
+            QString::fromUtf8(
+                process.readAllStandardOutput()
+            ).trimmed();
+    }
+
+    if (processError.isEmpty()) {
+        processError =
+            QStringLiteral(
+                "DNF5 repository etkinleştirme "
+                "işlemi başarısız oldu."
+            );
+    }
+
+    if (error) {
+        *error = processError;
+    }
+
+    return false;
 }
 
 

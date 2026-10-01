@@ -127,6 +127,7 @@ signals:
 private:
     void detectSystem();
     void detectRoAsdRepository();
+    void queryRoAsdEffectiveState();
 
     void setChecking(bool value);
 
@@ -161,7 +162,9 @@ private:
         QStringLiteral("Depo durumu kontrol edilmedi.");
 
     QProcess *m_repositoryProcess = nullptr;
+    QProcess *m_repositoryStateProcess = nullptr;
 
+    bool m_repositoryStateQueryPending = false;
     bool m_repositoryActionRunning = false;
     QString m_repositoryActionError;
 };

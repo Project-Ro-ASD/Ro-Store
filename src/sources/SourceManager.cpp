@@ -4,6 +4,10 @@
 #include <QDir>
 #include <QFile>
 #include <QFileInfo>
+#include <QJsonArray>
+#include <QJsonDocument>
+#include <QJsonObject>
+#include <QJsonParseError>
 #include <QProcess>
 #include <QSysInfo>
 #include <QStringList>
@@ -38,7 +42,8 @@ QString cleanOsReleaseValue(QString value)
 
 SourceManager::SourceManager(QObject *parent)
     : QObject(parent),
-      m_repositoryProcess(new QProcess(this))
+      m_repositoryProcess(new QProcess(this)),
+      m_repositoryStateProcess(new QProcess(this))
 {
     connect(
         m_repositoryProcess,
@@ -127,6 +132,201 @@ SourceManager::SourceManager(QObject *parent)
                     "Yetkilendirme işlemi başlatılamadı."
                 )
             );
+        }
+    );
+    connect(
+        m_repositoryStateProcess,
+        &QProcess::finished,
+        this,
+        [this](
+            int exitCode,
+            QProcess::ExitStatus exitStatus
+        ) {
+            m_repositoryStateQueryPending = false;
+
+            const QByteArray standardOutput =
+                m_repositoryStateProcess
+                    ->readAllStandardOutput();
+
+            const QByteArray standardError =
+                m_repositoryStateProcess
+                    ->readAllStandardError();
+
+            if (exitStatus != QProcess::NormalExit
+                || exitCode != 0) {
+
+                const QString errorText =
+                    QString::fromUtf8(
+                        standardError
+                    ).trimmed();
+
+                if (!errorText.isEmpty()) {
+                    qWarning().noquote()
+                        << "SOURCE MANAGER DNF5 REPO QUERY:"
+                        << errorText;
+                }
+
+                setRoAsdState(
+                    Unavailable,
+                    QStringLiteral(
+                        "Ro-ASD deposunun etkinlik durumu "
+                        "DNF5 üzerinden kontrol edilemedi."
+                    )
+                );
+
+                setChecking(false);
+                return;
+            }
+
+            QJsonParseError parseError;
+
+            const QJsonDocument document =
+                QJsonDocument::fromJson(
+                    standardOutput,
+                    &parseError
+                );
+
+            if (parseError.error
+                    != QJsonParseError::NoError) {
+
+                qWarning()
+                    << "SOURCE MANAGER DNF5 JSON ERROR:"
+                    << parseError.errorString();
+
+                setRoAsdState(
+                    Unavailable,
+                    QStringLiteral(
+                        "DNF5 depo durumu geçerli bir "
+                        "yanıt döndürmedi."
+                    )
+                );
+
+                setChecking(false);
+                return;
+            }
+
+            QJsonArray repositories;
+
+            if (document.isArray()) {
+                repositories = document.array();
+            } else if (document.isObject()) {
+                repositories.append(
+                    document.object()
+                );
+            } else {
+                setRoAsdState(
+                    Unavailable,
+                    QStringLiteral(
+                        "DNF5 depo durumu okunamadı."
+                    )
+                );
+
+                setChecking(false);
+                return;
+            }
+
+            bool targetFound = false;
+
+            for (const QJsonValue &value : repositories) {
+                if (!value.isObject()) {
+                    continue;
+                }
+
+                const QJsonObject object =
+                    value.toObject();
+
+                if (object.value(
+                        QStringLiteral("id")
+                    ).toString()
+                    != QStringLiteral("ro-asd-beta")) {
+
+                    continue;
+                }
+
+                targetFound = true;
+
+                const QJsonValue enabledValue =
+                    object.value(
+                        QStringLiteral("is_enabled")
+                    );
+
+                if (!enabledValue.isBool()) {
+                    setRoAsdState(
+                        Unavailable,
+                        QStringLiteral(
+                            "DNF5 depo etkinlik durumu "
+                            "okunamadı."
+                        )
+                    );
+
+                    setChecking(false);
+                    return;
+                }
+
+                const bool enabled =
+                    enabledValue.toBool();
+
+                qInfo()
+                    << "SOURCE MANAGER EFFECTIVE RO-ASD:"
+                    << (enabled
+                        ? "enabled"
+                        : "disabled");
+
+                if (enabled) {
+                    setRoAsdState(
+                        Ready,
+                        QStringLiteral(
+                            "Ro-ASD uygulama deposu hazır."
+                        )
+                    );
+                } else {
+                    setRoAsdState(
+                        Disabled,
+                        QStringLiteral(
+                            "Ro-ASD uygulama deposu "
+                            "kurulu ancak devre dışı."
+                        )
+                    );
+                }
+
+                setChecking(false);
+                return;
+            }
+
+            if (!targetFound) {
+                setRoAsdState(
+                    Unavailable,
+                    QStringLiteral(
+                        "Ro-ASD deposu DNF5 yapılandırmasında "
+                        "bulunamadı."
+                    )
+                );
+            }
+
+            setChecking(false);
+        }
+    );
+
+    connect(
+        m_repositoryStateProcess,
+        &QProcess::errorOccurred,
+        this,
+        [this](QProcess::ProcessError error) {
+            if (error
+                != QProcess::FailedToStart) {
+                return;
+            }
+
+            m_repositoryStateQueryPending = false;
+
+            setRoAsdState(
+                Unavailable,
+                QStringLiteral(
+                    "DNF5 depo kontrolü başlatılamadı."
+                )
+            );
+
+            setChecking(false);
         }
     );
 }
@@ -320,7 +520,12 @@ void SourceManager::refresh()
 
     detectRoAsdRepository();
 
-    setChecking(false);
+    // detectRoAsdRepository() efektif DNF5 durumunu
+    // asenkron sorgulamaya başladıysa checking durumu
+    // process tamamlanınca kapatılır.
+    if (!m_repositoryStateQueryPending) {
+        setChecking(false);
+    }
 }
 
 void SourceManager::detectSystem()
@@ -415,8 +620,6 @@ void SourceManager::detectRoAsdRepository()
     bool insideTargetRepo = false;
     bool collectingGpgKey = false;
 
-    bool repoEnabled = true;
-
     QString baseUrl;
     QString gpgCheck;
     QString repoGpgCheck;
@@ -504,18 +707,6 @@ void SourceManager::detectRoAsdRepository()
 
             if (key == QStringLiteral("baseurl")) {
                 baseUrl = value;
-                continue;
-            }
-
-            if (key == QStringLiteral("enabled")) {
-                const QString normalized =
-                    value.toLower();
-
-                repoEnabled =
-                    normalized != QStringLiteral("0")
-                    && normalized != QStringLiteral("false")
-                    && normalized != QStringLiteral("no");
-
                 continue;
             }
 
@@ -652,24 +843,55 @@ void SourceManager::detectRoAsdRepository()
         return;
     }
 
-    if (!repoEnabled) {
+    queryRoAsdEffectiveState();
+}
+
+
+void SourceManager::queryRoAsdEffectiveState()
+{
+    if (m_repositoryStateProcess->state()
+            != QProcess::NotRunning) {
+
+        m_repositoryStateQueryPending = true;
+        return;
+    }
+
+    const QString dnf5Path =
+        QStringLiteral("/usr/bin/dnf5");
+
+    if (!QFileInfo::exists(dnf5Path)) {
+        m_repositoryStateQueryPending = false;
+
         setRoAsdState(
-            Disabled,
+            Unavailable,
             QStringLiteral(
-                "Ro-ASD uygulama deposu "
-                "kurulu ancak devre dışı."
+                "DNF5 sistemde bulunamadı."
             )
         );
 
         return;
     }
 
-    setRoAsdState(
-        Ready,
-        QStringLiteral(
-            "Ro-ASD uygulama deposu hazır."
-        )
+    m_repositoryStateQueryPending = true;
+
+    m_repositoryStateProcess->setProgram(
+        dnf5Path
     );
+
+    m_repositoryStateProcess->setArguments(
+        {
+            QStringLiteral("repo"),
+            QStringLiteral("list"),
+            QStringLiteral("--all"),
+            QStringLiteral("--json"),
+            QStringLiteral("ro-asd-beta")
+        }
+    );
+
+    qInfo()
+        << "SOURCE MANAGER DNF5 REPO QUERY START";
+
+    m_repositoryStateProcess->start();
 }
 
 
