@@ -7,6 +7,7 @@
 #include "CatalogModel.h"
 #include "PackageStatus.h"
 #include "AppLauncher.h"
+#include "sources/SourceManager.h"
 #include "packages/backends/Dnf5Backend.h"
 #include "packages/PackageTransaction.h"
 #include "packages/PackageTransactionModel.h"
@@ -21,6 +22,7 @@ int main(int argc, char *argv[])
     qmlRegisterType<CatalogModel>("RoStore", 1, 0, "CatalogModel");
     qmlRegisterType<PackageStatus>("RoStore", 1, 0, "PackageStatus");
     qmlRegisterType<AppLauncher>("RoStore", 1, 0, "AppLauncher");
+    qmlRegisterType<SourceManager>("RoStore", 1, 0, "SourceManager");
     qmlRegisterType<Dnf5Backend>("RoStore", 1, 0, "Dnf5Backend");
 
     qmlRegisterType<PackageTransactionManager>(

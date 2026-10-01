@@ -16,6 +16,10 @@ ApplicationWindow {
         id: catalogModel
     }
 
+    SourceManager {
+        id: sourceManager
+    }
+
     PackageTransactionManager {
         id: transactionManager
 
@@ -101,6 +105,10 @@ ApplicationWindow {
     }
 
     Component.onCompleted: {
-        catalogModel.load("https://repo.ro-asd.org/rpm/fedora/44/beta/store/catalog.json")
+        sourceManager.refresh()
+
+        catalogModel.load(
+            "https://repo.ro-asd.org/rpm/fedora/44/beta/store/catalog.json"
+        )
     }
 }

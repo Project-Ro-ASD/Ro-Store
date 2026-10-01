@@ -31,6 +31,8 @@ qt_add_executable(ro-store
     src/packages/PackageTransactionManager.cpp
     src/AppLauncher.h
     src/AppLauncher.cpp
+    src/sources/SourceManager.h
+    src/sources/SourceManager.cpp
     src/packages/backends/Dnf5Backend.h
     src/packages/backends/Dnf5Backend.cpp
 )
