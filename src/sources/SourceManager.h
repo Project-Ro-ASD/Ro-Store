@@ -60,6 +60,24 @@ public:
         NOTIFY roAsdStateChanged
     )
 
+    Q_PROPERTY(
+        bool roAsdReady
+        READ roAsdReady
+        NOTIFY roAsdStateChanged
+    )
+
+    Q_PROPERTY(
+        bool roAsdActionAvailable
+        READ roAsdActionAvailable
+        NOTIFY roAsdStateChanged
+    )
+
+    Q_PROPERTY(
+        QString roAsdActionText
+        READ roAsdActionText
+        NOTIFY roAsdStateChanged
+    )
+
 public:
     explicit SourceManager(QObject *parent = nullptr);
 
@@ -72,6 +90,10 @@ public:
 
     RepositoryState roAsdState() const;
     QString roAsdStatusText() const;
+
+    bool roAsdReady() const;
+    bool roAsdActionAvailable() const;
+    QString roAsdActionText() const;
 
     Q_INVOKABLE void refresh();
 

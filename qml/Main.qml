@@ -53,6 +53,14 @@ ApplicationWindow {
         initialItem: HomePage {
             catalog: catalogModel
             packageTransactionManager: transactionManager
+            sourceManager: sourceManager
+
+            onRepositoryActionRequested: {
+                console.log(
+                    "RO-ASD REPOSITORY ACTION REQUESTED:",
+                    sourceManager.roAsdActionText
+                )
+            }
 
             onReloadRequested: {
                 catalogModel.load("https://repo.ro-asd.org/rpm/fedora/44/beta/store/catalog.json")

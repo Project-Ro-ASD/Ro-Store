@@ -76,6 +76,35 @@ QString SourceManager::roAsdStatusText() const
     return m_roAsdStatusText;
 }
 
+bool SourceManager::roAsdReady() const
+{
+    return m_roAsdState == Ready;
+}
+
+bool SourceManager::roAsdActionAvailable() const
+{
+    return m_roAsdState == Missing
+        || m_roAsdState == Disabled
+        || m_roAsdState == Unavailable;
+}
+
+QString SourceManager::roAsdActionText() const
+{
+    switch (m_roAsdState) {
+    case Missing:
+        return QStringLiteral("Ro-ASD Deposunu Ekle");
+
+    case Disabled:
+        return QStringLiteral("Depoyu Etkinleştir");
+
+    case Unavailable:
+        return QStringLiteral("Tekrar Dene");
+
+    default:
+        return {};
+    }
+}
+
 void SourceManager::refresh()
 {
     setChecking(true);
