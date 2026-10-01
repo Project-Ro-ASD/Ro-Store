@@ -7,12 +7,25 @@ Item {
     id: page
 
     property var catalog
+    property var packageTransactionManager: null
+
+    // Ana sayfa her tekrar aktif olduğunda kartların RPM durumunu yeniler.
+    property int packageStatusRefreshSerial: 0
+
     property bool narrow: width < 900
     property int sideMargin: narrow ? 24 : 36
     property int contentWidth: Math.max(320, width - sideMargin * 2)
 
     signal reloadRequested()
     signal downloadsRequested()
+
+    StackView.onActivated: {
+        page.packageStatusRefreshSerial += 1
+        console.log(
+            "HOME PACKAGE STATUS REFRESH:",
+            page.packageStatusRefreshSerial
+        )
+    }
     signal appSelected(
         string title,
         string summary,
@@ -450,6 +463,11 @@ Item {
                             versionText: model.latestVersion
                             packageText: model.packageName
                             iconUrl: model.iconUrl
+                            packageTransactionManager:
+                                page.packageTransactionManager
+
+                            statusRefreshSerial:
+                                page.packageStatusRefreshSerial
 
                             onDetailRequested: function(title, summary, description, category, version, packageName, iconUrl) {
                                 page.appSelected(title, summary, description, category, version, packageName, iconUrl)
