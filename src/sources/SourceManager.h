@@ -3,6 +3,8 @@
 #include <QObject>
 #include <QString>
 
+class QProcess;
+
 class SourceManager : public QObject
 {
     Q_OBJECT
@@ -79,6 +81,18 @@ public:
         NOTIFY roAsdStateChanged
     )
 
+    Q_PROPERTY(
+        bool repositoryActionRunning
+        READ repositoryActionRunning
+        NOTIFY repositoryActionRunningChanged
+    )
+
+    Q_PROPERTY(
+        QString repositoryActionError
+        READ repositoryActionError
+        NOTIFY repositoryActionErrorChanged
+    )
+
 public:
     explicit SourceManager(QObject *parent = nullptr);
 
@@ -96,18 +110,31 @@ public:
     bool roAsdActionAvailable() const;
     QString roAsdActionText() const;
 
+    bool repositoryActionRunning() const;
+    QString repositoryActionError() const;
+
     Q_INVOKABLE void refresh();
+    Q_INVOKABLE void executeRoAsdAction();
 
 signals:
     void checkingChanged();
     void systemChanged();
     void roAsdStateChanged();
 
+    void repositoryActionRunningChanged();
+    void repositoryActionErrorChanged();
+
 private:
     void detectSystem();
     void detectRoAsdRepository();
 
     void setChecking(bool value);
+
+    void setRepositoryActionRunning(bool value);
+    void setRepositoryActionError(
+        const QString &message
+    );
+
     void setRoAsdState(
         RepositoryState state,
         const QString &statusText
@@ -132,4 +159,9 @@ private:
     RepositoryState m_roAsdState = Unknown;
     QString m_roAsdStatusText =
         QStringLiteral("Depo durumu kontrol edilmedi.");
+
+    QProcess *m_repositoryProcess = nullptr;
+
+    bool m_repositoryActionRunning = false;
+    QString m_repositoryActionError;
 };

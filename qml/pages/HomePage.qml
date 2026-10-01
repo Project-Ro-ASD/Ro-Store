@@ -213,7 +213,23 @@ Item {
                          && !page.sourceManager.roAsdReady
 
                 width: page.contentWidth
-                height: visible ? (page.narrow ? 150 : 104) : 0
+                height: visible
+                        ? (
+                            page.narrow
+                            ? (
+                                page.sourceManager
+                                && page.sourceManager.repositoryActionError.length > 0
+                                ? 190
+                                : 150
+                              )
+                            : (
+                                page.sourceManager
+                                && page.sourceManager.repositoryActionError.length > 0
+                                ? 132
+                                : 104
+                              )
+                          )
+                        : 0
                 x: page.sideMargin
 
                 radius: 18
@@ -246,6 +262,21 @@ Item {
                         wrapMode: Text.WordWrap
                     }
 
+                    Text {
+                        visible: page.sourceManager
+                                 && page.sourceManager.repositoryActionError.length > 0
+
+                        width: parent.width
+
+                        text: page.sourceManager
+                              ? page.sourceManager.repositoryActionError
+                              : ""
+
+                        color: "#ffb4ab"
+                        font.pixelSize: 12
+                        wrapMode: Text.WordWrap
+                    }
+
                     Button {
                         visible: page.sourceManager
                                  && page.sourceManager.roAsdActionAvailable
@@ -254,8 +285,15 @@ Item {
                         height: 36
 
                         text: page.sourceManager
-                              ? page.sourceManager.roAsdActionText
+                              ? (
+                                  page.sourceManager.repositoryActionRunning
+                                  ? "İşlem yapılıyor..."
+                                  : page.sourceManager.roAsdActionText
+                                )
                               : ""
+
+                        enabled: page.sourceManager
+                                 && !page.sourceManager.repositoryActionRunning
 
                         onClicked: {
                             if (!page.sourceManager)
@@ -301,6 +339,21 @@ Item {
                             font.pixelSize: 13
                             wrapMode: Text.WordWrap
                         }
+
+                        Text {
+                            visible: page.sourceManager
+                                     && page.sourceManager.repositoryActionError.length > 0
+
+                            width: parent.width
+
+                            text: page.sourceManager
+                                  ? page.sourceManager.repositoryActionError
+                                  : ""
+
+                            color: "#ffb4ab"
+                            font.pixelSize: 12
+                            wrapMode: Text.WordWrap
+                        }
                     }
 
                     Button {
@@ -317,8 +370,15 @@ Item {
                         height: 38
 
                         text: page.sourceManager
-                              ? page.sourceManager.roAsdActionText
+                              ? (
+                                  page.sourceManager.repositoryActionRunning
+                                  ? "İşlem yapılıyor..."
+                                  : page.sourceManager.roAsdActionText
+                                )
                               : ""
+
+                        enabled: page.sourceManager
+                                 && !page.sourceManager.repositoryActionRunning
 
                         onClicked: {
                             if (!page.sourceManager)

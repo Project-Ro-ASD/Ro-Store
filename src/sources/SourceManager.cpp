@@ -4,6 +4,7 @@
 #include <QDir>
 #include <QFile>
 #include <QFileInfo>
+#include <QProcess>
 #include <QSysInfo>
 #include <QStringList>
 
@@ -36,8 +37,98 @@ QString cleanOsReleaseValue(QString value)
 }
 
 SourceManager::SourceManager(QObject *parent)
-    : QObject(parent)
+    : QObject(parent),
+      m_repositoryProcess(new QProcess(this))
 {
+    connect(
+        m_repositoryProcess,
+        &QProcess::finished,
+        this,
+        [this](
+            int exitCode,
+            QProcess::ExitStatus exitStatus
+        ) {
+            const QByteArray standardOutput =
+                m_repositoryProcess
+                    ->readAllStandardOutput();
+
+            const QByteArray standardError =
+                m_repositoryProcess
+                    ->readAllStandardError();
+
+            qInfo()
+                << "SOURCE MANAGER REPOSITORY ACTION FINISHED:"
+                << "exitCode:" << exitCode
+                << "exitStatus:" << exitStatus;
+
+            if (!standardOutput.isEmpty()) {
+                qInfo().noquote()
+                    << QString::fromUtf8(
+                        standardOutput
+                    ).trimmed();
+            }
+
+            if (exitStatus
+                    == QProcess::NormalExit
+                && exitCode == 0) {
+
+                setRepositoryActionRunning(false);
+                setRepositoryActionError({});
+
+                refresh();
+                return;
+            }
+
+            setRepositoryActionRunning(false);
+
+            // pkexec: kullanıcı doğrulamayı iptal ettiğinde
+            // 126/127 gibi başarısız dönüşler görülebilir.
+            if (exitCode == 126
+                || exitCode == 127) {
+
+                setRepositoryActionError(
+                    QStringLiteral(
+                        "Yetkilendirme iptal edildi."
+                    )
+                );
+
+                return;
+            }
+
+            QString error =
+                QString::fromUtf8(
+                    standardError
+                ).trimmed();
+
+            if (error.isEmpty()) {
+                error = QStringLiteral(
+                    "Ro-ASD deposu yapılandırılamadı."
+                );
+            }
+
+            setRepositoryActionError(error);
+        }
+    );
+
+    connect(
+        m_repositoryProcess,
+        &QProcess::errorOccurred,
+        this,
+        [this](QProcess::ProcessError error) {
+            if (error
+                != QProcess::FailedToStart) {
+                return;
+            }
+
+            setRepositoryActionRunning(false);
+
+            setRepositoryActionError(
+                QStringLiteral(
+                    "Yetkilendirme işlemi başlatılamadı."
+                )
+            );
+        }
+    );
 }
 
 bool SourceManager::checking() const
@@ -104,6 +195,109 @@ QString SourceManager::roAsdActionText() const
         return {};
     }
 }
+
+
+bool SourceManager::repositoryActionRunning() const
+{
+    return m_repositoryActionRunning;
+}
+
+QString SourceManager::repositoryActionError() const
+{
+    return m_repositoryActionError;
+}
+
+void SourceManager::executeRoAsdAction()
+{
+    if (m_repositoryActionRunning) {
+        return;
+    }
+
+    if (!m_supportedSystem) {
+        setRepositoryActionError(
+            QStringLiteral(
+                "Bu sistem Ro-ASD deposu için "
+                "desteklenmiyor."
+            )
+        );
+
+        return;
+    }
+
+    QString operation;
+
+    switch (m_roAsdState) {
+    case Missing:
+        operation =
+            QStringLiteral("--install");
+        break;
+
+    case Disabled:
+        operation =
+            QStringLiteral("--enable");
+        break;
+
+    case Unavailable:
+        refresh();
+        return;
+
+    default:
+        return;
+    }
+
+    const QString pkexecPath =
+        QStringLiteral(
+            "/usr/bin/pkexec"
+        );
+
+    const QString helperPath =
+        QStringLiteral(
+            "/usr/libexec/ro-store/"
+            "ro-store-repo-helper"
+        );
+
+    if (!QFileInfo::exists(pkexecPath)) {
+        setRepositoryActionError(
+            QStringLiteral(
+                "Polkit pkexec bulunamadı."
+            )
+        );
+
+        return;
+    }
+
+    if (!QFileInfo::exists(helperPath)) {
+        setRepositoryActionError(
+            QStringLiteral(
+                "Ro-Store repository yardımcısı "
+                "sistemde kurulu değil."
+            )
+        );
+
+        return;
+    }
+
+    setRepositoryActionError({});
+    setRepositoryActionRunning(true);
+
+    qInfo()
+        << "SOURCE MANAGER REPOSITORY ACTION:"
+        << operation;
+
+    m_repositoryProcess->setProgram(
+        pkexecPath
+    );
+
+    m_repositoryProcess->setArguments(
+        {
+            helperPath,
+            operation
+        }
+    );
+
+    m_repositoryProcess->start();
+}
+
 
 void SourceManager::refresh()
 {
@@ -487,6 +681,36 @@ void SourceManager::setChecking(bool value)
 
     m_checking = value;
     emit checkingChanged();
+}
+
+void SourceManager::setRepositoryActionRunning(
+    bool value
+)
+{
+    if (m_repositoryActionRunning == value) {
+        return;
+    }
+
+    m_repositoryActionRunning = value;
+    emit repositoryActionRunningChanged();
+}
+
+void SourceManager::setRepositoryActionError(
+    const QString &message
+)
+{
+    if (m_repositoryActionError == message) {
+        return;
+    }
+
+    m_repositoryActionError = message;
+    emit repositoryActionErrorChanged();
+
+    if (!message.isEmpty()) {
+        qWarning()
+            << "SOURCE MANAGER REPOSITORY ERROR:"
+            << message;
+    }
 }
 
 void SourceManager::setRoAsdState(

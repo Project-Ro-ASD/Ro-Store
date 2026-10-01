@@ -56,10 +56,7 @@ ApplicationWindow {
             sourceManager: sourceManager
 
             onRepositoryActionRequested: {
-                console.log(
-                    "RO-ASD REPOSITORY ACTION REQUESTED:",
-                    sourceManager.roAsdActionText
-                )
+                sourceManager.executeRoAsdAction()
             }
 
             onReloadRequested: {
