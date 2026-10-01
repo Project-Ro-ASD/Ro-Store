@@ -98,6 +98,7 @@ ApplicationWindow {
 
         AppDetailPage {
             packageTransactionManager: transactionManager
+            repositorySourceManager: sourceManager
 
             onBackRequested: {
                 stackView.pop()
