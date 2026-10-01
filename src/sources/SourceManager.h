@@ -14,6 +14,7 @@ public:
         Disabled,
         Ready,
         Unavailable,
+        InvalidConfiguration,
         Unsupported
     };
     Q_ENUM(RepositoryState)

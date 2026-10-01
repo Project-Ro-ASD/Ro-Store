@@ -216,8 +216,18 @@ void SourceManager::detectRoAsdRepository()
             QDir::Files
         );
 
-    bool repoFound = false;
-    bool repoEnabled = false;
+    int targetSectionCount = 0;
+
+    bool insideTargetRepo = false;
+    bool collectingGpgKey = false;
+
+    bool repoEnabled = true;
+
+    QString baseUrl;
+    QString gpgCheck;
+    QString repoGpgCheck;
+
+    QStringList gpgKeys;
 
     for (const QString &fileName : repoFiles) {
         QFile file(
@@ -231,7 +241,8 @@ void SourceManager::detectRoAsdRepository()
             continue;
         }
 
-        bool insideTargetRepo = false;
+        insideTargetRepo = false;
+        collectingGpgKey = false;
 
         while (!file.atEnd()) {
             const QString line =
@@ -262,13 +273,10 @@ void SourceManager::detectRoAsdRepository()
                         Qt::CaseInsensitive
                     ) == 0;
 
-                if (insideTargetRepo) {
-                    repoFound = true;
+                collectingGpgKey = false;
 
-                    // DNF'de enabled belirtilmemişse
-                    // repository varsayılan olarak etkin
-                    // kabul edilir.
-                    repoEnabled = true;
+                if (insideTargetRepo) {
+                    ++targetSectionCount;
                 }
 
                 continue;
@@ -282,6 +290,10 @@ void SourceManager::detectRoAsdRepository()
                 line.indexOf('=');
 
             if (separator < 0) {
+                if (collectingGpgKey) {
+                    gpgKeys.append(line);
+                }
+
                 continue;
             }
 
@@ -292,20 +304,128 @@ void SourceManager::detectRoAsdRepository()
 
             const QString value =
                 line.mid(separator + 1)
-                    .trimmed()
-                    .toLower();
+                    .trimmed();
+
+            collectingGpgKey = false;
+
+            if (key == QStringLiteral("baseurl")) {
+                baseUrl = value;
+                continue;
+            }
 
             if (key == QStringLiteral("enabled")) {
+                const QString normalized =
+                    value.toLower();
+
                 repoEnabled =
-                    value != QStringLiteral("0")
-                    && value != QStringLiteral("false")
-                    && value != QStringLiteral("no");
+                    normalized != QStringLiteral("0")
+                    && normalized != QStringLiteral("false")
+                    && normalized != QStringLiteral("no");
+
+                continue;
+            }
+
+            if (key == QStringLiteral("gpgcheck")) {
+                gpgCheck = value;
+                continue;
+            }
+
+            if (key == QStringLiteral("repo_gpgcheck")) {
+                repoGpgCheck = value;
+                continue;
+            }
+
+            if (key == QStringLiteral("gpgkey")) {
+                gpgKeys.append(value);
+                collectingGpgKey = true;
+                continue;
             }
         }
+    }
 
-        if (repoFound) {
-            break;
-        }
+    if (targetSectionCount == 0) {
+        setRoAsdState(
+            Missing,
+            QStringLiteral(
+                "Ro-ASD uygulama deposu "
+                "sistemde kurulu değil."
+            )
+        );
+
+        return;
+    }
+
+    const auto normalizedUrl =
+        [](QString value) {
+
+            value = value.trimmed();
+
+            while (value.endsWith('/')) {
+                value.chop(1);
+            }
+
+            return value;
+        };
+
+    const auto isEnabledValue =
+        [](QString value) {
+
+            value =
+                value.trimmed().toLower();
+
+            return value == QStringLiteral("1")
+                || value == QStringLiteral("true")
+                || value == QStringLiteral("yes")
+                || value == QStringLiteral("on");
+        };
+
+    const QString expectedBaseUrl =
+        QStringLiteral(
+            "https://repo.ro-asd.org/"
+            "rpm/fedora/44/beta/$basearch"
+        );
+
+    const QString expectedMetadataKey =
+        QStringLiteral(
+            "file:///etc/pki/rpm-gpg/"
+            "REPODATA-GPG-KEY-ro-asd"
+        );
+
+    const QString expectedRpmKey =
+        QStringLiteral(
+            "file:///etc/pki/rpm-gpg/"
+            "RPM-GPG-KEY-ro-asd"
+        );
+
+    const QString allGpgKeys =
+        gpgKeys.join(
+            QStringLiteral(" ")
+        );
+
+    const bool configurationValid =
+        targetSectionCount == 1
+        && normalizedUrl(baseUrl)
+            == expectedBaseUrl
+        && isEnabledValue(gpgCheck)
+        && isEnabledValue(repoGpgCheck)
+        && allGpgKeys.contains(
+            expectedMetadataKey
+        )
+        && allGpgKeys.contains(
+            expectedRpmKey
+        );
+
+    if (!configurationValid) {
+        setRoAsdState(
+            InvalidConfiguration,
+            QStringLiteral(
+                "Ro-ASD deposu bulundu ancak "
+                "yapılandırması resmi depo ayarlarıyla "
+                "eşleşmiyor."
+            )
+        );
+
+        return;
     }
 
     const bool rpmKeyExists =
@@ -324,15 +444,14 @@ void SourceManager::detectRoAsdRepository()
             )
         );
 
-    if (!repoFound
-        || !rpmKeyExists
+    if (!rpmKeyExists
         || !metadataKeyExists) {
 
         setRoAsdState(
             Missing,
             QStringLiteral(
-                "Ro-ASD uygulama deposu "
-                "sistemde kurulu değil."
+                "Ro-ASD deposunun güvenlik "
+                "anahtarları eksik."
             )
         );
 
@@ -358,6 +477,7 @@ void SourceManager::detectRoAsdRepository()
         )
     );
 }
+
 
 void SourceManager::setChecking(bool value)
 {
@@ -458,6 +578,11 @@ QString SourceManager::repositoryStateName(
 
     case Unavailable:
         return QStringLiteral("Unavailable");
+
+    case InvalidConfiguration:
+        return QStringLiteral(
+            "InvalidConfiguration"
+        );
 
     case Unsupported:
         return QStringLiteral("Unsupported");
