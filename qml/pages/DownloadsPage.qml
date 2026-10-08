@@ -290,8 +290,8 @@ Item {
                     height: 26
 
                     radius: 9
-                    color: themePalette.base
-                    border.color: page.secondaryText
+                    color: themePalette.button
+                    border.color: themePalette.mid
                     border.width: 1
                     clip: true
 
@@ -326,7 +326,9 @@ Item {
                               ? "%" + activeCard.tx.progress
                               : "%0"
 
-                        color: activeCard.tx && activeCard.tx.progress >= 50 ? themePalette.highlightedText : themePalette.text
+                        color: activeCard.tx && activeCard.tx.progress >= 65
+                               ? themePalette.highlightedText
+                               : themePalette.buttonText
                         font.pixelSize: 12
                         font.bold: true
                     }
