@@ -868,8 +868,8 @@ Item {
                 anchors.verticalCenter: parent.verticalCenter
 
                 radius: 10
-                color: themePalette.base
-                border.color: page.secondaryText
+                color: themePalette.button
+                border.color: themePalette.mid
                 border.width: 1
                 clip: true
                 antialiasing: true
@@ -879,7 +879,6 @@ Item {
                     height: parent.height
                     radius: 10
                     color: themePalette.highlight
-                    opacity: 0.85
                     antialiasing: true
 
                     Behavior on width {
@@ -892,7 +891,9 @@ Item {
                 Text {
                     anchors.centerIn: parent
                     text: page.transactionPhaseText + "  %" + page.transactionProgress
-                    color: themePalette.highlightedText
+                    color: page.transactionProgress >= 65
+                           ? themePalette.highlightedText
+                           : themePalette.buttonText
                     font.pixelSize: 12
                     font.bold: true
                 }
@@ -978,8 +979,8 @@ Item {
                 height: 28
 
                 radius: 10
-                color: themePalette.base
-                border.color: page.secondaryText
+                color: themePalette.button
+                border.color: themePalette.mid
                 border.width: 1
                 clip: true
                 antialiasing: true
@@ -989,7 +990,6 @@ Item {
                     height: parent.height
                     radius: 10
                     color: themePalette.highlight
-                    opacity: 0.85
                     antialiasing: true
 
                     Behavior on width {
@@ -1002,7 +1002,9 @@ Item {
                 Text {
                     anchors.centerIn: parent
                     text: page.transactionPhaseText + "  %" + page.transactionProgress
-                    color: themePalette.highlightedText
+                    color: page.transactionProgress >= 65
+                           ? themePalette.highlightedText
+                           : themePalette.buttonText
                     font.pixelSize: 12
                     font.bold: true
                 }
