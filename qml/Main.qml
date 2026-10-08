@@ -16,6 +16,10 @@ ApplicationWindow {
         id: catalogModel
     }
 
+    SourceManager {
+        id: sourceManager
+    }
+
     PackageTransactionManager {
         id: transactionManager
 
@@ -49,6 +53,11 @@ ApplicationWindow {
         initialItem: HomePage {
             catalog: catalogModel
             packageTransactionManager: transactionManager
+            sourceManager: sourceManager
+
+            onRepositoryActionRequested: {
+                sourceManager.executeRoAsdAction()
+            }
 
             onReloadRequested: {
                 catalogModel.load("https://repo.ro-asd.org/rpm/fedora/44/beta/store/catalog.json")
@@ -89,6 +98,7 @@ ApplicationWindow {
 
         AppDetailPage {
             packageTransactionManager: transactionManager
+            repositorySourceManager: sourceManager
 
             onBackRequested: {
                 stackView.pop()
@@ -101,6 +111,10 @@ ApplicationWindow {
     }
 
     Component.onCompleted: {
-        catalogModel.load("https://repo.ro-asd.org/rpm/fedora/44/beta/store/catalog.json")
+        sourceManager.refresh()
+
+        catalogModel.load(
+            "https://repo.ro-asd.org/rpm/fedora/44/beta/store/catalog.json"
+        )
     }
 }

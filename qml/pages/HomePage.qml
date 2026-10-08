@@ -8,6 +8,7 @@ Item {
 
     property var catalog
     property var packageTransactionManager: null
+    property var sourceManager: null
 
     // Ana sayfa her tekrar aktif olduğunda kartların RPM durumunu yeniler.
     property int packageStatusRefreshSerial: 0
@@ -18,13 +19,19 @@ Item {
 
     signal reloadRequested()
     signal downloadsRequested()
+    signal repositoryActionRequested()
 
     StackView.onActivated: {
         page.packageStatusRefreshSerial += 1
+
         console.log(
             "HOME PACKAGE STATUS REFRESH:",
             page.packageStatusRefreshSerial
         )
+
+        if (page.sourceManager) {
+            page.sourceManager.refresh()
+        }
     }
     signal appSelected(
         string title,
@@ -196,6 +203,195 @@ Item {
 
                     text: "Yüklemeler"
                     onClicked: page.downloadsRequested()
+                }
+            }
+
+            // RO-ASD REPOSITORY DURUMU
+            Rectangle {
+                visible: page.sourceManager
+                         && !page.sourceManager.checking
+                         && !page.sourceManager.roAsdReady
+
+                width: page.contentWidth
+                height: visible
+                        ? (
+                            page.narrow
+                            ? (
+                                page.sourceManager
+                                && page.sourceManager.repositoryActionError.length > 0
+                                ? 190
+                                : 150
+                              )
+                            : (
+                                page.sourceManager
+                                && page.sourceManager.repositoryActionError.length > 0
+                                ? 132
+                                : 104
+                              )
+                          )
+                        : 0
+                x: page.sideMargin
+
+                radius: 18
+                color: "#181f27"
+                border.color: "#3a4654"
+                border.width: 1
+                antialiasing: true
+
+                Column {
+                    visible: page.narrow
+                    anchors.fill: parent
+                    anchors.margins: 16
+                    spacing: 10
+
+                    Text {
+                        width: parent.width
+                        text: "Ro-ASD Uygulama Deposu"
+                        color: "#ffffff"
+                        font.pixelSize: 17
+                        font.bold: true
+                    }
+
+                    Text {
+                        width: parent.width
+                        text: page.sourceManager
+                              ? page.sourceManager.roAsdStatusText
+                              : ""
+                        color: "#b5c0cc"
+                        font.pixelSize: 13
+                        wrapMode: Text.WordWrap
+                    }
+
+                    Text {
+                        visible: page.sourceManager
+                                 && page.sourceManager.repositoryActionError.length > 0
+
+                        width: parent.width
+
+                        text: page.sourceManager
+                              ? page.sourceManager.repositoryActionError
+                              : ""
+
+                        color: "#ffb4ab"
+                        font.pixelSize: 12
+                        wrapMode: Text.WordWrap
+                    }
+
+                    Button {
+                        visible: page.sourceManager
+                                 && page.sourceManager.roAsdActionAvailable
+
+                        width: parent.width
+                        height: 36
+
+                        text: page.sourceManager
+                              ? (
+                                  page.sourceManager.repositoryActionRunning
+                                  ? "İşlem yapılıyor..."
+                                  : page.sourceManager.roAsdActionText
+                                )
+                              : ""
+
+                        enabled: page.sourceManager
+                                 && !page.sourceManager.repositoryActionRunning
+
+                        onClicked: {
+                            if (!page.sourceManager)
+                                return
+
+                            if (page.sourceManager.roAsdActionText === "Tekrar Dene") {
+                                page.sourceManager.refresh()
+                                return
+                            }
+
+                            page.repositoryActionRequested()
+                        }
+                    }
+                }
+
+                Item {
+                    visible: !page.narrow
+                    anchors.fill: parent
+
+                    Column {
+                        anchors.left: parent.left
+                        anchors.leftMargin: 20
+                        anchors.verticalCenter: parent.verticalCenter
+                        width: parent.width
+                               - 40
+                               - (repoActionWide.visible ? 210 : 0)
+                        spacing: 6
+
+                        Text {
+                            width: parent.width
+                            text: "Ro-ASD Uygulama Deposu"
+                            color: "#ffffff"
+                            font.pixelSize: 17
+                            font.bold: true
+                        }
+
+                        Text {
+                            width: parent.width
+                            text: page.sourceManager
+                                  ? page.sourceManager.roAsdStatusText
+                                  : ""
+                            color: "#b5c0cc"
+                            font.pixelSize: 13
+                            wrapMode: Text.WordWrap
+                        }
+
+                        Text {
+                            visible: page.sourceManager
+                                     && page.sourceManager.repositoryActionError.length > 0
+
+                            width: parent.width
+
+                            text: page.sourceManager
+                                  ? page.sourceManager.repositoryActionError
+                                  : ""
+
+                            color: "#ffb4ab"
+                            font.pixelSize: 12
+                            wrapMode: Text.WordWrap
+                        }
+                    }
+
+                    Button {
+                        id: repoActionWide
+
+                        visible: page.sourceManager
+                                 && page.sourceManager.roAsdActionAvailable
+
+                        anchors.right: parent.right
+                        anchors.rightMargin: 20
+                        anchors.verticalCenter: parent.verticalCenter
+
+                        width: 190
+                        height: 38
+
+                        text: page.sourceManager
+                              ? (
+                                  page.sourceManager.repositoryActionRunning
+                                  ? "İşlem yapılıyor..."
+                                  : page.sourceManager.roAsdActionText
+                                )
+                              : ""
+
+                        enabled: page.sourceManager
+                                 && !page.sourceManager.repositoryActionRunning
+
+                        onClicked: {
+                            if (!page.sourceManager)
+                                return
+
+                            if (page.sourceManager.roAsdActionText === "Tekrar Dene") {
+                                page.sourceManager.refresh()
+                                return
+                            }
+
+                            page.repositoryActionRequested()
+                        }
+                    }
                 }
             }
 

@@ -14,6 +14,7 @@ Item {
     property string iconUrl: ""
 
     property var packageTransactionManager: null
+    property var repositorySourceManager: null
     property var trackedTransaction: null
 
     property bool transactionRunning:
@@ -26,6 +27,71 @@ Item {
         trackedTransaction !== null
         ? trackedTransaction.progress
         : 0
+
+    // Kurulum ve güncelleme için Ro-ASD kaynağının hazır
+    // olması gerekir. Kaldırma işlemi repository gerektirmez.
+    property bool repositoryRequired:
+        !packageStatus.installed
+        || packageStatus.updateAvailable
+
+    property bool repositoryBlocked:
+        repositoryRequired
+        && (
+            repositorySourceManager === null
+            || !repositorySourceManager.roAsdReady
+        )
+
+    property bool repositoryActionAvailable:
+        repositorySourceManager !== null
+        && repositorySourceManager.roAsdActionAvailable
+        && !repositorySourceManager.repositoryActionRunning
+
+    property string repositoryBlockedText: {
+        if (!repositoryBlocked)
+            return ""
+
+        if (!repositorySourceManager)
+            return "Paket kaynağı kullanılamıyor."
+
+        if (repositorySourceManager.repositoryActionError.length > 0)
+            return repositorySourceManager.repositoryActionError
+
+        return repositorySourceManager.roAsdStatusText
+    }
+
+    property string primaryActionText: {
+        if (transactionRunning)
+            return narrow ? "İşlem..." : "İşlem sürüyor..."
+
+        if (repositoryBlocked) {
+            if (!repositorySourceManager)
+                return "Depo hazır değil"
+
+            if (repositorySourceManager.repositoryActionRunning)
+                return "Depo hazırlanıyor..."
+
+            if (repositorySourceManager.roAsdActionAvailable)
+                return repositorySourceManager.roAsdActionText
+
+            if (repositorySourceManager.roAsdState
+                    === SourceManager.InvalidConfiguration)
+                return "Depo yapılandırması geçersiz"
+
+            if (repositorySourceManager.roAsdState
+                    === SourceManager.Unsupported)
+                return "Sistem desteklenmiyor"
+
+            return "Depo hazır değil"
+        }
+
+        if (!packageStatus.installed)
+            return "Kur"
+
+        if (packageStatus.updateAvailable)
+            return "Güncelle"
+
+        return "Kaldır"
+    }
 
     property string transactionPhaseText: {
         if (trackedTransaction === null)
@@ -132,17 +198,23 @@ Item {
     property string lastActionMessage: ""
     property bool lastActionSuccess: true
 
-    property string displayStatusText: page.transactionRunning
-                                       ? page.transactionPhaseText
-                                       : lastActionMessage.length > 0
-                                           ? lastActionMessage
-                                           : packageStatus.statusText
+    property string displayStatusText:
+        page.transactionRunning
+        ? page.transactionPhaseText
+        : lastActionMessage.length > 0
+            ? lastActionMessage
+            : page.repositoryBlocked
+                ? page.repositoryBlockedText
+                : packageStatus.statusText
 
-    property color displayStatusColor: page.transactionRunning
-                                       ? "#fbbf24"
-                                       : lastActionMessage.length > 0
-                                           ? (lastActionSuccess ? "#6ee7b7" : "#f87171")
-                                           : (packageStatus.installed ? "#6ee7b7" : "#fbbf24")
+    property color displayStatusColor:
+        page.transactionRunning
+        ? "#fbbf24"
+        : lastActionMessage.length > 0
+            ? (lastActionSuccess ? "#6ee7b7" : "#f87171")
+            : page.repositoryBlocked
+                ? "#fbbf24"
+                : (packageStatus.installed ? "#6ee7b7" : "#fbbf24")
 
     signal backRequested()
     signal downloadsRequested()
@@ -207,6 +279,9 @@ Item {
     }
 
     Component.onCompleted: {
+        if (repositorySourceManager)
+            repositorySourceManager.refresh()
+
         if (packageTransactionManager) {
             var pending =
                 packageTransactionManager.pendingTransaction(
@@ -831,31 +906,38 @@ Item {
             }
 
             Button {
-                text: page.transactionRunning
-                      ? "İşlem sürüyor..."
-                      : !packageStatus.installed
-                          ? "Kur"
-                          : packageStatus.updateAvailable
-                              ? "Güncelle"
-                              : "Kaldır"
+                text: page.primaryActionText
 
-                width: 130
+                width: page.repositoryBlocked ? 210 : 130
                 height: 38
                 anchors.right: parent.right
                 anchors.rightMargin: 12
                 anchors.verticalCenter: parent.verticalCenter
 
-                enabled: !packageStatus.checking && !page.transactionRunning
+                enabled:
+                    !packageStatus.checking
+                    && !page.transactionRunning
+                    && (
+                        !page.repositoryBlocked
+                        || page.repositoryActionAvailable
+                    )
 
                 onClicked: {
                     page.logsExpanded = false
                     page.lastActionMessage = ""
 
+                    // Repo hazır değilse DNF5 transaction oluşturma.
+                    // Uygun repo aksiyonu varsa önce onu çalıştır.
+                    if (page.repositoryBlocked) {
+                        if (page.repositoryActionAvailable)
+                            page.repositorySourceManager.executeRoAsdAction()
+
+                        return
+                    }
+
                     if (!packageStatus.installed) {
                         page.startInstallTransaction()
                     } else if (packageStatus.updateAvailable) {
-                        page.logsExpanded = false
-                        page.lastActionMessage = ""
                         page.startUpgradeTransaction()
                     } else {
                         removeConfirmDialog.open()
@@ -943,30 +1025,42 @@ Item {
             }
 
             Button {
-                text: page.transactionRunning
-                      ? "İşlem..."
-                      : !packageStatus.installed
-                          ? "Kur"
-                          : packageStatus.updateAvailable
-                              ? "Güncelle"
-                              : "Kaldır"
+                text: page.primaryActionText
 
-                x: packageStatus.installed && !page.transactionRunning ? 36 + 2 * ((parent.width - 48) / 3) : 24 + (parent.width - 36) / 2
+                x: packageStatus.installed && !page.transactionRunning
+                   ? 36 + 2 * ((parent.width - 48) / 3)
+                   : 24 + (parent.width - 36) / 2
+
                 y: page.transactionRunning ? 82 : 54
-                width: packageStatus.installed && !page.transactionRunning ? (parent.width - 48) / 3 : (parent.width - 36) / 2
+
+                width: packageStatus.installed && !page.transactionRunning
+                       ? (parent.width - 48) / 3
+                       : (parent.width - 36) / 2
+
                 height: 38
 
-                enabled: !packageStatus.checking && !page.transactionRunning
+                enabled:
+                    !packageStatus.checking
+                    && !page.transactionRunning
+                    && (
+                        !page.repositoryBlocked
+                        || page.repositoryActionAvailable
+                    )
 
                 onClicked: {
                     page.logsExpanded = false
                     page.lastActionMessage = ""
 
+                    if (page.repositoryBlocked) {
+                        if (page.repositoryActionAvailable)
+                            page.repositorySourceManager.executeRoAsdAction()
+
+                        return
+                    }
+
                     if (!packageStatus.installed) {
                         page.startInstallTransaction()
                     } else if (packageStatus.updateAvailable) {
-                        page.logsExpanded = false
-                        page.lastActionMessage = ""
                         page.startUpgradeTransaction()
                     } else {
                         removeConfirmDialog.open()

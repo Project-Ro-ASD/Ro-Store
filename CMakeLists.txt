@@ -1,11 +1,23 @@
 cmake_minimum_required(VERSION 3.21)
 
 project(RoStore
-    VERSION 0.2.0
+    VERSION 0.3.0
     DESCRIPTION "Ro-ASD application store"
     HOMEPAGE_URL "https://github.com/Project-Ro-ASD/Ro-Store"
     LANGUAGES CXX
 )
+
+# Ro-Store Linux/Fedora sistem paketleme düzenini kullanır.
+# Kullanıcı açıkça farklı bir prefix vermediyse /usr kullan.
+if(CMAKE_INSTALL_PREFIX_INITIALIZED_TO_DEFAULT)
+    set(
+        CMAKE_INSTALL_PREFIX
+        "/usr"
+        CACHE PATH
+        "Install path prefix"
+        FORCE
+    )
+endif()
 
 set(CMAKE_CXX_STANDARD 20)
 set(CMAKE_CXX_STANDARD_REQUIRED ON)
@@ -31,8 +43,36 @@ qt_add_executable(ro-store
     src/packages/PackageTransactionManager.cpp
     src/AppLauncher.h
     src/AppLauncher.cpp
+    src/sources/SourceManager.h
+    src/sources/SourceManager.cpp
     src/packages/backends/Dnf5Backend.h
     src/packages/backends/Dnf5Backend.cpp
+)
+
+qt_add_executable(ro-store-repo-helper
+    src/helpers/RepoHelper.cpp
+)
+
+qt_add_resources(
+    ro-store-repo-helper
+    "repository_payload"
+
+    PREFIX
+        "/repository"
+
+    BASE
+        "${CMAKE_CURRENT_SOURCE_DIR}/packaging/repository"
+
+    FILES
+        packaging/repository/ro-asd.repo
+        packaging/repository/RPM-GPG-KEY-ro-asd
+        packaging/repository/REPODATA-GPG-KEY-ro-asd
+)
+
+target_link_libraries(
+    ro-store-repo-helper
+    PRIVATE
+        Qt6::Core
 )
 
 qt_add_qml_module(ro-store
@@ -77,6 +117,19 @@ install(TARGETS ro-store
     RUNTIME DESTINATION ${CMAKE_INSTALL_BINDIR}
 )
 
+install(
+    TARGETS ro-store-repo-helper
+    RUNTIME DESTINATION
+        ${CMAKE_INSTALL_LIBEXECDIR}/ro-store
+)
+
+install(
+    FILES
+        ${CMAKE_CURRENT_SOURCE_DIR}/packaging/polkit/org.projectro.RoStore.repository.policy
+    DESTINATION
+        ${CMAKE_INSTALL_DATADIR}/polkit-1/actions
+)
+
 install(FILES
     ${CMAKE_CURRENT_BINARY_DIR}/org.projectro.RoStore.desktop
     DESTINATION ${CMAKE_INSTALL_DATADIR}/applications
@@ -113,7 +166,7 @@ set(CPACK_RPM_PACKAGE_AUTOREQ ON)
 set(CPACK_RPM_PACKAGE_AUTOPROV ON)
 
 # Ro-Store package transactions use the DNF5 daemon over D-Bus.
-set(CPACK_RPM_PACKAGE_REQUIRES "dnf5daemon-server, dnf5daemon-server-polkit")
+set(CPACK_RPM_PACKAGE_REQUIRES "dnf5daemon-server, dnf5daemon-server-polkit, polkit")
 
 set(CPACK_RPM_FILE_NAME "RPM-DEFAULT")
 
