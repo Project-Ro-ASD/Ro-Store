@@ -5,6 +5,9 @@ import RoStore 1.0
 Item {
     id: page
 
+    SystemPalette {
+        id: themePalette
+    }
     property string appName: ""
     property string summaryText: ""
     property string descriptionText: ""
@@ -209,12 +212,12 @@ Item {
 
     property color displayStatusColor:
         page.transactionRunning
-        ? "#fbbf24"
+        ? themePalette.highlight
         : lastActionMessage.length > 0
-            ? (lastActionSuccess ? "#6ee7b7" : "#f87171")
+            ? (lastActionSuccess ? themePalette.highlight : themePalette.text)
             : page.repositoryBlocked
-                ? "#fbbf24"
-                : (packageStatus.installed ? "#6ee7b7" : "#fbbf24")
+                ? themePalette.highlight
+                : (packageStatus.installed ? themePalette.highlight : themePalette.highlight)
 
     signal backRequested()
     signal downloadsRequested()
@@ -321,7 +324,7 @@ Item {
 
         Text {
             text: "Ro-Store"
-            color: "#9aa4b2"
+            color: themePalette.mid
             font.pixelSize: 14
             anchors.right: downloadsButton.left
             anchors.rightMargin: 14
@@ -374,8 +377,8 @@ Item {
                 x: page.sideMargin
 
                 radius: 22
-                color: "#16202b"
-                border.color: "#263445"
+                color: themePalette.base
+                border.color: themePalette.mid
                 border.width: 1
                 antialiasing: true
                 clip: true
@@ -391,7 +394,7 @@ Item {
                         width: 96
                         height: 96
                         radius: 24
-                        color: "#243447"
+                        color: themePalette.button
                         clip: true
                         antialiasing: true
 
@@ -410,7 +413,7 @@ Item {
                             anchors.centerIn: parent
                             visible: !detailIconWide.visible
                             text: page.appName.length > 0 ? page.appName[0].toUpperCase() : "R"
-                            color: "#ffffff"
+                            color: themePalette.text
                             font.pixelSize: 38
                             font.bold: true
                         }
@@ -421,7 +424,7 @@ Item {
                         y: 34
                         width: parent.width - 180
                         text: page.appName
-                        color: "#ffffff"
+                        color: themePalette.text
                         font.pixelSize: 32
                         font.bold: true
                         elide: Text.ElideRight
@@ -432,7 +435,7 @@ Item {
                         y: 82
                         width: parent.width - 180
                         text: page.summaryText
-                        color: "#b5c0cc"
+                        color: themePalette.text
                         font.pixelSize: 16
                         wrapMode: Text.WordWrap
                         maximumLineCount: 2
@@ -446,7 +449,7 @@ Item {
 
                         Rectangle {
                             radius: 10
-                            color: "#243447"
+                            color: themePalette.button
                             height: 32
                             width: categoryLabelWide.implicitWidth + 24
 
@@ -454,14 +457,14 @@ Item {
                                 id: categoryLabelWide
                                 anchors.centerIn: parent
                                 text: page.categoryText
-                                color: "#79b8ff"
+                                color: themePalette.highlight
                                 font.pixelSize: 13
                             }
                         }
 
                         Rectangle {
                             radius: 10
-                            color: "#243447"
+                            color: themePalette.button
                             height: 32
                             width: versionLabelWide.implicitWidth + 24
 
@@ -469,7 +472,7 @@ Item {
                                 id: versionLabelWide
                                 anchors.centerIn: parent
                                 text: "Sürüm " + page.versionText
-                                color: "#c7d0dd"
+                                color: themePalette.text
                                 font.pixelSize: 13
                             }
                         }
@@ -487,7 +490,7 @@ Item {
                         width: 92
                         height: 92
                         radius: 24
-                        color: "#243447"
+                        color: themePalette.button
                         clip: true
                         antialiasing: true
                         anchors.horizontalCenter: parent.horizontalCenter
@@ -507,7 +510,7 @@ Item {
                             anchors.centerIn: parent
                             visible: !detailIconNarrow.visible
                             text: page.appName.length > 0 ? page.appName[0].toUpperCase() : "R"
-                            color: "#ffffff"
+                            color: themePalette.text
                             font.pixelSize: 36
                             font.bold: true
                         }
@@ -516,7 +519,7 @@ Item {
                     Text {
                         width: parent.width
                         text: page.appName
-                        color: "#ffffff"
+                        color: themePalette.text
                         font.pixelSize: 28
                         font.bold: true
                         horizontalAlignment: Text.AlignHCenter
@@ -526,7 +529,7 @@ Item {
                     Text {
                         width: parent.width
                         text: page.summaryText
-                        color: "#b5c0cc"
+                        color: themePalette.text
                         font.pixelSize: 15
                         horizontalAlignment: Text.AlignHCenter
                         wrapMode: Text.WordWrap
@@ -538,7 +541,7 @@ Item {
 
                         Rectangle {
                             radius: 10
-                            color: "#243447"
+                            color: themePalette.button
                             height: 32
                             width: categoryLabelNarrow.implicitWidth + 24
 
@@ -546,14 +549,14 @@ Item {
                                 id: categoryLabelNarrow
                                 anchors.centerIn: parent
                                 text: page.categoryText
-                                color: "#79b8ff"
+                                color: themePalette.highlight
                                 font.pixelSize: 13
                             }
                         }
 
                         Rectangle {
                             radius: 10
-                            color: "#243447"
+                            color: themePalette.button
                             height: 32
                             width: versionLabelNarrow.implicitWidth + 24
 
@@ -561,7 +564,7 @@ Item {
                                 id: versionLabelNarrow
                                 anchors.centerIn: parent
                                 text: "Sürüm " + page.versionText
-                                color: "#c7d0dd"
+                                color: themePalette.text
                                 font.pixelSize: 13
                             }
                         }
@@ -576,8 +579,8 @@ Item {
                 height: infoColumn.implicitHeight + 48
 
                 radius: 18
-                color: "#171d24"
-                border.color: "#2a3440"
+                color: themePalette.base
+                border.color: themePalette.mid
                 border.width: 1
                 antialiasing: true
 
@@ -592,7 +595,7 @@ Item {
                     Text {
                         width: parent.width
                         text: "Açıklama"
-                        color: "#ffffff"
+                        color: themePalette.text
                         font.pixelSize: 22
                         font.bold: true
                     }
@@ -600,7 +603,7 @@ Item {
                     Text {
                         width: parent.width
                         text: page.descriptionText
-                        color: "#b8c2cc"
+                        color: themePalette.text
                         font.pixelSize: 15
                         wrapMode: Text.WordWrap
                     }
@@ -608,13 +611,13 @@ Item {
                     Rectangle {
                         width: parent.width
                         height: 1
-                        color: "#2a3440"
+                        color: themePalette.mid
                     }
 
                     Text {
                         width: parent.width
                         text: "Paket bilgileri"
-                        color: "#ffffff"
+                        color: themePalette.text
                         font.pixelSize: 18
                         font.bold: true
                     }
@@ -622,7 +625,7 @@ Item {
                     Text {
                         width: parent.width
                         text: "Paket adı: " + page.packageName
-                        color: "#9aa4b2"
+                        color: themePalette.mid
                         font.pixelSize: 14
                         wrapMode: Text.WordWrap
                     }
@@ -630,21 +633,21 @@ Item {
                     Text {
                         width: parent.width
                         text: "Kaynak: Ro-Repo"
-                        color: "#9aa4b2"
+                        color: themePalette.mid
                         font.pixelSize: 14
                     }
 
                     Text {
                         width: parent.width
                         text: "Kurulu sürüm: " + (packageStatus.installedVersion.length > 0 ? packageStatus.installedVersion : "-")
-                        color: "#9aa4b2"
+                        color: themePalette.mid
                         font.pixelSize: 14
                     }
 
                     Text {
                         width: parent.width
                         text: "Repo sürümü: " + (page.versionText.length > 0 ? page.versionText : "-")
-                        color: "#9aa4b2"
+                        color: themePalette.mid
                         font.pixelSize: 14
                     }
 
@@ -662,7 +665,7 @@ Item {
                         text: packageStatus.installed
                               ? "Bu uygulama sistemde yüklü."
                               : "Kur/Güncelle/Kaldır işlemleri DNF5 üzerinden yapılır."
-                        color: "#7f8b99"
+                        color: themePalette.mid
                         font.pixelSize: 13
                         wrapMode: Text.WordWrap
                     }
@@ -689,8 +692,8 @@ Item {
                     anchors.top: parent.top
                     height: 42
                     radius: 12
-                    color: logToggleMouse.containsMouse ? "#111827" : "transparent"
-                    border.color: logToggleMouse.containsMouse ? "#243447" : "transparent"
+                    color: logToggleMouse.containsMouse ? themePalette.buttonText : "transparent"
+                    border.color: logToggleMouse.containsMouse ? themePalette.button : "transparent"
                     border.width: 1
                     antialiasing: true
 
@@ -702,7 +705,7 @@ Item {
 
                         Text {
                             text: page.logsExpanded ? "⌄" : "›"
-                            color: "#64748b"
+                            color: themePalette.mid
                             font.pixelSize: 18
                             font.bold: true
                             anchors.verticalCenter: parent.verticalCenter
@@ -712,7 +715,7 @@ Item {
                             text: page.logsExpanded
                                   ? "Teknik işlem günlüklerini gizle"
                                   : "Teknik işlem günlüklerini göster"
-                            color: "#64748b"
+                            color: themePalette.mid
                             font.pixelSize: 13
                             font.italic: true
                             anchors.verticalCenter: parent.verticalCenter
@@ -720,7 +723,7 @@ Item {
 
                         Text {
                             text: page.transactionRunning ? "• işlem devam ediyor" : "• ayrıntılar hazır"
-                            color: page.transactionRunning ? "#fbbf24" : "#475569"
+                            color: page.transactionRunning ? themePalette.highlight : themePalette.dark
                             font.pixelSize: 12
                             font.italic: true
                             anchors.verticalCenter: parent.verticalCenter
@@ -744,8 +747,8 @@ Item {
                     anchors.topMargin: 48
                     height: parent.height - 48
                     radius: 16
-                    color: "#0b1117"
-                    border.color: "#334155"
+                    color: themePalette.base
+                    border.color: themePalette.mid
                     border.width: 1
                     antialiasing: true
                     clip: true
@@ -754,7 +757,7 @@ Item {
                         x: 16
                         y: 12
                         text: "Teknik İşlem Günlüğü"
-                        color: "#dbeafe"
+                        color: themePalette.highlightedText
                         font.pixelSize: 14
                         font.bold: true
                     }
@@ -764,7 +767,7 @@ Item {
                         anchors.rightMargin: 16
                         y: 14
                         text: "DNF5 işlem bilgisi"
-                        color: "#475569"
+                        color: themePalette.dark
                         font.pixelSize: 12
                     }
 
@@ -773,7 +776,7 @@ Item {
                         y: 38
                         width: parent.width - 32
                         height: 1
-                        color: "#1f2937"
+                        color: themePalette.dark
                     }
 
                     ScrollView {
@@ -791,10 +794,10 @@ Item {
                             wrapMode: TextEdit.Wrap
                             font.family: "monospace"
                             font.pixelSize: 13
-                            color: "#dbeafe"
+                            color: themePalette.highlightedText
 
                             background: Rectangle {
-                                color: "#0b1117"
+                                color: themePalette.base
                                 border.color: "transparent"
                             }
                         }
@@ -819,8 +822,8 @@ Item {
         height: page.narrow ? (page.transactionRunning ? 132 : 104) : 62
 
         radius: 16
-        color: "#101820"
-        border.color: "#243447"
+        color: themePalette.base
+        border.color: themePalette.button
         border.width: 1
         antialiasing: true
 
@@ -859,8 +862,8 @@ Item {
                 anchors.verticalCenter: parent.verticalCenter
 
                 radius: 10
-                color: "#0b1117"
-                border.color: "#334155"
+                color: themePalette.base
+                border.color: themePalette.mid
                 border.width: 1
                 clip: true
                 antialiasing: true
@@ -869,7 +872,7 @@ Item {
                     width: Math.max(0, parent.width * page.transactionProgress / 100)
                     height: parent.height
                     radius: 10
-                    color: "#2563eb"
+                    color: themePalette.highlight
                     opacity: 0.85
                     antialiasing: true
 
@@ -883,7 +886,7 @@ Item {
                 Text {
                     anchors.centerIn: parent
                     text: page.transactionPhaseText + "  %" + page.transactionProgress
-                    color: "#dbeafe"
+                    color: themePalette.highlightedText
                     font.pixelSize: 12
                     font.bold: true
                 }
@@ -969,8 +972,8 @@ Item {
                 height: 28
 
                 radius: 10
-                color: "#0b1117"
-                border.color: "#334155"
+                color: themePalette.base
+                border.color: themePalette.mid
                 border.width: 1
                 clip: true
                 antialiasing: true
@@ -979,7 +982,7 @@ Item {
                     width: Math.max(0, parent.width * page.transactionProgress / 100)
                     height: parent.height
                     radius: 10
-                    color: "#2563eb"
+                    color: themePalette.highlight
                     opacity: 0.85
                     antialiasing: true
 
@@ -993,7 +996,7 @@ Item {
                 Text {
                     anchors.centerIn: parent
                     text: page.transactionPhaseText + "  %" + page.transactionProgress
-                    color: "#dbeafe"
+                    color: themePalette.highlightedText
                     font.pixelSize: 12
                     font.bold: true
                 }
@@ -1088,7 +1091,7 @@ Item {
 
         Rectangle {
             anchors.fill: parent
-            color: "#99000000"
+            color: Qt.rgba(themePalette.shadow.r, themePalette.shadow.g, themePalette.shadow.b, 0.6)
 
             MouseArea {
                 anchors.fill: parent
@@ -1104,8 +1107,8 @@ Item {
             anchors.centerIn: parent
 
             radius: 22
-            color: "#171d24"
-            border.color: "#334155"
+            color: themePalette.base
+            border.color: themePalette.mid
             border.width: 1
             clip: true
             antialiasing: true
@@ -1123,7 +1126,7 @@ Item {
                 width: parent.width - 2
                 height: 94
                 radius: 21
-                color: "#16202b"
+                color: themePalette.base
                 antialiasing: true
             }
 
@@ -1132,7 +1135,7 @@ Item {
                 y: 58
                 width: parent.width - 2
                 height: 37
-                color: "#16202b"
+                color: themePalette.base
             }
 
             Rectangle {
@@ -1141,13 +1144,13 @@ Item {
                 width: 52
                 height: 52
                 radius: 16
-                color: "#3a1f1f"
+                color: themePalette.button
                 antialiasing: true
 
                 Text {
                     anchors.centerIn: parent
                     text: "!"
-                    color: "#fca5a5"
+                    color: themePalette.text
                     font.pixelSize: 28
                     font.bold: true
                 }
@@ -1158,7 +1161,7 @@ Item {
                 y: 22
                 width: parent.width - 112
                 text: "Uygulamayı kaldır"
-                color: "#ffffff"
+                color: themePalette.text
                 font.pixelSize: 22
                 font.bold: true
                 elide: Text.ElideRight
@@ -1169,7 +1172,7 @@ Item {
                 y: 54
                 width: parent.width - 112
                 text: page.appName
-                color: "#9aa4b2"
+                color: themePalette.mid
                 font.pixelSize: 14
                 elide: Text.ElideRight
             }
@@ -1179,7 +1182,7 @@ Item {
                 y: 120
                 width: parent.width - 44
                 text: page.appName + " uygulamasını sistemden kaldırmak istediğine emin misin?"
-                color: "#dbeafe"
+                color: themePalette.highlightedText
                 font.pixelSize: 15
                 wrapMode: Text.WordWrap
                 lineHeight: 1.18
@@ -1191,8 +1194,8 @@ Item {
                 width: parent.width - 44
                 height: 74
                 radius: 14
-                color: "#0b1117"
-                border.color: "#334155"
+                color: themePalette.base
+                border.color: themePalette.mid
                 border.width: 1
                 antialiasing: true
 
@@ -1200,7 +1203,7 @@ Item {
                     anchors.fill: parent
                     anchors.margins: 12
                     text: "Bu işlem yalnızca seçili paketi kaldırır. İşlem sırasında sistem yönetici yetkisi isteyebilir."
-                    color: "#fbbf24"
+                    color: themePalette.highlight
                     font.pixelSize: 13
                     wrapMode: Text.WordWrap
                     lineHeight: 1.2
@@ -1222,15 +1225,15 @@ Item {
 
                     background: Rectangle {
                         radius: 16
-                        color: parent.down ? "#d1d5db" : parent.hovered ? "#f3f4f6" : "#ffffff"
-                        border.color: "#d1d5db"
+                        color: parent.down ? themePalette.mid : parent.hovered ? themePalette.button : themePalette.text
+                        border.color: themePalette.mid
                         border.width: 1
                         antialiasing: true
                     }
 
                     contentItem: Text {
                         text: parent.text
-                        color: "#111827"
+                        color: themePalette.buttonText
                         font.pixelSize: 14
                         horizontalAlignment: Text.AlignHCenter
                         verticalAlignment: Text.AlignVCenter
@@ -1246,15 +1249,15 @@ Item {
 
                     background: Rectangle {
                         radius: 16
-                        color: parent.down ? "#7f1d1d" : parent.hovered ? "#991b1b" : "#b91c1c"
-                        border.color: "#ef4444"
+                        color: parent.down ? themePalette.button : parent.hovered ? themePalette.button : themePalette.highlight
+                        border.color: themePalette.highlight
                         border.width: 1
                         antialiasing: true
                     }
 
                     contentItem: Text {
                         text: parent.text
-                        color: "#ffffff"
+                        color: themePalette.text
                         font.pixelSize: 14
                         font.bold: true
                         horizontalAlignment: Text.AlignHCenter
