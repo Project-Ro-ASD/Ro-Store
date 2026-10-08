@@ -9,6 +9,12 @@ Rectangle {
     SystemPalette {
         id: themePalette
     }
+
+    // System-controlled readable secondary labels (not QPalette.mid).
+    readonly property color secondaryText: Qt.rgba(
+        themePalette.text.r, themePalette.text.g, themePalette.text.b, 0.76)
+    readonly property color secondaryWindowText: Qt.rgba(
+        themePalette.windowText.r, themePalette.windowText.g, themePalette.windowText.b, 0.76)
     property string titleText: ""
     property string summaryText: ""
     property string categoryText: ""
@@ -145,7 +151,7 @@ Rectangle {
                     anchors.centerIn: parent
                     visible: !appIcon.visible
                     text: card.titleText.length > 0 ? card.titleText[0].toUpperCase() : "R"
-                    color: themePalette.text
+                    color: themePalette.buttonText
                     font.pixelSize: 23
                     font.bold: true
                 }
@@ -203,7 +209,7 @@ Rectangle {
 
             Label {
                 text: "v" + card.versionText
-                color: themePalette.mid
+                color: card.secondaryText
                 font.pixelSize: 13
             }
 
@@ -213,7 +219,7 @@ Rectangle {
 
             Label {
                 text: cardPackageStatus.installed ? "Kurulu" : "Resmi"
-                color: cardPackageStatus.installed ? themePalette.highlight : themePalette.highlight
+                color: cardPackageStatus.installed ? themePalette.highlight : themePalette.text
                 font.pixelSize: 13
                 font.bold: true
             }
@@ -231,8 +237,8 @@ Rectangle {
                 Layout.fillWidth: true
                 Layout.preferredHeight: 34
                 radius: 12
-                color: detailMouse.containsMouse ? themePalette.button : themePalette.text
-                border.color: themePalette.mid
+                color: detailMouse.containsMouse ? themePalette.alternateBase : themePalette.button
+                border.color: card.secondaryText
                 border.width: 1
                 antialiasing: true
 
@@ -268,7 +274,7 @@ Rectangle {
                 Layout.preferredWidth: 92
                 Layout.preferredHeight: 34
                 radius: 12
-                color: runMouse.containsMouse ? themePalette.highlight : themePalette.highlight
+                color: themePalette.highlight
                 border.color: themePalette.highlight
                 border.width: 1
                 antialiasing: true
@@ -276,7 +282,7 @@ Rectangle {
                 Label {
                     anchors.centerIn: parent
                     text: "Çalıştır"
-                    color: themePalette.text
+                    color: themePalette.highlightedText
                     font.pixelSize: 12
                     font.bold: true
                 }
