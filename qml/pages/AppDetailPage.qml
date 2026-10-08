@@ -14,6 +14,14 @@ Item {
         themePalette.text.r, themePalette.text.g, themePalette.text.b, 0.76)
     readonly property color secondaryWindowText: Qt.rgba(
         themePalette.windowText.r, themePalette.windowText.g, themePalette.windowText.b, 0.76)
+
+    // Blend the active accent with the foreground to keep meaningful labels
+    // colored but comfortable in both light and dark color schemes.
+    readonly property color mutedAccent: Qt.rgba(
+        themePalette.highlight.r * 0.6 + themePalette.text.r * 0.4,
+        themePalette.highlight.g * 0.6 + themePalette.text.g * 0.4,
+        themePalette.highlight.b * 0.6 + themePalette.text.b * 0.4,
+        1.0)
     property string appName: ""
     property string summaryText: ""
     property string descriptionText: ""
@@ -220,12 +228,12 @@ Item {
     // system accent for actions and progress; use readable neutral text here.
     property color displayStatusColor:
         page.transactionRunning
-        ? page.secondaryText
+        ? page.mutedAccent
         : lastActionMessage.length > 0
-            ? (lastActionSuccess ? page.secondaryText : themePalette.text)
+            ? (lastActionSuccess ? page.mutedAccent : themePalette.text)
             : page.repositoryBlocked
                 ? themePalette.text
-                : page.secondaryText
+                : page.mutedAccent
 
     signal backRequested()
     signal downloadsRequested()
@@ -465,7 +473,7 @@ Item {
                                 id: categoryLabelWide
                                 anchors.centerIn: parent
                                 text: page.categoryText
-                                color: themePalette.buttonText
+                                color: page.mutedAccent
                                 font.pixelSize: 13
                             }
                         }
@@ -557,7 +565,7 @@ Item {
                                 id: categoryLabelNarrow
                                 anchors.centerIn: parent
                                 text: page.categoryText
-                                color: themePalette.buttonText
+                                color: page.mutedAccent
                                 font.pixelSize: 13
                             }
                         }
