@@ -216,14 +216,16 @@ Item {
                 ? page.repositoryBlockedText
                 : packageStatus.statusText
 
+    // Status text is informational, not a selected control. Keep the
+    // system accent for actions and progress; use readable neutral text here.
     property color displayStatusColor:
         page.transactionRunning
-        ? themePalette.highlight
+        ? page.secondaryText
         : lastActionMessage.length > 0
-            ? (lastActionSuccess ? themePalette.highlight : themePalette.text)
+            ? (lastActionSuccess ? page.secondaryText : themePalette.text)
             : page.repositoryBlocked
-                ? themePalette.highlight
-                : (packageStatus.installed ? themePalette.highlight : themePalette.highlight)
+                ? themePalette.text
+                : page.secondaryText
 
     signal backRequested()
     signal downloadsRequested()
@@ -463,7 +465,7 @@ Item {
                                 id: categoryLabelWide
                                 anchors.centerIn: parent
                                 text: page.categoryText
-                                color: themePalette.highlight
+                                color: themePalette.buttonText
                                 font.pixelSize: 13
                             }
                         }
@@ -555,7 +557,7 @@ Item {
                                 id: categoryLabelNarrow
                                 anchors.centerIn: parent
                                 text: page.categoryText
-                                color: themePalette.highlight
+                                color: themePalette.buttonText
                                 font.pixelSize: 13
                             }
                         }
