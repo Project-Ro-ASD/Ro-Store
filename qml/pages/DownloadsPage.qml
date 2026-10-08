@@ -635,13 +635,13 @@ Item {
                                 return page.secondaryText
 
                             if (parent.tx.state === PackageTransaction.Finished)
-                                return themePalette.highlight
+                                return page.secondaryText
 
                             if (parent.tx.state === PackageTransaction.Failed)
                                 return themePalette.text
 
                             if (parent.tx.state === PackageTransaction.Cancelled)
-                                return themePalette.highlight
+                                return page.secondaryText
 
                             return page.secondaryText
                         }
