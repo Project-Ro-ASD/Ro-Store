@@ -9,6 +9,12 @@ Item {
     SystemPalette {
         id: themePalette
     }
+
+    // System-controlled readable secondary labels (not QPalette.mid).
+    readonly property color secondaryText: Qt.rgba(
+        themePalette.text.r, themePalette.text.g, themePalette.text.b, 0.76)
+    readonly property color secondaryWindowText: Qt.rgba(
+        themePalette.windowText.r, themePalette.windowText.g, themePalette.windowText.b, 0.76)
     property var catalog
     property var packageTransactionManager: null
     property var sourceManager: null
@@ -93,7 +99,7 @@ Item {
 
                     Text {
                         text: "Project Ro resmi uygulama mağazası"
-                        color: themePalette.mid
+                        color: page.secondaryWindowText
                         font.pixelSize: 15
                     }
                 }
@@ -237,7 +243,7 @@ Item {
 
                 radius: 18
                 color: themePalette.window
-                border.color: themePalette.mid
+                border.color: page.secondaryText
                 border.width: 1
                 antialiasing: true
 
@@ -250,7 +256,7 @@ Item {
                     Text {
                         width: parent.width
                         text: "Ro-ASD Uygulama Deposu"
-                        color: themePalette.text
+                        color: themePalette.windowText
                         font.pixelSize: 17
                         font.bold: true
                     }
@@ -328,7 +334,7 @@ Item {
                         Text {
                             width: parent.width
                             text: "Ro-ASD Uygulama Deposu"
-                            color: themePalette.text
+                            color: themePalette.windowText
                             font.pixelSize: 17
                             font.bold: true
                         }
@@ -406,7 +412,7 @@ Item {
 
                 radius: 22
                 color: themePalette.base
-                border.color: themePalette.mid
+                border.color: page.secondaryText
                 border.width: 1
                 antialiasing: true
                 clip: true
@@ -470,7 +476,7 @@ Item {
                                 id: appCountLabelWide
                                 anchors.centerIn: parent
                                 text: appsGrid.count + " uygulama"
-                                color: themePalette.highlightedText
+                                color: themePalette.buttonText
                                 font.pixelSize: 13
                                 font.bold: true
                             }
@@ -551,7 +557,7 @@ Item {
                                 id: appCountLabelNarrow
                                 anchors.centerIn: parent
                                 text: appsGrid.count + " uygulama"
-                                color: themePalette.highlightedText
+                                color: themePalette.buttonText
                                 font.pixelSize: 13
                                 font.bold: true
                             }
@@ -596,7 +602,7 @@ Item {
                     anchors.right: parent.right
                     anchors.verticalCenter: parent.verticalCenter
                     text: page.catalog && page.catalog.loading ? "Katalog yükleniyor..." : ""
-                    color: themePalette.mid
+                    color: page.secondaryText
                     font.pixelSize: 13
                 }
             }
@@ -616,7 +622,7 @@ Item {
                 width: page.contentWidth
                 x: page.sideMargin
                 text: "Sonuç bulunamadı."
-                color: themePalette.mid
+                color: page.secondaryText
                 font.pixelSize: 15
             }
 
