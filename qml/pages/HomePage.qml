@@ -492,7 +492,7 @@ Item {
                                 id: repoLabelWide
                                 anchors.centerIn: parent
                                 text: "Kaynak: Ro-Repo"
-                                color: themePalette.highlight
+                                color: themePalette.buttonText
                                 font.pixelSize: 13
                                 font.bold: true
                             }
@@ -573,7 +573,7 @@ Item {
                                 id: repoLabelNarrow
                                 anchors.centerIn: parent
                                 text: "Ro-Repo"
-                                color: themePalette.highlight
+                                color: themePalette.buttonText
                                 font.pixelSize: 13
                                 font.bold: true
                             }
