@@ -6,11 +6,14 @@ import "pages"
 ApplicationWindow {
     id: root
 
+    SystemPalette {
+        id: themePalette
+    }
     width: 1000
     height: 650
     visible: true
     title: "Ro-Store"
-    color: "#101418"
+    color: themePalette.window
 
     CatalogModel {
         id: catalogModel
