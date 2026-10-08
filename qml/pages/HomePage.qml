@@ -477,6 +477,8 @@ Item {
                         Rectangle {
                             radius: 10
                             color: themePalette.button
+                            border.color: themePalette.mid
+                            border.width: 1
                             height: 32
                             width: appCountLabelWide.implicitWidth + 24
 
@@ -493,6 +495,8 @@ Item {
                         Rectangle {
                             radius: 10
                             color: themePalette.button
+                            border.color: themePalette.mid
+                            border.width: 1
                             height: 32
                             width: repoLabelWide.implicitWidth + 24
 
@@ -558,6 +562,8 @@ Item {
                         Rectangle {
                             radius: 10
                             color: themePalette.button
+                            border.color: themePalette.mid
+                            border.width: 1
                             height: 32
                             width: appCountLabelNarrow.implicitWidth + 24
 
@@ -574,6 +580,8 @@ Item {
                         Rectangle {
                             radius: 10
                             color: themePalette.button
+                            border.color: themePalette.mid
+                            border.width: 1
                             height: 32
                             width: repoLabelNarrow.implicitWidth + 24
 
