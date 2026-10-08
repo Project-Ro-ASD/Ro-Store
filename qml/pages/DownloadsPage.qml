@@ -8,6 +8,12 @@ Item {
     SystemPalette {
         id: themePalette
     }
+
+    // System-controlled readable secondary labels (not QPalette.mid).
+    readonly property color secondaryText: Qt.rgba(
+        themePalette.text.r, themePalette.text.g, themePalette.text.b, 0.76)
+    readonly property color secondaryWindowText: Qt.rgba(
+        themePalette.windowText.r, themePalette.windowText.g, themePalette.windowText.b, 0.76)
     property var packageTransactionManager: null
 
     property bool narrow: width < 760
@@ -161,7 +167,7 @@ Item {
                       ? page.packageTransactionManager.queuedCount + " işlem sırada"
                       : "Paket yöneticisi hazır değil"
 
-                color: themePalette.mid
+                color: page.secondaryText
                 font.pixelSize: 12
             }
         }
@@ -199,7 +205,7 @@ Item {
                 width: page.contentWidth
 
                 text: "Aktif işlem"
-                color: themePalette.text
+                color: themePalette.windowText
                 font.pixelSize: 19
                 font.bold: true
             }
@@ -215,13 +221,13 @@ Item {
 
                 radius: 18
                 color: themePalette.base
-                border.color: themePalette.mid
+                border.color: page.secondaryText
                 border.width: 1
 
                 Text {
                     anchors.centerIn: parent
                     text: "Şu anda aktif paket işlemi yok."
-                    color: themePalette.mid
+                    color: page.secondaryText
                     font.pixelSize: 14
                 }
             }
@@ -242,7 +248,7 @@ Item {
 
                 radius: 18
                 color: themePalette.base
-                border.color: themePalette.mid
+                border.color: page.secondaryText
                 border.width: 1
                 clip: true
 
@@ -271,7 +277,7 @@ Item {
                             + page.stateText(activeCard.tx.state)
                           : ""
 
-                    color: themePalette.mid
+                    color: page.secondaryText
                     font.pixelSize: 13
                 }
 
@@ -285,7 +291,7 @@ Item {
 
                     radius: 9
                     color: themePalette.base
-                    border.color: themePalette.mid
+                    border.color: page.secondaryText
                     border.width: 1
                     clip: true
 
@@ -320,7 +326,7 @@ Item {
                               ? "%" + activeCard.tx.progress
                               : "%0"
 
-                        color: themePalette.highlightedText
+                        color: activeCard.tx && activeCard.tx.progress >= 50 ? themePalette.highlightedText : themePalette.text
                         font.pixelSize: 12
                         font.bold: true
                     }
@@ -426,7 +432,7 @@ Item {
                     anchors.verticalCenter: parent.verticalCenter
 
                     text: "Sıradaki işlemler"
-                    color: themePalette.text
+                    color: themePalette.windowText
                     font.pixelSize: 19
                     font.bold: true
                 }
@@ -439,7 +445,7 @@ Item {
                           ? page.packageTransactionManager.queuedCount + " işlem"
                           : "0 işlem"
 
-                    color: themePalette.mid
+                    color: page.secondaryText
                     font.pixelSize: 13
                 }
             }
@@ -460,7 +466,7 @@ Item {
                 Text {
                     anchors.centerIn: parent
                     text: "Kuyrukta bekleyen işlem yok."
-                    color: themePalette.mid
+                    color: page.secondaryText
                     font.pixelSize: 13
                 }
             }
@@ -509,7 +515,7 @@ Item {
                                 + " • Sırada"
                               : ""
 
-                        color: themePalette.mid
+                        color: page.secondaryText
                         font.pixelSize: 13
                     }
                 }
@@ -526,7 +532,7 @@ Item {
                     anchors.verticalCenter: parent.verticalCenter
 
                     text: "İşlem geçmişi"
-                    color: themePalette.text
+                    color: themePalette.windowText
                     font.pixelSize: 19
                     font.bold: true
                 }
@@ -536,7 +542,7 @@ Item {
                     anchors.verticalCenter: parent.verticalCenter
 
                     text: "Bu oturum"
-                    color: themePalette.mid
+                    color: page.secondaryText
                     font.pixelSize: 12
                 }
             }
@@ -624,7 +630,7 @@ Item {
 
                         color: {
                             if (!parent.tx)
-                                return themePalette.mid
+                                return page.secondaryText
 
                             if (parent.tx.state === PackageTransaction.Finished)
                                 return themePalette.highlight
@@ -635,7 +641,7 @@ Item {
                             if (parent.tx.state === PackageTransaction.Cancelled)
                                 return themePalette.highlight
 
-                            return themePalette.mid
+                            return page.secondaryText
                         }
 
                         font.pixelSize: 12
@@ -653,7 +659,7 @@ Item {
                                 + page.stateText(parent.tx.state)
                               : ""
 
-                        color: themePalette.mid
+                        color: page.secondaryText
                         font.pixelSize: 13
                     }
 
