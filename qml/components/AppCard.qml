@@ -181,6 +181,8 @@ Rectangle {
                 Rectangle {
                     radius: 9
                     color: themePalette.button
+                    border.color: themePalette.mid
+                    border.width: 1
                     height: 25
                     width: categoryLabel.implicitWidth + 18
 
