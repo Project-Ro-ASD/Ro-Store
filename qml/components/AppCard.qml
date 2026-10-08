@@ -6,6 +6,9 @@ import RoStore 1.0
 Rectangle {
     id: card
 
+    SystemPalette {
+        id: themePalette
+    }
     property string titleText: ""
     property string summaryText: ""
     property string categoryText: ""
@@ -30,8 +33,8 @@ Rectangle {
     width: 300
     height: 218
     radius: 22
-    color: mouseArea.containsMouse ? "#1d2630" : "#171d24"
-    border.color: mouseArea.containsMouse ? "#4da3ff" : "#2a3440"
+    color: mouseArea.containsMouse ? themePalette.alternateBase : themePalette.base
+    border.color: mouseArea.containsMouse ? themePalette.highlight : themePalette.mid
     border.width: 1
     antialiasing: true
     clip: false
@@ -123,7 +126,7 @@ Rectangle {
                 width: 54
                 height: 54
                 radius: 16
-                color: "#243447"
+                color: themePalette.button
                 clip: true
                 antialiasing: true
 
@@ -142,7 +145,7 @@ Rectangle {
                     anchors.centerIn: parent
                     visible: !appIcon.visible
                     text: card.titleText.length > 0 ? card.titleText[0].toUpperCase() : "R"
-                    color: "#ffffff"
+                    color: themePalette.text
                     font.pixelSize: 23
                     font.bold: true
                 }
@@ -154,7 +157,7 @@ Rectangle {
 
                 Label {
                     text: card.titleText
-                    color: "#ffffff"
+                    color: themePalette.text
                     font.pixelSize: 18
                     font.bold: true
                     elide: Text.ElideRight
@@ -163,7 +166,7 @@ Rectangle {
 
                 Rectangle {
                     radius: 9
-                    color: "#243447"
+                    color: themePalette.button
                     height: 25
                     width: categoryLabel.implicitWidth + 18
 
@@ -171,7 +174,7 @@ Rectangle {
                         id: categoryLabel
                         anchors.centerIn: parent
                         text: card.categoryText
-                        color: "#79b8ff"
+                        color: themePalette.highlight
                         font.pixelSize: 12
                     }
                 }
@@ -180,7 +183,7 @@ Rectangle {
 
         Label {
             text: card.summaryText
-            color: "#b8c2cc"
+            color: themePalette.text
             font.pixelSize: 14
             wrapMode: Text.WordWrap
             maximumLineCount: 2
@@ -192,7 +195,7 @@ Rectangle {
         Rectangle {
             Layout.fillWidth: true
             height: 1
-            color: "#263445"
+            color: themePalette.mid
         }
 
         RowLayout {
@@ -200,7 +203,7 @@ Rectangle {
 
             Label {
                 text: "v" + card.versionText
-                color: "#8f9baa"
+                color: themePalette.mid
                 font.pixelSize: 13
             }
 
@@ -210,7 +213,7 @@ Rectangle {
 
             Label {
                 text: cardPackageStatus.installed ? "Kurulu" : "Resmi"
-                color: cardPackageStatus.installed ? "#79b8ff" : "#6ee7b7"
+                color: cardPackageStatus.installed ? themePalette.highlight : themePalette.highlight
                 font.pixelSize: 13
                 font.bold: true
             }
@@ -228,15 +231,15 @@ Rectangle {
                 Layout.fillWidth: true
                 Layout.preferredHeight: 34
                 radius: 12
-                color: detailMouse.containsMouse ? "#e5e7eb" : "#ffffff"
-                border.color: "#d1d5db"
+                color: detailMouse.containsMouse ? themePalette.button : themePalette.text
+                border.color: themePalette.mid
                 border.width: 1
                 antialiasing: true
 
                 Label {
                     anchors.centerIn: parent
                     text: "Detayları Gör"
-                    color: "#111827"
+                    color: themePalette.buttonText
                     font.pixelSize: 12
                 }
 
@@ -265,15 +268,15 @@ Rectangle {
                 Layout.preferredWidth: 92
                 Layout.preferredHeight: 34
                 radius: 12
-                color: runMouse.containsMouse ? "#1d4ed8" : "#2563eb"
-                border.color: "#3b82f6"
+                color: runMouse.containsMouse ? themePalette.highlight : themePalette.highlight
+                border.color: themePalette.highlight
                 border.width: 1
                 antialiasing: true
 
                 Label {
                     anchors.centerIn: parent
                     text: "Çalıştır"
-                    color: "#ffffff"
+                    color: themePalette.text
                     font.pixelSize: 12
                     font.bold: true
                 }
