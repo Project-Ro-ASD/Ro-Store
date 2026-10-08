@@ -8,6 +8,12 @@ Item {
     SystemPalette {
         id: themePalette
     }
+
+    // System-controlled readable secondary labels (not QPalette.mid).
+    readonly property color secondaryText: Qt.rgba(
+        themePalette.text.r, themePalette.text.g, themePalette.text.b, 0.76)
+    readonly property color secondaryWindowText: Qt.rgba(
+        themePalette.windowText.r, themePalette.windowText.g, themePalette.windowText.b, 0.76)
     property string appName: ""
     property string summaryText: ""
     property string descriptionText: ""
@@ -324,7 +330,7 @@ Item {
 
         Text {
             text: "Ro-Store"
-            color: themePalette.mid
+            color: page.secondaryText
             font.pixelSize: 14
             anchors.right: downloadsButton.left
             anchors.rightMargin: 14
@@ -378,7 +384,7 @@ Item {
 
                 radius: 22
                 color: themePalette.base
-                border.color: themePalette.mid
+                border.color: page.secondaryText
                 border.width: 1
                 antialiasing: true
                 clip: true
@@ -580,7 +586,7 @@ Item {
 
                 radius: 18
                 color: themePalette.base
-                border.color: themePalette.mid
+                border.color: page.secondaryText
                 border.width: 1
                 antialiasing: true
 
@@ -611,7 +617,7 @@ Item {
                     Rectangle {
                         width: parent.width
                         height: 1
-                        color: themePalette.mid
+                        color: page.secondaryText
                     }
 
                     Text {
@@ -625,7 +631,7 @@ Item {
                     Text {
                         width: parent.width
                         text: "Paket adı: " + page.packageName
-                        color: themePalette.mid
+                        color: page.secondaryText
                         font.pixelSize: 14
                         wrapMode: Text.WordWrap
                     }
@@ -633,21 +639,21 @@ Item {
                     Text {
                         width: parent.width
                         text: "Kaynak: Ro-Repo"
-                        color: themePalette.mid
+                        color: page.secondaryText
                         font.pixelSize: 14
                     }
 
                     Text {
                         width: parent.width
                         text: "Kurulu sürüm: " + (packageStatus.installedVersion.length > 0 ? packageStatus.installedVersion : "-")
-                        color: themePalette.mid
+                        color: page.secondaryText
                         font.pixelSize: 14
                     }
 
                     Text {
                         width: parent.width
                         text: "Repo sürümü: " + (page.versionText.length > 0 ? page.versionText : "-")
-                        color: themePalette.mid
+                        color: page.secondaryText
                         font.pixelSize: 14
                     }
 
@@ -665,7 +671,7 @@ Item {
                         text: packageStatus.installed
                               ? "Bu uygulama sistemde yüklü."
                               : "Kur/Güncelle/Kaldır işlemleri DNF5 üzerinden yapılır."
-                        color: themePalette.mid
+                        color: page.secondaryText
                         font.pixelSize: 13
                         wrapMode: Text.WordWrap
                     }
@@ -692,8 +698,8 @@ Item {
                     anchors.top: parent.top
                     height: 42
                     radius: 12
-                    color: logToggleMouse.containsMouse ? themePalette.buttonText : "transparent"
-                    border.color: logToggleMouse.containsMouse ? themePalette.button : "transparent"
+                    color: logToggleMouse.containsMouse ? themePalette.button : "transparent"
+                    border.color: logToggleMouse.containsMouse ? themePalette.highlight : "transparent"
                     border.width: 1
                     antialiasing: true
 
@@ -705,7 +711,7 @@ Item {
 
                         Text {
                             text: page.logsExpanded ? "⌄" : "›"
-                            color: themePalette.mid
+                            color: page.secondaryText
                             font.pixelSize: 18
                             font.bold: true
                             anchors.verticalCenter: parent.verticalCenter
@@ -715,7 +721,7 @@ Item {
                             text: page.logsExpanded
                                   ? "Teknik işlem günlüklerini gizle"
                                   : "Teknik işlem günlüklerini göster"
-                            color: themePalette.mid
+                            color: page.secondaryText
                             font.pixelSize: 13
                             font.italic: true
                             anchors.verticalCenter: parent.verticalCenter
@@ -723,7 +729,7 @@ Item {
 
                         Text {
                             text: page.transactionRunning ? "• işlem devam ediyor" : "• ayrıntılar hazır"
-                            color: page.transactionRunning ? themePalette.highlight : themePalette.dark
+                            color: page.transactionRunning ? themePalette.highlight : page.secondaryText
                             font.pixelSize: 12
                             font.italic: true
                             anchors.verticalCenter: parent.verticalCenter
@@ -748,7 +754,7 @@ Item {
                     height: parent.height - 48
                     radius: 16
                     color: themePalette.base
-                    border.color: themePalette.mid
+                    border.color: page.secondaryText
                     border.width: 1
                     antialiasing: true
                     clip: true
@@ -757,7 +763,7 @@ Item {
                         x: 16
                         y: 12
                         text: "Teknik İşlem Günlüğü"
-                        color: themePalette.highlightedText
+                        color: themePalette.text
                         font.pixelSize: 14
                         font.bold: true
                     }
@@ -767,7 +773,7 @@ Item {
                         anchors.rightMargin: 16
                         y: 14
                         text: "DNF5 işlem bilgisi"
-                        color: themePalette.dark
+                        color: page.secondaryText
                         font.pixelSize: 12
                     }
 
@@ -794,7 +800,7 @@ Item {
                             wrapMode: TextEdit.Wrap
                             font.family: "monospace"
                             font.pixelSize: 13
-                            color: themePalette.highlightedText
+                            color: themePalette.text
 
                             background: Rectangle {
                                 color: themePalette.base
@@ -863,7 +869,7 @@ Item {
 
                 radius: 10
                 color: themePalette.base
-                border.color: themePalette.mid
+                border.color: page.secondaryText
                 border.width: 1
                 clip: true
                 antialiasing: true
@@ -973,7 +979,7 @@ Item {
 
                 radius: 10
                 color: themePalette.base
-                border.color: themePalette.mid
+                border.color: page.secondaryText
                 border.width: 1
                 clip: true
                 antialiasing: true
@@ -1108,7 +1114,7 @@ Item {
 
             radius: 22
             color: themePalette.base
-            border.color: themePalette.mid
+            border.color: page.secondaryText
             border.width: 1
             clip: true
             antialiasing: true
@@ -1150,7 +1156,7 @@ Item {
                 Text {
                     anchors.centerIn: parent
                     text: "!"
-                    color: themePalette.text
+                    color: themePalette.buttonText
                     font.pixelSize: 28
                     font.bold: true
                 }
@@ -1172,7 +1178,7 @@ Item {
                 y: 54
                 width: parent.width - 112
                 text: page.appName
-                color: themePalette.mid
+                color: page.secondaryText
                 font.pixelSize: 14
                 elide: Text.ElideRight
             }
@@ -1182,7 +1188,7 @@ Item {
                 y: 120
                 width: parent.width - 44
                 text: page.appName + " uygulamasını sistemden kaldırmak istediğine emin misin?"
-                color: themePalette.highlightedText
+                color: themePalette.text
                 font.pixelSize: 15
                 wrapMode: Text.WordWrap
                 lineHeight: 1.18
@@ -1195,7 +1201,7 @@ Item {
                 height: 74
                 radius: 14
                 color: themePalette.base
-                border.color: themePalette.mid
+                border.color: page.secondaryText
                 border.width: 1
                 antialiasing: true
 
@@ -1225,8 +1231,8 @@ Item {
 
                     background: Rectangle {
                         radius: 16
-                        color: parent.down ? themePalette.mid : parent.hovered ? themePalette.button : themePalette.text
-                        border.color: themePalette.mid
+                        color: parent.hovered ? themePalette.alternateBase : themePalette.button
+                        border.color: page.secondaryText
                         border.width: 1
                         antialiasing: true
                     }
@@ -1249,7 +1255,7 @@ Item {
 
                     background: Rectangle {
                         radius: 16
-                        color: parent.down ? themePalette.button : parent.hovered ? themePalette.button : themePalette.highlight
+                        color: themePalette.highlight
                         border.color: themePalette.highlight
                         border.width: 1
                         antialiasing: true
@@ -1257,7 +1263,7 @@ Item {
 
                     contentItem: Text {
                         text: parent.text
-                        color: themePalette.text
+                        color: page.transactionProgress >= 50 ? themePalette.highlightedText : themePalette.text
                         font.pixelSize: 14
                         font.bold: true
                         horizontalAlignment: Text.AlignHCenter
