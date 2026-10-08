@@ -5,6 +5,9 @@ import RoStore 1.0
 Item {
     id: page
 
+    SystemPalette {
+        id: themePalette
+    }
     property var packageTransactionManager: null
 
     property bool narrow: width < 760
@@ -148,7 +151,7 @@ Item {
 
             Text {
                 text: "Yüklemeler"
-                color: "#f4f7fb"
+                color: themePalette.windowText
                 font.pixelSize: 22
                 font.bold: true
             }
@@ -158,7 +161,7 @@ Item {
                       ? page.packageTransactionManager.queuedCount + " işlem sırada"
                       : "Paket yöneticisi hazır değil"
 
-                color: "#9aa4b2"
+                color: themePalette.mid
                 font.pixelSize: 12
             }
         }
@@ -196,7 +199,7 @@ Item {
                 width: page.contentWidth
 
                 text: "Aktif işlem"
-                color: "#ffffff"
+                color: themePalette.text
                 font.pixelSize: 19
                 font.bold: true
             }
@@ -211,14 +214,14 @@ Item {
                 height: visible ? 100 : 0
 
                 radius: 18
-                color: "#16202b"
-                border.color: "#263445"
+                color: themePalette.base
+                border.color: themePalette.mid
                 border.width: 1
 
                 Text {
                     anchors.centerIn: parent
                     text: "Şu anda aktif paket işlemi yok."
-                    color: "#9aa4b2"
+                    color: themePalette.mid
                     font.pixelSize: 14
                 }
             }
@@ -238,8 +241,8 @@ Item {
                 height: visible ? (page.narrow ? 230 : 180) : 0
 
                 radius: 18
-                color: "#16202b"
-                border.color: "#334155"
+                color: themePalette.base
+                border.color: themePalette.mid
                 border.width: 1
                 clip: true
 
@@ -251,7 +254,7 @@ Item {
                     width: parent.width - 40
 
                     text: activeCard.tx ? activeCard.tx.packageName : ""
-                    color: "#ffffff"
+                    color: themePalette.text
                     font.pixelSize: 18
                     font.bold: true
                     elide: Text.ElideRight
@@ -268,7 +271,7 @@ Item {
                             + page.stateText(activeCard.tx.state)
                           : ""
 
-                    color: "#9aa4b2"
+                    color: themePalette.mid
                     font.pixelSize: 13
                 }
 
@@ -281,8 +284,8 @@ Item {
                     height: 26
 
                     radius: 9
-                    color: "#0b1117"
-                    border.color: "#334155"
+                    color: themePalette.base
+                    border.color: themePalette.mid
                     border.width: 1
                     clip: true
 
@@ -301,7 +304,7 @@ Item {
 
                         height: parent.height
                         radius: 9
-                        color: "#2563eb"
+                        color: themePalette.highlight
 
                         Behavior on width {
                             NumberAnimation {
@@ -317,7 +320,7 @@ Item {
                               ? "%" + activeCard.tx.progress
                               : "%0"
 
-                        color: "#dbeafe"
+                        color: themePalette.highlightedText
                         font.pixelSize: 12
                         font.bold: true
                     }
@@ -364,7 +367,7 @@ Item {
                                   : "")
                     }
 
-                    color: "#b5c0cc"
+                    color: themePalette.text
                     font.pixelSize: 13
                     wrapMode: Text.WordWrap
                 }
@@ -381,7 +384,7 @@ Item {
                           ? activeCard.tx.errorMessage
                           : ""
 
-                    color: "#f87171"
+                    color: themePalette.text
                     font.pixelSize: 12
                     wrapMode: Text.WordWrap
                 }
@@ -423,7 +426,7 @@ Item {
                     anchors.verticalCenter: parent.verticalCenter
 
                     text: "Sıradaki işlemler"
-                    color: "#ffffff"
+                    color: themePalette.text
                     font.pixelSize: 19
                     font.bold: true
                 }
@@ -436,7 +439,7 @@ Item {
                           ? page.packageTransactionManager.queuedCount + " işlem"
                           : "0 işlem"
 
-                    color: "#9aa4b2"
+                    color: themePalette.mid
                     font.pixelSize: 13
                 }
             }
@@ -450,14 +453,14 @@ Item {
                 height: visible ? 82 : 0
 
                 radius: 16
-                color: "#121a22"
-                border.color: "#243447"
+                color: themePalette.base
+                border.color: themePalette.button
                 border.width: 1
 
                 Text {
                     anchors.centerIn: parent
                     text: "Kuyrukta bekleyen işlem yok."
-                    color: "#7f8b99"
+                    color: themePalette.mid
                     font.pixelSize: 13
                 }
             }
@@ -480,8 +483,8 @@ Item {
                     height: visible ? 88 : 0
 
                     radius: 16
-                    color: "#121a22"
-                    border.color: "#243447"
+                    color: themePalette.base
+                    border.color: themePalette.button
                     border.width: 1
 
                     Text {
@@ -490,7 +493,7 @@ Item {
                         width: parent.width - 36
 
                         text: parent.tx ? parent.tx.packageName : ""
-                        color: "#e5edf5"
+                        color: themePalette.text
                         font.pixelSize: 15
                         font.bold: true
                         elide: Text.ElideRight
@@ -506,7 +509,7 @@ Item {
                                 + " • Sırada"
                               : ""
 
-                        color: "#9aa4b2"
+                        color: themePalette.mid
                         font.pixelSize: 13
                     }
                 }
@@ -523,7 +526,7 @@ Item {
                     anchors.verticalCenter: parent.verticalCenter
 
                     text: "İşlem geçmişi"
-                    color: "#ffffff"
+                    color: themePalette.text
                     font.pixelSize: 19
                     font.bold: true
                 }
@@ -533,7 +536,7 @@ Item {
                     anchors.verticalCenter: parent.verticalCenter
 
                     text: "Bu oturum"
-                    color: "#7f8b99"
+                    color: themePalette.mid
                     font.pixelSize: 12
                 }
             }
@@ -571,15 +574,15 @@ Item {
                             : 0
 
                     radius: 16
-                    color: "#121a22"
+                    color: themePalette.base
 
                     border.color: tx
                                   && tx.state === PackageTransaction.Failed
-                                  ? "#7f1d1d"
+                                  ? themePalette.button
                                   : tx
                                     && tx.state === PackageTransaction.Cancelled
-                                    ? "#78350f"
-                                    : "#243447"
+                                    ? themePalette.button
+                                    : themePalette.button
 
                     border.width: 1
 
@@ -592,7 +595,7 @@ Item {
                               ? parent.tx.packageName
                               : ""
 
-                        color: "#e5edf5"
+                        color: themePalette.text
                         font.pixelSize: 15
                         font.bold: true
                         elide: Text.ElideRight
@@ -621,18 +624,18 @@ Item {
 
                         color: {
                             if (!parent.tx)
-                                return "#9aa4b2"
+                                return themePalette.mid
 
                             if (parent.tx.state === PackageTransaction.Finished)
-                                return "#6ee7b7"
+                                return themePalette.highlight
 
                             if (parent.tx.state === PackageTransaction.Failed)
-                                return "#f87171"
+                                return themePalette.text
 
                             if (parent.tx.state === PackageTransaction.Cancelled)
-                                return "#fbbf24"
+                                return themePalette.highlight
 
-                            return "#9aa4b2"
+                            return themePalette.mid
                         }
 
                         font.pixelSize: 12
@@ -650,7 +653,7 @@ Item {
                                 + page.stateText(parent.tx.state)
                               : ""
 
-                        color: "#9aa4b2"
+                        color: themePalette.mid
                         font.pixelSize: 13
                     }
 
@@ -666,7 +669,7 @@ Item {
                               ? parent.tx.errorMessage
                               : ""
 
-                        color: "#f87171"
+                        color: themePalette.text
                         font.pixelSize: 12
                         elide: Text.ElideRight
                     }
