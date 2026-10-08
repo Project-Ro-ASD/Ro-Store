@@ -180,7 +180,7 @@ Rectangle {
                         id: categoryLabel
                         anchors.centerIn: parent
                         text: card.categoryText
-                        color: themePalette.highlight
+                        color: themePalette.buttonText
                         font.pixelSize: 12
                     }
                 }
@@ -219,7 +219,7 @@ Rectangle {
 
             Label {
                 text: cardPackageStatus.installed ? "Kurulu" : "Resmi"
-                color: cardPackageStatus.installed ? themePalette.highlight : themePalette.text
+                color: cardPackageStatus.installed ? card.secondaryText : themePalette.text
                 font.pixelSize: 13
                 font.bold: true
             }
