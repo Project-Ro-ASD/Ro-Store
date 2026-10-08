@@ -243,70 +243,28 @@ Rectangle {
             Layout.fillWidth: true
             spacing: 8
 
-            Rectangle {
+            // Native Qt Quick Controls inherit the active KDE control style.
+            Button {
                 Layout.fillWidth: true
                 Layout.preferredHeight: 34
-                radius: 12
-                color: detailMouse.containsMouse ? themePalette.alternateBase : themePalette.button
-                border.color: card.secondaryText
-                border.width: 1
-                antialiasing: true
-
-                Label {
-                    anchors.centerIn: parent
-                    text: "Detayları Gör"
-                    color: themePalette.buttonText
-                    font.pixelSize: 12
-                }
-
-                MouseArea {
-                    id: detailMouse
-                    anchors.fill: parent
-                    hoverEnabled: true
-                    cursorShape: Qt.PointingHandCursor
-
-                    onClicked: {
-                        card.detailRequested(
-                            card.titleText,
-                            card.summaryText,
-                            card.descriptionText,
-                            card.categoryText,
-                            card.versionText,
-                            card.packageText,
-                            card.iconUrl
-                        )
-                    }
-                }
+                text: "Detayları Gör"
+                onClicked: card.detailRequested(
+                    card.titleText,
+                    card.summaryText,
+                    card.descriptionText,
+                    card.categoryText,
+                    card.versionText,
+                    card.packageText,
+                    card.iconUrl
+                )
             }
 
-            Rectangle {
+            Button {
                 visible: cardPackageStatus.installed
                 Layout.preferredWidth: 92
                 Layout.preferredHeight: 34
-                radius: 12
-                color: themePalette.highlight
-                border.color: themePalette.highlight
-                border.width: 1
-                antialiasing: true
-
-                Label {
-                    anchors.centerIn: parent
-                    text: "Çalıştır"
-                    color: themePalette.highlightedText
-                    font.pixelSize: 12
-                    font.bold: true
-                }
-
-                MouseArea {
-                    id: runMouse
-                    anchors.fill: parent
-                    hoverEnabled: true
-                    cursorShape: Qt.PointingHandCursor
-
-                    onClicked: {
-                        cardLauncher.launch(card.packageText)
-                    }
-                }
+                text: "Çalıştır"
+                onClicked: cardLauncher.launch(card.packageText)
             }
         }
     }
