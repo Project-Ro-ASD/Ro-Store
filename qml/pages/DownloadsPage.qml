@@ -14,6 +14,14 @@ Item {
         themePalette.text.r, themePalette.text.g, themePalette.text.b, 0.76)
     readonly property color secondaryWindowText: Qt.rgba(
         themePalette.windowText.r, themePalette.windowText.g, themePalette.windowText.b, 0.76)
+
+    // Blend the active accent with the foreground to keep meaningful labels
+    // colored but comfortable in both light and dark color schemes.
+    readonly property color mutedAccent: Qt.rgba(
+        themePalette.highlight.r * 0.6 + themePalette.text.r * 0.4,
+        themePalette.highlight.g * 0.6 + themePalette.text.g * 0.4,
+        themePalette.highlight.b * 0.6 + themePalette.text.b * 0.4,
+        1.0)
     property var packageTransactionManager: null
 
     property bool narrow: width < 760
@@ -635,7 +643,7 @@ Item {
                                 return page.secondaryText
 
                             if (parent.tx.state === PackageTransaction.Finished)
-                                return page.secondaryText
+                                return page.mutedAccent
 
                             if (parent.tx.state === PackageTransaction.Failed)
                                 return themePalette.text
