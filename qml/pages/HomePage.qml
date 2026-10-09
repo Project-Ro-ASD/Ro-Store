@@ -491,7 +491,9 @@ Item {
                         width: 72
                         height: 72
                         radius: metrics.radiusPanel
-                        color: themePalette.button
+                        color: metrics.iconTileColor(themePalette.base, themePalette.text)
+                        border.width: 1
+                        border.color: metrics.iconTileBorderColor(themePalette.mid, themePalette.text)
                         antialiasing: true
 
                         Text {
@@ -587,7 +589,9 @@ Item {
                         width: 78
                         height: 78
                         radius: metrics.radiusCard
-                        color: themePalette.button
+                        color: metrics.iconTileColor(themePalette.base, themePalette.text)
+                        border.width: 1
+                        border.color: metrics.iconTileBorderColor(themePalette.mid, themePalette.text)
                         antialiasing: true
                         anchors.horizontalCenter: parent.horizontalCenter
 
