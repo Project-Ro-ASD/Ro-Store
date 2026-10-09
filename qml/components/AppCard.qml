@@ -246,11 +246,41 @@ Rectangle {
             Layout.fillWidth: true
             spacing: metrics.spaceNormal
 
-            // Native Qt Quick Controls inherit the active KDE control style.
+            // Use palette roles rather than fixed colors: inverted neutral
+            // action like the original design, and system accent for Launch.
             Button {
+                id: detailsButton
                 Layout.fillWidth: true
                 Layout.preferredHeight: 34
+                hoverEnabled: true
                 text: "Detayları Gör"
+
+                background: Rectangle {
+                    radius: metrics.radiusControl
+                    color: detailsButton.down
+                           ? Qt.tint(themePalette.text, Qt.rgba(themePalette.base.r,
+                                                                themePalette.base.g,
+                                                                themePalette.base.b, 0.22))
+                           : detailsButton.hovered
+                             ? Qt.tint(themePalette.text, Qt.rgba(themePalette.base.r,
+                                                                  themePalette.base.g,
+                                                                  themePalette.base.b, 0.12))
+                             : themePalette.text
+                    antialiasing: true
+
+                    Behavior on color {
+                        ColorAnimation { duration: metrics.durationShort }
+                    }
+                }
+
+                contentItem: Label {
+                    text: detailsButton.text
+                    color: themePalette.base
+                    font: detailsButton.font
+                    horizontalAlignment: Text.AlignHCenter
+                    verticalAlignment: Text.AlignVCenter
+                }
+
                 onClicked: card.detailRequested(
                     card.titleText,
                     card.summaryText,
@@ -263,10 +293,39 @@ Rectangle {
             }
 
             Button {
+                id: launchButton
                 visible: cardPackageStatus.installed
                 Layout.preferredWidth: 92
                 Layout.preferredHeight: 34
+                hoverEnabled: true
                 text: "Çalıştır"
+
+                background: Rectangle {
+                    radius: metrics.radiusControl
+                    color: launchButton.down
+                           ? Qt.tint(themePalette.highlight, Qt.rgba(themePalette.base.r,
+                                                                     themePalette.base.g,
+                                                                     themePalette.base.b, 0.22))
+                           : launchButton.hovered
+                             ? Qt.tint(themePalette.highlight, Qt.rgba(themePalette.base.r,
+                                                                       themePalette.base.g,
+                                                                       themePalette.base.b, 0.12))
+                             : themePalette.highlight
+                    antialiasing: true
+
+                    Behavior on color {
+                        ColorAnimation { duration: metrics.durationShort }
+                    }
+                }
+
+                contentItem: Label {
+                    text: launchButton.text
+                    color: themePalette.highlightedText
+                    font: launchButton.font
+                    horizontalAlignment: Text.AlignHCenter
+                    verticalAlignment: Text.AlignVCenter
+                }
+
                 onClicked: cardLauncher.launch(card.packageText)
             }
         }
