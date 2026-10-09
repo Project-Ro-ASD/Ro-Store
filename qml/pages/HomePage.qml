@@ -6,6 +6,8 @@ import "../components"
 Item {
     id: page
 
+    ThemeMetrics { id: metrics }
+
     SystemPalette {
         id: themePalette
     }
@@ -80,7 +82,7 @@ Item {
             id: contentColumn
 
             width: flick.width
-            spacing: 16
+            spacing: metrics.spaceLarge
 
             Item {
                 width: parent.width
@@ -96,7 +98,7 @@ Item {
                 Column {
                     anchors.left: parent.left
                     anchors.verticalCenter: parent.verticalCenter
-                    spacing: 4
+                    spacing: metrics.spaceCompact
 
                     Text {
                         text: "Ro-Store"
@@ -116,7 +118,7 @@ Item {
                     visible: !page.narrow
                     anchors.right: parent.right
                     anchors.verticalCenter: parent.verticalCenter
-                    spacing: 10
+                    spacing: metrics.spaceMedium
 
                     TextField {
                         id: searchFieldWide
@@ -189,7 +191,7 @@ Item {
                     y: 50
                     width: parent.width
                     height: 38
-                    spacing: 10
+                    spacing: metrics.spaceMedium
 
                     ComboBox {
                         id: categoryBoxNarrow
@@ -249,7 +251,7 @@ Item {
                         : 0
                 x: page.sideMargin
 
-                radius: 18
+                radius: metrics.radiusPanel
                 color: themePalette.window
                 border.color: page.secondaryText
                 border.width: 1
@@ -259,7 +261,7 @@ Item {
                     visible: page.narrow
                     anchors.fill: parent
                     anchors.margins: 16
-                    spacing: 10
+                    spacing: metrics.spaceMedium
 
                     Text {
                         width: parent.width
@@ -337,7 +339,7 @@ Item {
                         width: parent.width
                                - 40
                                - (repoActionWide.visible ? 210 : 0)
-                        spacing: 6
+                        spacing: metrics.spaceNormal
 
                         Text {
                             width: parent.width
@@ -418,7 +420,7 @@ Item {
                 height: page.narrow ? 285 : 132
                 x: page.sideMargin
 
-                radius: 22
+                radius: metrics.radiusCard
                 color: themePalette.base
                 border.color: page.secondaryText
                 border.width: 1
@@ -435,7 +437,7 @@ Item {
                         y: 30
                         width: 72
                         height: 72
-                        radius: 20
+                        radius: metrics.radiusPanel
                         color: themePalette.button
                         antialiasing: true
 
@@ -472,10 +474,10 @@ Item {
                     Row {
                         x: 112
                         y: 88
-                        spacing: 10
+                        spacing: metrics.spaceMedium
 
                         Rectangle {
-                            radius: 10
+                            radius: metrics.radiusControl
                             color: themePalette.button
                             border.color: themePalette.mid
                             border.width: 1
@@ -493,7 +495,7 @@ Item {
                         }
 
                         Rectangle {
-                            radius: 10
+                            radius: metrics.radiusControl
                             color: themePalette.button
                             border.color: themePalette.mid
                             border.width: 1
@@ -517,12 +519,12 @@ Item {
                     visible: page.narrow
                     anchors.fill: parent
                     anchors.margins: 20
-                    spacing: 12
+                    spacing: metrics.spaceMedium
 
                     Rectangle {
                         width: 78
                         height: 78
-                        radius: 22
+                        radius: metrics.radiusCard
                         color: themePalette.button
                         antialiasing: true
                         anchors.horizontalCenter: parent.horizontalCenter
@@ -556,11 +558,11 @@ Item {
                     }
 
                     Row {
-                        spacing: 10
+                        spacing: metrics.spaceMedium
                         anchors.horizontalCenter: parent.horizontalCenter
 
                         Rectangle {
-                            radius: 10
+                            radius: metrics.radiusControl
                             color: themePalette.button
                             border.color: themePalette.mid
                             border.width: 1
@@ -578,7 +580,7 @@ Item {
                         }
 
                         Rectangle {
-                            radius: 10
+                            radius: metrics.radiusControl
                             color: themePalette.button
                             border.color: themePalette.mid
                             border.width: 1
