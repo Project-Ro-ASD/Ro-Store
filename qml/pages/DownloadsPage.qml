@@ -1,9 +1,12 @@
 import QtQuick
 import QtQuick.Controls
+import "../components"
 import RoStore 1.0
 
 Item {
     id: page
+
+    ThemeMetrics { id: metrics }
 
     SystemPalette {
         id: themePalette
@@ -161,7 +164,7 @@ Item {
             anchors.left: parent.left
             anchors.leftMargin: 115
             anchors.verticalCenter: parent.verticalCenter
-            spacing: 2
+            spacing: metrics.spaceCompact
 
             Text {
                 text: "Yüklemeler"
@@ -205,7 +208,7 @@ Item {
             id: contentColumn
 
             width: flick.width
-            spacing: 18
+            spacing: metrics.spaceExtraLarge
 
             // AKTİF İŞLEM BAŞLIĞI
             Text {
@@ -227,7 +230,7 @@ Item {
                 width: page.contentWidth
                 height: visible ? 100 : 0
 
-                radius: 18
+                radius: metrics.radiusPanel
                 color: themePalette.base
                 border.color: page.secondaryText
                 border.width: 1
@@ -254,7 +257,7 @@ Item {
                 width: page.contentWidth
                 height: visible ? (page.narrow ? 230 : 180) : 0
 
-                radius: 18
+                radius: metrics.radiusPanel
                 color: themePalette.base
                 border.color: page.secondaryText
                 border.width: 1
@@ -297,7 +300,7 @@ Item {
                     width: parent.width - 40
                     height: 26
 
-                    radius: 9
+                    radius: metrics.radiusBadge
                     color: themePalette.button
                     border.color: themePalette.mid
                     border.width: 1
@@ -317,7 +320,7 @@ Item {
                                : 0
 
                         height: parent.height
-                        radius: 9
+                        radius: metrics.radiusBadge
                         color: themePalette.highlight
 
                         Behavior on width {
@@ -468,7 +471,7 @@ Item {
                 width: page.contentWidth
                 height: visible ? 82 : 0
 
-                radius: 16
+                radius: metrics.radiusInner
                 color: themePalette.base
                 border.color: themePalette.button
                 border.width: 1
@@ -498,7 +501,7 @@ Item {
                     width: page.contentWidth
                     height: visible ? 88 : 0
 
-                    radius: 16
+                    radius: metrics.radiusInner
                     color: themePalette.base
                     border.color: themePalette.button
                     border.width: 1
@@ -589,7 +592,7 @@ Item {
                               )
                             : 0
 
-                    radius: 16
+                    radius: metrics.radiusInner
                     color: themePalette.base
 
                     border.color: tx
