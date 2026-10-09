@@ -291,6 +291,9 @@ Rectangle {
                                                                   themePalette.base.g,
                                                                   themePalette.base.b, 0.12))
                              : themePalette.text
+                    // The white details button needs a blue focus outline.
+                    border.width: detailsButton.activeFocus ? 3 : 0
+                    border.color: themePalette.highlight
                     antialiasing: true
 
                     Behavior on color {
