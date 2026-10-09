@@ -260,6 +260,10 @@ Rectangle {
                 Layout.preferredHeight: metrics.applicationCardActionHeight
                 hoverEnabled: true
                 text: "Detayları Gör"
+                // Keep the two custom action labels in sync with the card
+                // labels when Plasma's font changes without restarting.
+                font.family: metrics.systemFont.family
+                font.pixelSize: metrics.fontBody
 
                 background: Rectangle {
                     radius: metrics.radiusControl
@@ -305,6 +309,8 @@ Rectangle {
                 Layout.preferredHeight: metrics.applicationCardActionHeight
                 hoverEnabled: true
                 text: "Çalıştır"
+                font.family: metrics.systemFont.family
+                font.pixelSize: metrics.fontBody
 
                 background: Rectangle {
                     radius: metrics.radiusControl

@@ -164,3 +164,26 @@ short screens. Reset its scroll origin when opening the dialog.
 Re-check the modal at those three window sizes and with 18 pt KDE fonts.
 The normal dialog should fit its content; all actions remain reachable on
 small screens. Do not press the destructive confirmation during visual QA.
+
+## Card buttons retain stale font after 18 pt -> 10 pt — 2026-10-09
+
+Live KDE regression: text in the Home header/card returned to its expected
+size, while the existing card's "Detayları Gör" and "Çalıştır" actions
+remained huge and the toolbar's native controls could truncate their labels.
+
+Bind `ApplicationWindow.font` to the notifying `SystemFontMonitor.currentFont`
+so all ordinary Qt Quick Controls inherit the same dynamically updated
+system font. Explicitly bind the two custom AppCard Button fonts to
+`ThemeMetrics` to keep their content labels consistent with the card.
+No installation, launch or navigation handlers were changed.
+
+Manual tests:
+- At 1000x650 and KDE font Noto Sans 10, validate Home card actions and
+  search/filter/toolbar control font sizes.
+- While Home remains visible, change to DejaVu Sans 18 with KDE's
+  `refreshFonts` D-Bus signal, then restore Noto Sans 10 with the signal.
+- Ensure "Detayları Gör", "Çalıştır", "Yenile", "Yüklemeler", and search
+  widgets *all* return to normal without restarting.
+- Repeat the same sequence with Detail/Remove confirmation on top and
+  navigate back to Home. Verify neither cached font nor page dimensions
+  remain in the old state.

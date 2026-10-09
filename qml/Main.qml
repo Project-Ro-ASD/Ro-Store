@@ -6,6 +6,11 @@ import "pages"
 ApplicationWindow {
     id: root
 
+    // Qt Quick Controls (Button, TextField, ComboBox, etc.) inherit this font.
+    // Without an explicit notifying binding, existing controls can retain
+    // the previous KDE font after a live 18 pt -> 10 pt change.
+    font: SystemFontMonitor.currentFont
+
     SystemPalette {
         id: themePalette
     }
