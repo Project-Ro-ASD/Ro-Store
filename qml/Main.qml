@@ -54,6 +54,30 @@ ApplicationWindow {
         }
     }
 
+    // Escape returns to the previous page. If a detail-page confirmation
+    // is open, dismiss it first and leave the page in place.
+    // Keep this one window-level handler; two overlapping Escape shortcuts
+    // would compete rather than guaranteeing modal-first behavior.
+    Shortcut {
+        sequence: "Escape"
+        context: Qt.WindowShortcut
+        enabled: stackView.depth > 1
+
+        onActivated: {
+            var current = stackView.currentItem
+
+            if (current && current.dismissOnEscape
+                    && current.dismissOnEscape())
+                return
+
+            // Match the disabled Back button during a package transaction.
+            if (current && current.transactionRunning)
+                return
+
+            stackView.pop()
+        }
+    }
+
     StackView {
         id: stackView
         anchors.fill: parent
