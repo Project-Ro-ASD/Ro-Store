@@ -1,7 +1,7 @@
 cmake_minimum_required(VERSION 3.21)
 
 project(RoStore
-    VERSION 0.3.0
+    VERSION 0.3.1
     DESCRIPTION "Ro-ASD application store"
     HOMEPAGE_URL "https://github.com/Project-Ro-ASD/Ro-Store"
     LANGUAGES CXX
