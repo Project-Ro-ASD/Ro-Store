@@ -132,7 +132,7 @@ Rectangle {
 
     ColumnLayout {
         anchors.fill: parent
-        anchors.margins: 16
+        anchors.margins: metrics.spaceLarge
         spacing: metrics.spaceMedium
 
         RowLayout {
