@@ -45,9 +45,9 @@ Button {
                   0.11))
               : control.surfaceColor
 
-        border.width: control.outlined ? 1.5 : 1
+        border.width: control.activeFocus ? 3 : (control.outlined ? 1.5 : 1)
         border.color: control.activeFocus
-            ? themePalette.highlight
+            ? (control.accented ? themePalette.highlightedText : themePalette.highlight)
             : control.accented
               ? themePalette.highlight
               : themePalette.mid
