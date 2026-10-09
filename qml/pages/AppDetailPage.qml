@@ -430,7 +430,9 @@ Item {
                         width: 96
                         height: 96
                         radius: metrics.radiusCard
-                        color: themePalette.button
+                        color: metrics.iconTileColor(themePalette.base, themePalette.text)
+                        border.width: 1
+                        border.color: metrics.iconTileBorderColor(themePalette.mid, themePalette.text)
                         clip: true
                         antialiasing: true
 
@@ -539,7 +541,9 @@ Item {
                         width: 92
                         height: 92
                         radius: metrics.radiusCard
-                        color: themePalette.button
+                        color: metrics.iconTileColor(themePalette.base, themePalette.text)
+                        border.width: 1
+                        border.color: metrics.iconTileBorderColor(themePalette.mid, themePalette.text)
                         clip: true
                         antialiasing: true
                         anchors.horizontalCenter: parent.horizontalCenter
