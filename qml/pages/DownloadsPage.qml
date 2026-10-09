@@ -428,7 +428,7 @@ Item {
                     wrapMode: Text.WordWrap
                 }
 
-                Button {
+                KeyboardActionButton {
                     visible: activeCard.tx !== null
 
                     text: "İptal"
