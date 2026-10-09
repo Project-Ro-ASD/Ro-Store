@@ -150,7 +150,10 @@ Item {
         height: 54
 
         Button {
-            text: "← Geri"
+            text: "Geri"
+            icon.name: "go-previous"
+            icon.width: 16
+            icon.height: 16
             width: 95
             height: 36
 
@@ -169,7 +172,8 @@ Item {
             Text {
                 text: "Yüklemeler"
                 color: themePalette.windowText
-                font.pixelSize: 22
+                font.family: metrics.systemFont.family
+                font.pixelSize: metrics.fontPageTitle
                 font.bold: true
             }
 
@@ -179,7 +183,8 @@ Item {
                       : "Paket yöneticisi hazır değil"
 
                 color: page.secondaryText
-                font.pixelSize: 12
+                font.family: metrics.systemFont.family
+                font.pixelSize: metrics.fontCaption
             }
         }
     }
@@ -217,7 +222,8 @@ Item {
 
                 text: "Aktif işlem"
                 color: themePalette.windowText
-                font.pixelSize: 19
+                font.family: metrics.systemFont.family
+                font.pixelSize: metrics.fontSection
                 font.bold: true
             }
 
@@ -239,7 +245,8 @@ Item {
                     anchors.centerIn: parent
                     text: "Şu anda aktif paket işlemi yok."
                     color: page.secondaryText
-                    font.pixelSize: 14
+                    font.family: metrics.systemFont.family
+                    font.pixelSize: metrics.fontBody
                 }
             }
 
@@ -272,7 +279,8 @@ Item {
 
                     text: activeCard.tx ? activeCard.tx.packageName : ""
                     color: themePalette.text
-                    font.pixelSize: 18
+                    font.family: metrics.systemFont.family
+                    font.pixelSize: metrics.fontTitle
                     font.bold: true
                     elide: Text.ElideRight
                 }
@@ -289,7 +297,8 @@ Item {
                           : ""
 
                     color: page.secondaryText
-                    font.pixelSize: 13
+                    font.family: metrics.systemFont.family
+                    font.pixelSize: metrics.fontSmall
                 }
 
                 Rectangle {
@@ -340,7 +349,8 @@ Item {
                         color: activeCard.tx && activeCard.tx.progress >= 65
                                ? themePalette.highlightedText
                                : themePalette.buttonText
-                        font.pixelSize: 12
+                        font.family: metrics.systemFont.family
+                        font.pixelSize: metrics.fontCaption
                         font.bold: true
                     }
                 }
@@ -387,7 +397,8 @@ Item {
                     }
 
                     color: themePalette.text
-                    font.pixelSize: 13
+                    font.family: metrics.systemFont.family
+                    font.pixelSize: metrics.fontSmall
                     wrapMode: Text.WordWrap
                 }
 
@@ -404,7 +415,8 @@ Item {
                           : ""
 
                     color: themePalette.text
-                    font.pixelSize: 12
+                    font.family: metrics.systemFont.family
+                    font.pixelSize: metrics.fontCaption
                     wrapMode: Text.WordWrap
                 }
 
@@ -446,7 +458,8 @@ Item {
 
                     text: "Sıradaki işlemler"
                     color: themePalette.windowText
-                    font.pixelSize: 19
+                    font.family: metrics.systemFont.family
+                    font.pixelSize: metrics.fontSection
                     font.bold: true
                 }
 
@@ -459,7 +472,8 @@ Item {
                           : "0 işlem"
 
                     color: page.secondaryText
-                    font.pixelSize: 13
+                    font.family: metrics.systemFont.family
+                    font.pixelSize: metrics.fontSmall
                 }
             }
 
@@ -480,7 +494,8 @@ Item {
                     anchors.centerIn: parent
                     text: "Kuyrukta bekleyen işlem yok."
                     color: page.secondaryText
-                    font.pixelSize: 13
+                    font.family: metrics.systemFont.family
+                    font.pixelSize: metrics.fontSmall
                 }
             }
 
@@ -513,7 +528,8 @@ Item {
 
                         text: parent.tx ? parent.tx.packageName : ""
                         color: themePalette.text
-                        font.pixelSize: 15
+                        font.family: metrics.systemFont.family
+                        font.pixelSize: metrics.fontBodyLarge
                         font.bold: true
                         elide: Text.ElideRight
                     }
@@ -529,7 +545,8 @@ Item {
                               : ""
 
                         color: page.secondaryText
-                        font.pixelSize: 13
+                        font.family: metrics.systemFont.family
+                        font.pixelSize: metrics.fontSmall
                     }
                 }
             }
@@ -546,7 +563,8 @@ Item {
 
                     text: "İşlem geçmişi"
                     color: themePalette.windowText
-                    font.pixelSize: 19
+                    font.family: metrics.systemFont.family
+                    font.pixelSize: metrics.fontSection
                     font.bold: true
                 }
 
@@ -556,7 +574,8 @@ Item {
 
                     text: "Bu oturum"
                     color: page.secondaryText
-                    font.pixelSize: 12
+                    font.family: metrics.systemFont.family
+                    font.pixelSize: metrics.fontCaption
                 }
             }
 
@@ -615,7 +634,8 @@ Item {
                               : ""
 
                         color: themePalette.text
-                        font.pixelSize: 15
+                        font.family: metrics.systemFont.family
+                        font.pixelSize: metrics.fontBodyLarge
                         font.bold: true
                         elide: Text.ElideRight
                     }
@@ -657,7 +677,8 @@ Item {
                             return page.secondaryText
                         }
 
-                        font.pixelSize: 12
+                        font.family: metrics.systemFont.family
+                        font.pixelSize: metrics.fontCaption
                         font.bold: true
                     }
 
@@ -673,7 +694,8 @@ Item {
                               : ""
 
                         color: page.secondaryText
-                        font.pixelSize: 13
+                        font.family: metrics.systemFont.family
+                        font.pixelSize: metrics.fontSmall
                     }
 
                     Text {
@@ -689,7 +711,8 @@ Item {
                               : ""
 
                         color: themePalette.text
-                        font.pixelSize: 12
+                        font.family: metrics.systemFont.family
+                        font.pixelSize: metrics.fontCaption
                         elide: Text.ElideRight
                     }
                 }

@@ -10,6 +10,28 @@ import org.kde.kirigami.platform as Platform
 QtObject {
     id: metrics
 
+
+    // Use KDE/Qt's application font instead of choosing a font family.
+    // Pixel sizes in views are reference sizes (14 px default), not fixed
+    // sizes: changes to the application font propagate through these bindings.
+    readonly property font systemFont: Qt.application.font
+    readonly property real systemFontPixels: systemFont.pixelSize > 0
+        ? systemFont.pixelSize
+        : (systemFont.pointSize > 0 ? systemFont.pointSize * 96 / 72 : 14)
+    readonly property real fontScale: Math.max(0.75, systemFontPixels / 14)
+
+    function fontPx(referencePixels) {
+        return Math.max(10, Math.round(referencePixels * fontScale))
+    }
+
+    readonly property int fontCaption: fontPx(12)
+    readonly property int fontSmall: fontPx(13)
+    readonly property int fontBody: fontPx(14)
+    readonly property int fontBodyLarge: fontPx(15)
+    readonly property int fontTitle: fontPx(18)
+    readonly property int fontSection: fontPx(19)
+    readonly property int fontPageTitle: fontPx(22)
+
     readonly property real radiusUnit: Platform.Units.cornerRadius
     readonly property real radiusBadge: radiusUnit * 2
     readonly property real radiusControl: radiusUnit * 2.5

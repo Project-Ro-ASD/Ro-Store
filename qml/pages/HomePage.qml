@@ -103,14 +103,16 @@ Item {
                     Text {
                         text: "Ro-Store"
                         color: themePalette.windowText
-                        font.pixelSize: page.narrow ? 28 : 32
+                        font.family: metrics.systemFont.family
+                        font.pixelSize: page.narrow ? metrics.fontPx(28) : metrics.fontPx(32)
                         font.bold: true
                     }
 
                     Text {
                         text: "Project Ro resmi uygulama mağazası"
                         color: page.secondaryWindowText
-                        font.pixelSize: 15
+                        font.family: metrics.systemFont.family
+                        font.pixelSize: metrics.fontBodyLarge
                     }
                 }
 
@@ -149,14 +151,20 @@ Item {
 
                     Button {
                         text: "Yenile"
-                        width: 80
+                        icon.name: "view-refresh"
+                        icon.width: 16
+                        icon.height: 16
+                        width: 96
                         height: 36
                         onClicked: page.reloadRequested()
                     }
 
                     Button {
                         text: "Yüklemeler"
-                        width: 110
+                        icon.name: "folder-download"
+                        icon.width: 16
+                        icon.height: 16
+                        width: 128
                         height: 36
                         onClicked: page.downloadsRequested()
                     }
@@ -221,6 +229,9 @@ Item {
                     height: 38
 
                     text: "Yüklemeler"
+                    icon.name: "folder-download"
+                    icon.width: 16
+                    icon.height: 16
                     onClicked: page.downloadsRequested()
                 }
             }
@@ -267,7 +278,8 @@ Item {
                         width: parent.width
                         text: "Ro-ASD Uygulama Deposu"
                         color: themePalette.windowText
-                        font.pixelSize: 17
+                        font.family: metrics.systemFont.family
+                        font.pixelSize: metrics.fontPx(17)
                         font.bold: true
                     }
 
@@ -277,7 +289,8 @@ Item {
                               ? page.sourceManager.roAsdStatusText
                               : ""
                         color: themePalette.text
-                        font.pixelSize: 13
+                        font.family: metrics.systemFont.family
+                        font.pixelSize: metrics.fontSmall
                         wrapMode: Text.WordWrap
                     }
 
@@ -292,7 +305,8 @@ Item {
                               : ""
 
                         color: themePalette.text
-                        font.pixelSize: 12
+                        font.family: metrics.systemFont.family
+                        font.pixelSize: metrics.fontCaption
                         wrapMode: Text.WordWrap
                     }
 
@@ -345,7 +359,8 @@ Item {
                             width: parent.width
                             text: "Ro-ASD Uygulama Deposu"
                             color: themePalette.windowText
-                            font.pixelSize: 17
+                            font.family: metrics.systemFont.family
+                            font.pixelSize: metrics.fontPx(17)
                             font.bold: true
                         }
 
@@ -355,7 +370,8 @@ Item {
                                   ? page.sourceManager.roAsdStatusText
                                   : ""
                             color: themePalette.text
-                            font.pixelSize: 13
+                            font.family: metrics.systemFont.family
+                            font.pixelSize: metrics.fontSmall
                             wrapMode: Text.WordWrap
                         }
 
@@ -370,7 +386,8 @@ Item {
                                   : ""
 
                             color: themePalette.text
-                            font.pixelSize: 12
+                            font.family: metrics.systemFont.family
+                            font.pixelSize: metrics.fontCaption
                             wrapMode: Text.WordWrap
                         }
                     }
@@ -445,7 +462,8 @@ Item {
                             anchors.centerIn: parent
                             text: "R"
                             color: themePalette.highlight
-                            font.pixelSize: 36
+                            font.family: metrics.systemFont.family
+                            font.pixelSize: metrics.fontPx(36)
                             font.bold: true
                         }
                     }
@@ -456,7 +474,8 @@ Item {
                         width: parent.width - 140
                         text: "Ro uygulamalarını keşfet"
                         color: themePalette.text
-                        font.pixelSize: 24
+                        font.family: metrics.systemFont.family
+                        font.pixelSize: metrics.fontPx(24)
                         font.bold: true
                         elide: Text.ElideRight
                     }
@@ -467,7 +486,8 @@ Item {
                         width: parent.width - 140
                         text: "Ro-Repo içindeki resmi Project Ro uygulamalarını terminal kullanmadan görüntüle, kur, güncelle veya kaldır."
                         color: themePalette.text
-                        font.pixelSize: 15
+                        font.family: metrics.systemFont.family
+                        font.pixelSize: metrics.fontBodyLarge
                         elide: Text.ElideRight
                     }
 
@@ -489,7 +509,8 @@ Item {
                                 anchors.centerIn: parent
                                 text: appsGrid.count + " uygulama"
                                 color: themePalette.buttonText
-                                font.pixelSize: 13
+                                font.family: metrics.systemFont.family
+                                font.pixelSize: metrics.fontSmall
                                 font.bold: true
                             }
                         }
@@ -507,7 +528,8 @@ Item {
                                 anchors.centerIn: parent
                                 text: "Kaynak: Ro-Repo"
                                 color: page.mutedAccent
-                                font.pixelSize: 13
+                                font.family: metrics.systemFont.family
+                                font.pixelSize: metrics.fontSmall
                                 font.bold: true
                             }
                         }
@@ -533,7 +555,8 @@ Item {
                             anchors.centerIn: parent
                             text: "R"
                             color: themePalette.highlight
-                            font.pixelSize: 38
+                            font.family: metrics.systemFont.family
+                            font.pixelSize: metrics.fontPx(38)
                             font.bold: true
                         }
                     }
@@ -542,7 +565,8 @@ Item {
                         width: parent.width
                         text: "Ro uygulamalarını keşfet"
                         color: themePalette.text
-                        font.pixelSize: 23
+                        font.family: metrics.systemFont.family
+                        font.pixelSize: metrics.fontPx(23)
                         font.bold: true
                         horizontalAlignment: Text.AlignHCenter
                         wrapMode: Text.WordWrap
@@ -552,7 +576,8 @@ Item {
                         width: parent.width
                         text: "Ro-Repo içindeki resmi Project Ro uygulamalarını terminal kullanmadan görüntüle, kur, güncelle veya kaldır."
                         color: themePalette.text
-                        font.pixelSize: 14
+                        font.family: metrics.systemFont.family
+                        font.pixelSize: metrics.fontBody
                         horizontalAlignment: Text.AlignHCenter
                         wrapMode: Text.WordWrap
                     }
@@ -574,7 +599,8 @@ Item {
                                 anchors.centerIn: parent
                                 text: appsGrid.count + " uygulama"
                                 color: themePalette.buttonText
-                                font.pixelSize: 13
+                                font.family: metrics.systemFont.family
+                                font.pixelSize: metrics.fontSmall
                                 font.bold: true
                             }
                         }
@@ -592,7 +618,8 @@ Item {
                                 anchors.centerIn: parent
                                 text: "Ro-Repo"
                                 color: page.mutedAccent
-                                font.pixelSize: 13
+                                font.family: metrics.systemFont.family
+                                font.pixelSize: metrics.fontSmall
                                 font.bold: true
                             }
                         }
@@ -611,7 +638,8 @@ Item {
                     anchors.verticalCenter: parent.verticalCenter
                     text: "Öne çıkan Ro uygulamaları"
                     color: themePalette.text
-                    font.pixelSize: page.narrow ? 18 : 20
+                    font.family: metrics.systemFont.family
+                    font.pixelSize: page.narrow ? metrics.fontTitle : metrics.fontPx(20)
                     font.bold: true
                 }
 
@@ -621,7 +649,8 @@ Item {
                     anchors.verticalCenter: parent.verticalCenter
                     text: page.catalog && page.catalog.loading ? "Katalog yükleniyor..." : ""
                     color: page.secondaryText
-                    font.pixelSize: 13
+                    font.family: metrics.systemFont.family
+                    font.pixelSize: metrics.fontSmall
                 }
             }
 
@@ -631,7 +660,8 @@ Item {
                 x: page.sideMargin
                 text: page.catalog ? page.catalog.error : ""
                 color: themePalette.text
-                font.pixelSize: 15
+                font.family: metrics.systemFont.family
+                font.pixelSize: metrics.fontBodyLarge
                 wrapMode: Text.WordWrap
             }
 
@@ -641,7 +671,8 @@ Item {
                 x: page.sideMargin
                 text: "Sonuç bulunamadı."
                 color: page.secondaryText
-                font.pixelSize: 15
+                font.family: metrics.systemFont.family
+                font.pixelSize: metrics.fontBodyLarge
             }
 
             // UYGULAMA KARTLARI

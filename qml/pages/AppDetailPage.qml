@@ -1,5 +1,6 @@
 import QtQuick
 import QtQuick.Controls
+import org.kde.kirigami.platform as Platform
 import "../components"
 import RoStore 1.0
 
@@ -332,7 +333,10 @@ Item {
 
         Button {
             id: backButton
-            text: "← Geri"
+            text: "Geri"
+            icon.name: "go-previous"
+            icon.width: 16
+            icon.height: 16
             width: 95
             height: 36
             anchors.left: parent.left
@@ -344,7 +348,8 @@ Item {
         Text {
             text: "Ro-Store"
             color: page.secondaryText
-            font.pixelSize: 14
+            font.family: metrics.systemFont.family
+            font.pixelSize: metrics.fontBody
             anchors.right: downloadsButton.left
             anchors.rightMargin: 14
             anchors.verticalCenter: parent.verticalCenter
@@ -354,7 +359,10 @@ Item {
             id: downloadsButton
 
             text: "Yüklemeler"
-            width: 110
+            icon.name: "folder-download"
+            icon.width: 16
+            icon.height: 16
+            width: 128
             height: 36
 
             anchors.right: parent.right
@@ -433,7 +441,8 @@ Item {
                             visible: !detailIconWide.visible
                             text: page.appName.length > 0 ? page.appName[0].toUpperCase() : "R"
                             color: themePalette.text
-                            font.pixelSize: 38
+                            font.family: metrics.systemFont.family
+                            font.pixelSize: metrics.fontPx(38)
                             font.bold: true
                         }
                     }
@@ -444,7 +453,8 @@ Item {
                         width: parent.width - 180
                         text: page.appName
                         color: themePalette.text
-                        font.pixelSize: 32
+                        font.family: metrics.systemFont.family
+                        font.pixelSize: metrics.fontPx(32)
                         font.bold: true
                         elide: Text.ElideRight
                     }
@@ -455,7 +465,8 @@ Item {
                         width: parent.width - 180
                         text: page.summaryText
                         color: themePalette.text
-                        font.pixelSize: 16
+                        font.family: metrics.systemFont.family
+                        font.pixelSize: metrics.fontPx(16)
                         wrapMode: Text.WordWrap
                         maximumLineCount: 2
                         elide: Text.ElideRight
@@ -479,7 +490,8 @@ Item {
                                 anchors.centerIn: parent
                                 text: page.categoryText
                                 color: page.mutedAccent
-                                font.pixelSize: 13
+                                font.family: metrics.systemFont.family
+                                font.pixelSize: metrics.fontSmall
                             }
                         }
 
@@ -496,7 +508,8 @@ Item {
                                 anchors.centerIn: parent
                                 text: "Sürüm " + page.versionText
                                 color: themePalette.text
-                                font.pixelSize: 13
+                                font.family: metrics.systemFont.family
+                                font.pixelSize: metrics.fontSmall
                             }
                         }
                     }
@@ -534,7 +547,8 @@ Item {
                             visible: !detailIconNarrow.visible
                             text: page.appName.length > 0 ? page.appName[0].toUpperCase() : "R"
                             color: themePalette.text
-                            font.pixelSize: 36
+                            font.family: metrics.systemFont.family
+                            font.pixelSize: metrics.fontPx(36)
                             font.bold: true
                         }
                     }
@@ -543,7 +557,8 @@ Item {
                         width: parent.width
                         text: page.appName
                         color: themePalette.text
-                        font.pixelSize: 28
+                        font.family: metrics.systemFont.family
+                        font.pixelSize: metrics.fontPx(28)
                         font.bold: true
                         horizontalAlignment: Text.AlignHCenter
                         wrapMode: Text.WordWrap
@@ -553,7 +568,8 @@ Item {
                         width: parent.width
                         text: page.summaryText
                         color: themePalette.text
-                        font.pixelSize: 15
+                        font.family: metrics.systemFont.family
+                        font.pixelSize: metrics.fontBodyLarge
                         horizontalAlignment: Text.AlignHCenter
                         wrapMode: Text.WordWrap
                     }
@@ -575,7 +591,8 @@ Item {
                                 anchors.centerIn: parent
                                 text: page.categoryText
                                 color: page.mutedAccent
-                                font.pixelSize: 13
+                                font.family: metrics.systemFont.family
+                                font.pixelSize: metrics.fontSmall
                             }
                         }
 
@@ -592,7 +609,8 @@ Item {
                                 anchors.centerIn: parent
                                 text: "Sürüm " + page.versionText
                                 color: themePalette.text
-                                font.pixelSize: 13
+                                font.family: metrics.systemFont.family
+                                font.pixelSize: metrics.fontSmall
                             }
                         }
                     }
@@ -623,7 +641,8 @@ Item {
                         width: parent.width
                         text: "Açıklama"
                         color: themePalette.text
-                        font.pixelSize: 22
+                        font.family: metrics.systemFont.family
+                        font.pixelSize: metrics.fontPageTitle
                         font.bold: true
                     }
 
@@ -631,7 +650,8 @@ Item {
                         width: parent.width
                         text: page.descriptionText
                         color: themePalette.text
-                        font.pixelSize: 15
+                        font.family: metrics.systemFont.family
+                        font.pixelSize: metrics.fontBodyLarge
                         wrapMode: Text.WordWrap
                     }
 
@@ -645,7 +665,8 @@ Item {
                         width: parent.width
                         text: "Paket bilgileri"
                         color: themePalette.text
-                        font.pixelSize: 18
+                        font.family: metrics.systemFont.family
+                        font.pixelSize: metrics.fontTitle
                         font.bold: true
                     }
 
@@ -653,7 +674,8 @@ Item {
                         width: parent.width
                         text: "Paket adı: " + page.packageName
                         color: page.secondaryText
-                        font.pixelSize: 14
+                        font.family: metrics.systemFont.family
+                        font.pixelSize: metrics.fontBody
                         wrapMode: Text.WordWrap
                     }
 
@@ -661,28 +683,32 @@ Item {
                         width: parent.width
                         text: "Kaynak: Ro-Repo"
                         color: page.secondaryText
-                        font.pixelSize: 14
+                        font.family: metrics.systemFont.family
+                        font.pixelSize: metrics.fontBody
                     }
 
                     Text {
                         width: parent.width
                         text: "Kurulu sürüm: " + (packageStatus.installedVersion.length > 0 ? packageStatus.installedVersion : "-")
                         color: page.secondaryText
-                        font.pixelSize: 14
+                        font.family: metrics.systemFont.family
+                        font.pixelSize: metrics.fontBody
                     }
 
                     Text {
                         width: parent.width
                         text: "Repo sürümü: " + (page.versionText.length > 0 ? page.versionText : "-")
                         color: page.secondaryText
-                        font.pixelSize: 14
+                        font.family: metrics.systemFont.family
+                        font.pixelSize: metrics.fontBody
                     }
 
                     Text {
                         width: parent.width
                         text: page.displayStatusText
                         color: page.displayStatusColor
-                        font.pixelSize: 14
+                        font.family: metrics.systemFont.family
+                        font.pixelSize: metrics.fontBody
                         font.bold: true
                         wrapMode: Text.WordWrap
                     }
@@ -693,7 +719,8 @@ Item {
                               ? "Bu uygulama sistemde yüklü."
                               : "Kur/Güncelle/Kaldır işlemleri DNF5 üzerinden yapılır."
                         color: page.secondaryText
-                        font.pixelSize: 13
+                        font.family: metrics.systemFont.family
+                        font.pixelSize: metrics.fontSmall
                         wrapMode: Text.WordWrap
                     }
                 }
@@ -733,7 +760,8 @@ Item {
                         Text {
                             text: page.logsExpanded ? "⌄" : "›"
                             color: page.secondaryText
-                            font.pixelSize: 18
+                            font.family: metrics.systemFont.family
+                            font.pixelSize: metrics.fontTitle
                             font.bold: true
                             anchors.verticalCenter: parent.verticalCenter
                         }
@@ -743,7 +771,8 @@ Item {
                                   ? "Teknik işlem günlüklerini gizle"
                                   : "Teknik işlem günlüklerini göster"
                             color: page.secondaryText
-                            font.pixelSize: 13
+                            font.family: metrics.systemFont.family
+                            font.pixelSize: metrics.fontSmall
                             font.italic: true
                             anchors.verticalCenter: parent.verticalCenter
                         }
@@ -751,7 +780,8 @@ Item {
                         Text {
                             text: page.transactionRunning ? "• işlem devam ediyor" : "• ayrıntılar hazır"
                             color: page.transactionRunning ? themePalette.highlight : page.secondaryText
-                            font.pixelSize: 12
+                            font.family: metrics.systemFont.family
+                            font.pixelSize: metrics.fontCaption
                             font.italic: true
                             anchors.verticalCenter: parent.verticalCenter
                         }
@@ -785,7 +815,8 @@ Item {
                         y: 12
                         text: "Teknik İşlem Günlüğü"
                         color: themePalette.text
-                        font.pixelSize: 14
+                        font.family: metrics.systemFont.family
+                        font.pixelSize: metrics.fontBody
                         font.bold: true
                     }
 
@@ -795,7 +826,8 @@ Item {
                         y: 14
                         text: "DNF5 işlem bilgisi"
                         color: page.secondaryText
-                        font.pixelSize: 12
+                        font.family: metrics.systemFont.family
+                        font.pixelSize: metrics.fontCaption
                     }
 
                     Rectangle {
@@ -819,8 +851,8 @@ Item {
                             readOnly: true
                             selectByMouse: true
                             wrapMode: TextEdit.Wrap
-                            font.family: "monospace"
-                            font.pixelSize: 13
+                            font.family: Platform.Theme.fixedWidthFont.family
+                            font.pixelSize: metrics.fontSmall
                             color: themePalette.text
 
                             background: Rectangle {
@@ -876,7 +908,8 @@ Item {
                 anchors.verticalCenter: parent.verticalCenter
                 text: page.displayStatusText
                 color: page.displayStatusColor
-                font.pixelSize: 13
+                font.family: metrics.systemFont.family
+                font.pixelSize: metrics.fontSmall
                 elide: Text.ElideRight
             }
 
@@ -915,7 +948,8 @@ Item {
                     color: page.transactionProgress >= 65
                            ? themePalette.highlightedText
                            : themePalette.buttonText
-                    font.pixelSize: 12
+                    font.family: metrics.systemFont.family
+                    font.pixelSize: metrics.fontCaption
                     font.bold: true
                 }
             }
@@ -994,7 +1028,8 @@ Item {
                 width: parent.width - 24
                 text: page.displayStatusText
                 color: page.displayStatusColor
-                font.pixelSize: 13
+                font.family: metrics.systemFont.family
+                font.pixelSize: metrics.fontSmall
                 elide: Text.ElideRight
             }
 
@@ -1032,7 +1067,8 @@ Item {
                     color: page.transactionProgress >= 65
                            ? themePalette.highlightedText
                            : themePalette.buttonText
-                    font.pixelSize: 12
+                    font.family: metrics.systemFont.family
+                    font.pixelSize: metrics.fontCaption
                     font.bold: true
                 }
             }
@@ -1192,7 +1228,8 @@ Item {
                     anchors.centerIn: parent
                     text: "!"
                     color: themePalette.buttonText
-                    font.pixelSize: 28
+                    font.family: metrics.systemFont.family
+                    font.pixelSize: metrics.fontPx(28)
                     font.bold: true
                 }
             }
@@ -1203,7 +1240,8 @@ Item {
                 width: parent.width - 112
                 text: "Uygulamayı kaldır"
                 color: themePalette.text
-                font.pixelSize: 22
+                font.family: metrics.systemFont.family
+                font.pixelSize: metrics.fontPageTitle
                 font.bold: true
                 elide: Text.ElideRight
             }
@@ -1214,7 +1252,8 @@ Item {
                 width: parent.width - 112
                 text: page.appName
                 color: page.secondaryText
-                font.pixelSize: 14
+                font.family: metrics.systemFont.family
+                font.pixelSize: metrics.fontBody
                 elide: Text.ElideRight
             }
 
@@ -1224,7 +1263,8 @@ Item {
                 width: parent.width - 44
                 text: page.appName + " uygulamasını sistemden kaldırmak istediğine emin misin?"
                 color: themePalette.text
-                font.pixelSize: 15
+                font.family: metrics.systemFont.family
+                font.pixelSize: metrics.fontBodyLarge
                 wrapMode: Text.WordWrap
                 lineHeight: 1.18
             }
@@ -1245,7 +1285,8 @@ Item {
                     anchors.margins: metrics.spaceMedium
                     text: "Bu işlem yalnızca seçili paketi kaldırır. İşlem sırasında sistem yönetici yetkisi isteyebilir."
                     color: themePalette.highlight
-                    font.pixelSize: 13
+                    font.family: metrics.systemFont.family
+                    font.pixelSize: metrics.fontSmall
                     wrapMode: Text.WordWrap
                     lineHeight: 1.2
                     verticalAlignment: Text.AlignVCenter
@@ -1275,7 +1316,8 @@ Item {
                     contentItem: Text {
                         text: parent.text
                         color: themePalette.buttonText
-                        font.pixelSize: 14
+                        font.family: metrics.systemFont.family
+                        font.pixelSize: metrics.fontBody
                         horizontalAlignment: Text.AlignHCenter
                         verticalAlignment: Text.AlignVCenter
                     }
@@ -1299,7 +1341,8 @@ Item {
                     contentItem: Text {
                         text: parent.text
                         color: themePalette.highlightedText
-                        font.pixelSize: 14
+                        font.family: metrics.systemFont.family
+                        font.pixelSize: metrics.fontBody
                         font.bold: true
                         horizontalAlignment: Text.AlignHCenter
                         verticalAlignment: Text.AlignVCenter

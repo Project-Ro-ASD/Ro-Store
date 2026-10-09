@@ -163,7 +163,8 @@ Rectangle {
                     visible: !appIcon.visible
                     text: card.titleText.length > 0 ? card.titleText[0].toUpperCase() : "R"
                     color: themePalette.buttonText
-                    font.pixelSize: 23
+                    font.family: metrics.systemFont.family
+                    font.pixelSize: metrics.fontPx(23)
                     font.bold: true
                 }
             }
@@ -175,7 +176,8 @@ Rectangle {
                 Label {
                     text: card.titleText
                     color: themePalette.text
-                    font.pixelSize: 18
+                    font.family: metrics.systemFont.family
+                    font.pixelSize: metrics.fontTitle
                     font.bold: true
                     elide: Text.ElideRight
                     Layout.fillWidth: true
@@ -194,7 +196,8 @@ Rectangle {
                         anchors.centerIn: parent
                         text: card.categoryText
                         color: card.mutedAccent
-                        font.pixelSize: 12
+                        font.family: metrics.systemFont.family
+                        font.pixelSize: metrics.fontCaption
                     }
                 }
             }
@@ -203,7 +206,8 @@ Rectangle {
         Label {
             text: card.summaryText
             color: themePalette.text
-            font.pixelSize: 14
+            font.family: metrics.systemFont.family
+            font.pixelSize: metrics.fontBody
             wrapMode: Text.WordWrap
             maximumLineCount: 2
             elide: Text.ElideRight
@@ -223,7 +227,8 @@ Rectangle {
             Label {
                 text: "v" + card.versionText
                 color: card.secondaryText
-                font.pixelSize: 13
+                font.family: metrics.systemFont.family
+                font.pixelSize: metrics.fontSmall
             }
 
             Item {
@@ -233,7 +238,8 @@ Rectangle {
             Label {
                 text: cardPackageStatus.installed ? "Kurulu" : "Resmi"
                 color: cardPackageStatus.installed ? card.mutedAccent : themePalette.text
-                font.pixelSize: 13
+                font.family: metrics.systemFont.family
+                font.pixelSize: metrics.fontSmall
                 font.bold: true
             }
         }
