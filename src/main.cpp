@@ -7,6 +7,7 @@
 #include "CatalogModel.h"
 #include "PackageStatus.h"
 #include "AppLauncher.h"
+#include "SystemFontMonitor.h"
 #include "sources/SourceManager.h"
 #include "packages/backends/Dnf5Backend.h"
 #include "packages/PackageTransaction.h"
@@ -18,6 +19,11 @@ int main(int argc, char *argv[])
     qDBusRegisterMetaType<QMap<QString, QString>>();
 
     QGuiApplication app(argc, argv);
+
+    SystemFontMonitor systemFontMonitor;
+    qmlRegisterSingletonInstance(
+        "RoStore", 1, 0, "SystemFontMonitor", &systemFontMonitor
+    );
 
     qmlRegisterType<CatalogModel>("RoStore", 1, 0, "CatalogModel");
     qmlRegisterType<PackageStatus>("RoStore", 1, 0, "PackageStatus");

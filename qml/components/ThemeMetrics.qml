@@ -1,4 +1,5 @@
 import QtQuick
+import RoStore 1.0
 import org.kde.kirigami.platform as Platform
 
 // Shared measurements for custom QML surfaces.
@@ -14,7 +15,9 @@ QtObject {
     // Use KDE/Qt's application font instead of choosing a font family.
     // Pixel sizes in views are reference sizes (14 px default), not fixed
     // sizes: changes to the application font propagate through these bindings.
-    readonly property font systemFont: Qt.application.font
+    // Shared font source emits an explicit change notification for every
+    // application font change, including while a StackView page is inactive.
+    readonly property font systemFont: SystemFontMonitor.currentFont
     readonly property real systemFontPixels: systemFont.pixelSize > 0
         ? systemFont.pixelSize
         : (systemFont.pointSize > 0 ? systemFont.pointSize * 96 / 72 : 14)

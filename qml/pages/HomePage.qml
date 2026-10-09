@@ -6,7 +6,26 @@ import "../components"
 Item {
     id: page
 
-    ThemeMetrics { id: metrics }
+    ThemeMetrics {
+        id: metrics
+
+        onFontScaleChanged: {
+            // The home page may be inactive behind another StackView page.
+            // Its GridView and Flickable must not retain the previous font's
+            // geometry or scroll offset after switching back to small fonts.
+            Qt.callLater(page.refreshFontLayout)
+        }
+    }
+
+    function refreshFontLayout() {
+        if (flick) {
+            flick.contentY = 0
+            flick.returnToBounds()
+        }
+
+        if (appsGrid)
+            appsGrid.forceLayout()
+    }
 
     SystemPalette {
         id: themePalette
@@ -41,6 +60,7 @@ Item {
     signal repositoryActionRequested()
 
     StackView.onActivated: {
+        Qt.callLater(page.refreshFontLayout)
         page.packageStatusRefreshSerial += 1
 
         console.log(

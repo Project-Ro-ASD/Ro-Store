@@ -53,3 +53,30 @@ title and summary, and truncated "Durumu Yenile".
 - Check the download header, detail footer and action labels.
 - Inspect the removal dialog separately before marking all responsive
   layout testing complete.
+
+## Live font shrink while navigating — 2026-10-09 regression
+
+Reproduced visually on Fedora/KDE: while the app was running, KDE font
+changed to 18 pt, then reverted to 10 pt. App Detail and Downloads
+displayed the small font, but Home retained some large-font geometry until
+a complete process restart.
+
+This iteration introduces `SystemFontMonitor`, a singleton registered from
+C++ that listens for Qt's `ApplicationFontChange` event, and makes all
+`ThemeMetrics` instances share a notifying font property. Home additionally
+forces its GridView layout and normalizes its Flickable scroll position when
+font scale changes and when StackView reactivates Home.
+
+Manual regression sequence:
+
+1. Open Home at original Noto Sans 10 pt, note row layout and button widths.
+2. Without closing Ro-Store, switch to DejaVu Sans 18 pt.
+3. Confirm Home changes to narrow layout and content scrolls without overlap.
+4. Open Ro Assist detail. Restore Noto Sans 10 pt **while detail is open**.
+5. Go back to Home without closing Ro-Store: expect the original wide layout.
+6. Repeat 10 → 18 → 10 with Home visible the whole time.
+7. Visit Downloads and return to Home, checking card size and scroll origin.
+8. Make sure the repo/catalog state is not reset by font changes.
+
+The GitHub Action QML startup smoke test does not prove this live KDE behavior;
+it must still be checked on a real Plasma session.
