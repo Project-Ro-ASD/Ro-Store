@@ -9,6 +9,9 @@ Item {
 
     ThemeMetrics { id: metrics }
 
+    readonly property color accentForeground: metrics.readableText(
+        themePalette.highlight, themePalette.highlightedText, themePalette.text)
+
     SystemPalette {
         id: themePalette
     }
@@ -1404,14 +1407,14 @@ Item {
                                 radius: metrics.radiusInner
                                 color: themePalette.highlight
                                 border.color: confirmRemoveButton.activeFocus
-                                              ? themePalette.highlightedText : themePalette.highlight
+                                              ? page.accentForeground : themePalette.highlight
                                 border.width: confirmRemoveButton.activeFocus ? 3 : 1
                                 antialiasing: true
                             }
 
                             contentItem: Text {
                                 text: parent.text
-                                color: themePalette.highlightedText
+                                color: page.accentForeground
                                 font.family: metrics.systemFont.family
                                 font.pixelSize: metrics.fontBody
                                 font.bold: true
