@@ -1357,7 +1357,7 @@ Item {
                         height: Math.max(42, metrics.fontPx(42))
                         spacing: metrics.spaceNormal
 
-                        Button {
+                        KeyboardActionButton {
                             id: cancelRemoveButton
                             text: "Vazgeç"
                             activeFocusOnTab: true
@@ -1387,7 +1387,7 @@ Item {
                             onClicked: removeConfirmDialog.close()
                         }
 
-                        Button {
+                        KeyboardActionButton {
                             id: confirmRemoveButton
                             text: "Kaldır"
                             activeFocusOnTab: true
