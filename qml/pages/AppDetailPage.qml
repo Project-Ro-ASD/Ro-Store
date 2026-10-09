@@ -1186,21 +1186,29 @@ Item {
     }
 
     // KALDIRMA ONAY PENCERESİ
-    Item {
+    FocusScope {
         id: removeConfirmDialog
 
         anchors.fill: parent
         visible: false
+        focus: visible
         z: 9999
 
         function open() {
-            // Always show the heading after a previous tall-font scroll.
             removeDialogScroll.contentY = 0
             visible = true
+            cancelRemoveButton.forceActiveFocus(Qt.TabFocusReason)
         }
 
         function close() {
             visible = false
+        }
+
+        Shortcut {
+            sequence: "Esc"
+            context: Qt.WindowShortcut
+            enabled: removeConfirmDialog.visible
+            onActivated: removeConfirmDialog.close()
         }
 
         Rectangle {
@@ -1350,7 +1358,11 @@ Item {
                         spacing: metrics.spaceNormal
 
                         Button {
+                            id: cancelRemoveButton
                             text: "Vazgeç"
+                            activeFocusOnTab: true
+                            KeyNavigation.tab: confirmRemoveButton
+                            KeyNavigation.backtab: confirmRemoveButton
                             width: Math.max(0, (parent.width - parent.spacing) / 2)
                             height: parent.height
 
@@ -1376,15 +1388,20 @@ Item {
                         }
 
                         Button {
+                            id: confirmRemoveButton
                             text: "Kaldır"
+                            activeFocusOnTab: true
+                            KeyNavigation.tab: cancelRemoveButton
+                            KeyNavigation.backtab: cancelRemoveButton
                             width: Math.max(0, (parent.width - parent.spacing) / 2)
                             height: parent.height
 
                             background: Rectangle {
                                 radius: metrics.radiusInner
                                 color: themePalette.highlight
-                                border.color: themePalette.highlight
-                                border.width: 1
+                                border.color: confirmRemoveButton.activeFocus
+                                              ? themePalette.highlightedText : themePalette.highlight
+                                border.width: confirmRemoveButton.activeFocus ? 3 : 1
                                 antialiasing: true
                             }
 
