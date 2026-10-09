@@ -5,7 +5,7 @@ import RoStore 1.0
 // Icon theme updates do not always invalidate icons cached by existing
 // Qt Quick Controls buttons. Clear and restore the icon name on the next
 // event-loop tick; keep the Button itself and its click handlers intact.
-Button {
+KeyboardActionButton {
     id: control
 
     property string themedIconName: ""
