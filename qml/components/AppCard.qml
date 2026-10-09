@@ -150,7 +150,9 @@ Rectangle {
                 Layout.minimumWidth: 54
                 Layout.minimumHeight: 54
                 radius: metrics.radiusInner
-                color: themePalette.button
+                color: metrics.iconTileColor(themePalette.base, themePalette.text)
+                border.width: 1
+                border.color: metrics.iconTileBorderColor(themePalette.mid, themePalette.text)
                 clip: true
                 antialiasing: true
 
