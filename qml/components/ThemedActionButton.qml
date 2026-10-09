@@ -16,6 +16,9 @@ KeyboardActionButton {
     ThemeMetrics { id: metrics }
     SystemPalette { id: themePalette }
 
+    readonly property color accentForeground: metrics.readableText(
+        themePalette.highlight, themePalette.highlightedText, themePalette.text)
+
     readonly property color surfaceColor: accented
         ? themePalette.highlight
         : outlined
@@ -23,7 +26,7 @@ KeyboardActionButton {
           : themePalette.button
 
     readonly property color foregroundColor: accented
-        ? themePalette.highlightedText
+        ? accentForeground
         : outlined
           ? themePalette.text
           : themePalette.buttonText
@@ -47,7 +50,7 @@ KeyboardActionButton {
 
         border.width: control.activeFocus ? 3 : (control.outlined ? 1.5 : 1)
         border.color: control.activeFocus
-            ? (control.accented ? themePalette.highlightedText : themePalette.highlight)
+            ? (control.accented ? control.accentForeground : themePalette.highlight)
             : control.accented
               ? themePalette.highlight
               : themePalette.mid
