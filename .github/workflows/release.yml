@@ -42,6 +42,7 @@ jobs:
             gcc-c++ \
             qt6-qtbase-devel \
             qt6-qtdeclarative-devel \
+            kf6-kirigami \
             rpm-build \
             desktop-file-utils \
             appstream

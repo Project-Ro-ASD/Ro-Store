@@ -1,11 +1,34 @@
 import QtQuick
 import QtQuick.Controls
 import QtQuick.Layouts
+import "."
 import RoStore 1.0
 
 Rectangle {
     id: card
 
+    ThemeMetrics { id: metrics }
+
+    readonly property color accentForeground: metrics.readableText(
+        themePalette.highlight, themePalette.highlightedText, themePalette.text)
+
+    SystemPalette {
+        id: themePalette
+    }
+
+    // System-controlled readable secondary labels (not QPalette.mid).
+    readonly property color secondaryText: Qt.rgba(
+        themePalette.text.r, themePalette.text.g, themePalette.text.b, 0.76)
+    readonly property color secondaryWindowText: Qt.rgba(
+        themePalette.windowText.r, themePalette.windowText.g, themePalette.windowText.b, 0.76)
+
+    // Blend the active accent with the foreground to keep meaningful labels
+    // colored but comfortable in both light and dark color schemes.
+    readonly property color mutedAccent: Qt.rgba(
+        themePalette.highlight.r * 0.6 + themePalette.text.r * 0.4,
+        themePalette.highlight.g * 0.6 + themePalette.text.g * 0.4,
+        themePalette.highlight.b * 0.6 + themePalette.text.b * 0.4,
+        1.0)
     property string titleText: ""
     property string summaryText: ""
     property string categoryText: ""
@@ -28,10 +51,10 @@ Rectangle {
     )
 
     width: 300
-    height: 218
-    radius: 22
-    color: mouseArea.containsMouse ? "#1d2630" : "#171d24"
-    border.color: mouseArea.containsMouse ? "#4da3ff" : "#2a3440"
+    height: metrics.applicationCardHeight
+    radius: metrics.radiusCard
+    color: mouseArea.containsMouse ? themePalette.alternateBase : themePalette.base
+    border.color: mouseArea.containsMouse ? themePalette.highlight : themePalette.mid
     border.width: 1
     antialiasing: true
     clip: false
@@ -112,18 +135,24 @@ Rectangle {
 
     ColumnLayout {
         anchors.fill: parent
-        anchors.margins: 16
-        spacing: 10
+        anchors.margins: metrics.spaceLarge
+        spacing: metrics.spaceMedium
 
         RowLayout {
             Layout.fillWidth: true
-            spacing: 12
+            spacing: metrics.spaceMedium
 
             Rectangle {
-                width: 54
-                height: 54
-                radius: 16
-                color: "#243447"
+                // Qt Quick Layouts position/size their children using Layout
+                // hints. Plain width/height are overridden by RowLayout.
+                Layout.preferredWidth: 54
+                Layout.preferredHeight: 54
+                Layout.minimumWidth: 54
+                Layout.minimumHeight: 54
+                radius: metrics.radiusInner
+                color: metrics.iconTileColor(themePalette.base, themePalette.text)
+                border.width: 1
+                border.color: metrics.iconTileBorderColor(themePalette.mid, themePalette.text)
                 clip: true
                 antialiasing: true
 
@@ -142,37 +171,52 @@ Rectangle {
                     anchors.centerIn: parent
                     visible: !appIcon.visible
                     text: card.titleText.length > 0 ? card.titleText[0].toUpperCase() : "R"
-                    color: "#ffffff"
-                    font.pixelSize: 23
+                    color: themePalette.buttonText
+                    font.family: metrics.systemFont.family
+                    font.pixelSize: metrics.fontPx(23)
                     font.bold: true
                 }
             }
 
             ColumnLayout {
-                spacing: 4
+                spacing: metrics.spaceCompact
                 Layout.fillWidth: true
 
                 Label {
                     text: card.titleText
-                    color: "#ffffff"
-                    font.pixelSize: 18
+                    color: themePalette.text
+                    font.family: metrics.systemFont.family
+                    font.pixelSize: metrics.fontTitle
                     font.bold: true
                     elide: Text.ElideRight
                     Layout.fillWidth: true
                 }
 
                 Rectangle {
-                    radius: 9
-                    color: "#243447"
-                    height: 25
-                    width: categoryLabel.implicitWidth + 18
+                    // ColumnLayout ignores manually assigned width/height
+                    // once it controls the child. Keep the badge's actual
+                    // layout size bound to the live system-font text metrics.
+                    Layout.preferredHeight: Math.max(25, categoryLabel.implicitHeight + 8)
+                    Layout.preferredWidth: categoryLabel.implicitWidth + 18
+                    Layout.minimumHeight: Math.max(25, categoryLabel.implicitHeight + 8)
+                    Layout.fillWidth: false
+                    radius: metrics.radiusBadge
+                    color: themePalette.button
+                    border.color: themePalette.mid
+                    border.width: 1
+                    clip: true
 
                     Label {
                         id: categoryLabel
-                        anchors.centerIn: parent
+                        anchors.fill: parent
+                        anchors.leftMargin: 9
+                        anchors.rightMargin: 9
                         text: card.categoryText
-                        color: "#79b8ff"
-                        font.pixelSize: 12
+                        elide: Text.ElideRight
+                        verticalAlignment: Text.AlignVCenter
+                        color: card.mutedAccent
+                        font.family: metrics.systemFont.family
+                        font.pixelSize: metrics.fontCaption
                     }
                 }
             }
@@ -180,19 +224,21 @@ Rectangle {
 
         Label {
             text: card.summaryText
-            color: "#b8c2cc"
-            font.pixelSize: 14
+            color: themePalette.text
+            font.family: metrics.systemFont.family
+            font.pixelSize: metrics.fontBody
             wrapMode: Text.WordWrap
             maximumLineCount: 2
             elide: Text.ElideRight
             Layout.fillWidth: true
-            Layout.preferredHeight: 42
+            Layout.preferredHeight: metrics.applicationCardSummaryHeight
         }
 
         Rectangle {
             Layout.fillWidth: true
-            height: 1
-            color: "#263445"
+            Layout.preferredHeight: 1
+            Layout.minimumHeight: 1
+            color: themePalette.mid
         }
 
         RowLayout {
@@ -200,8 +246,9 @@ Rectangle {
 
             Label {
                 text: "v" + card.versionText
-                color: "#8f9baa"
-                font.pixelSize: 13
+                color: card.secondaryText
+                font.family: metrics.systemFont.family
+                font.pixelSize: metrics.fontSmall
             }
 
             Item {
@@ -210,8 +257,9 @@ Rectangle {
 
             Label {
                 text: cardPackageStatus.installed ? "Kurulu" : "Resmi"
-                color: cardPackageStatus.installed ? "#79b8ff" : "#6ee7b7"
-                font.pixelSize: 13
+                color: cardPackageStatus.installed ? card.mutedAccent : themePalette.text
+                font.family: metrics.systemFont.family
+                font.pixelSize: metrics.fontSmall
                 font.bold: true
             }
         }
@@ -222,72 +270,100 @@ Rectangle {
 
         RowLayout {
             Layout.fillWidth: true
-            spacing: 8
+            spacing: metrics.spaceNormal
 
-            Rectangle {
+            // Use palette roles rather than fixed colors: inverted neutral
+            // action like the original design, and system accent for Launch.
+            KeyboardActionButton {
+                id: detailsButton
                 Layout.fillWidth: true
-                Layout.preferredHeight: 34
-                radius: 12
-                color: detailMouse.containsMouse ? "#e5e7eb" : "#ffffff"
-                border.color: "#d1d5db"
-                border.width: 1
-                antialiasing: true
+                Layout.preferredHeight: metrics.applicationCardActionHeight
+                hoverEnabled: true
+                text: "Detayları Gör"
+                // Keep the two custom action labels in sync with the card
+                // labels when Plasma's font changes without restarting.
+                font.family: metrics.systemFont.family
+                font.pixelSize: metrics.fontBody
 
-                Label {
-                    anchors.centerIn: parent
-                    text: "Detayları Gör"
-                    color: "#111827"
-                    font.pixelSize: 12
-                }
+                background: Rectangle {
+                    radius: metrics.radiusControl
+                    color: detailsButton.down
+                           ? Qt.tint(themePalette.text, Qt.rgba(themePalette.base.r,
+                                                                themePalette.base.g,
+                                                                themePalette.base.b, 0.22))
+                           : detailsButton.hovered
+                             ? Qt.tint(themePalette.text, Qt.rgba(themePalette.base.r,
+                                                                  themePalette.base.g,
+                                                                  themePalette.base.b, 0.12))
+                             : themePalette.text
+                    // The white details button needs a blue focus outline.
+                    border.width: detailsButton.activeFocus ? 3 : 0
+                    border.color: themePalette.highlight
+                    antialiasing: true
 
-                MouseArea {
-                    id: detailMouse
-                    anchors.fill: parent
-                    hoverEnabled: true
-                    cursorShape: Qt.PointingHandCursor
-
-                    onClicked: {
-                        card.detailRequested(
-                            card.titleText,
-                            card.summaryText,
-                            card.descriptionText,
-                            card.categoryText,
-                            card.versionText,
-                            card.packageText,
-                            card.iconUrl
-                        )
+                    Behavior on color {
+                        ColorAnimation { duration: metrics.durationShort }
                     }
                 }
+
+                contentItem: Label {
+                    text: detailsButton.text
+                    color: themePalette.base
+                    font: detailsButton.font
+                    horizontalAlignment: Text.AlignHCenter
+                    verticalAlignment: Text.AlignVCenter
+                }
+
+                onClicked: card.detailRequested(
+                    card.titleText,
+                    card.summaryText,
+                    card.descriptionText,
+                    card.categoryText,
+                    card.versionText,
+                    card.packageText,
+                    card.iconUrl
+                )
             }
 
-            Rectangle {
+            KeyboardActionButton {
+                id: launchButton
                 visible: cardPackageStatus.installed
-                Layout.preferredWidth: 92
-                Layout.preferredHeight: 34
-                radius: 12
-                color: runMouse.containsMouse ? "#1d4ed8" : "#2563eb"
-                border.color: "#3b82f6"
-                border.width: 1
-                antialiasing: true
+                Layout.preferredWidth: Math.max(92, metrics.fontPx(92))
+                Layout.preferredHeight: metrics.applicationCardActionHeight
+                hoverEnabled: true
+                text: "Çalıştır"
+                font.family: metrics.systemFont.family
+                font.pixelSize: metrics.fontBody
 
-                Label {
-                    anchors.centerIn: parent
-                    text: "Çalıştır"
-                    color: "#ffffff"
-                    font.pixelSize: 12
-                    font.bold: true
-                }
+                background: Rectangle {
+                    radius: metrics.radiusControl
+                    color: launchButton.down
+                           ? Qt.tint(themePalette.highlight, Qt.rgba(themePalette.base.r,
+                                                                     themePalette.base.g,
+                                                                     themePalette.base.b, 0.22))
+                           : launchButton.hovered
+                             ? Qt.tint(themePalette.highlight, Qt.rgba(themePalette.base.r,
+                                                                       themePalette.base.g,
+                                                                       themePalette.base.b, 0.12))
+                             : themePalette.highlight
+                    border.width: launchButton.activeFocus ? 3 : 0
+                    border.color: card.accentForeground
+                    antialiasing: true
 
-                MouseArea {
-                    id: runMouse
-                    anchors.fill: parent
-                    hoverEnabled: true
-                    cursorShape: Qt.PointingHandCursor
-
-                    onClicked: {
-                        cardLauncher.launch(card.packageText)
+                    Behavior on color {
+                        ColorAnimation { duration: metrics.durationShort }
                     }
                 }
+
+                contentItem: Label {
+                    text: launchButton.text
+                    color: card.accentForeground
+                    font: launchButton.font
+                    horizontalAlignment: Text.AlignHCenter
+                    verticalAlignment: Text.AlignVCenter
+                }
+
+                onClicked: cardLauncher.launch(card.packageText)
             }
         }
     }

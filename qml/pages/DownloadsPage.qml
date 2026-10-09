@@ -1,15 +1,36 @@
 import QtQuick
 import QtQuick.Controls
+import "../components"
 import RoStore 1.0
 
 Item {
     id: page
 
+    ThemeMetrics { id: metrics }
+
+    SystemPalette {
+        id: themePalette
+    }
+
+    // System-controlled readable secondary labels (not QPalette.mid).
+    readonly property color secondaryText: Qt.rgba(
+        themePalette.text.r, themePalette.text.g, themePalette.text.b, 0.76)
+    readonly property color secondaryWindowText: Qt.rgba(
+        themePalette.windowText.r, themePalette.windowText.g, themePalette.windowText.b, 0.76)
+
+    // Blend the active accent with the foreground to keep meaningful labels
+    // colored but comfortable in both light and dark color schemes.
+    readonly property color mutedAccent: Qt.rgba(
+        themePalette.highlight.r * 0.6 + themePalette.text.r * 0.4,
+        themePalette.highlight.g * 0.6 + themePalette.text.g * 0.4,
+        themePalette.highlight.b * 0.6 + themePalette.text.b * 0.4,
+        1.0)
     property var packageTransactionManager: null
 
-    property bool narrow: width < 760
-    property int sideMargin: narrow ? 22 : 36
-    property int contentWidth: Math.max(320, width - sideMargin * 2)
+    property bool narrow: width < Math.max(760, Math.ceil(760 * metrics.fontScale))
+    property int sideMargin: Math.min(narrow ? 22 : 36,
+                                      Math.max(8, Math.floor(width / 12)))
+    property int contentWidth: Math.max(0, width - sideMargin * 2)
 
     signal backRequested()
 
@@ -127,12 +148,16 @@ Item {
         x: page.sideMargin
         y: 20
         width: page.contentWidth
-        height: 54
+        height: Math.max(54, downloadsTitleColumn.implicitHeight + metrics.spaceNormal * 2)
 
-        Button {
-            text: "← Geri"
-            width: 95
-            height: 36
+        ThemedIconButton {
+            id: backButton
+            text: "Geri"
+            themedIconName: "go-previous"
+            icon.width: 16
+            icon.height: 16
+            width: Math.max(95, implicitWidth + metrics.spaceMedium)
+            height: Math.max(36, implicitHeight)
 
             anchors.left: parent.left
             anchors.verticalCenter: parent.verticalCenter
@@ -141,25 +166,33 @@ Item {
         }
 
         Column {
+            id: downloadsTitleColumn
             anchors.left: parent.left
-            anchors.leftMargin: 115
+            anchors.leftMargin: backButton.width + metrics.spaceNormal
             anchors.verticalCenter: parent.verticalCenter
-            spacing: 2
+            width: Math.max(0, parent.width - backButton.width - metrics.spaceNormal)
+            spacing: metrics.spaceCompact
 
             Text {
+                width: parent.width
                 text: "Yüklemeler"
-                color: "#f4f7fb"
-                font.pixelSize: 22
+                elide: Text.ElideRight
+                color: themePalette.windowText
+                font.family: metrics.systemFont.family
+                font.pixelSize: metrics.fontPageTitle
                 font.bold: true
             }
 
             Text {
+                width: parent.width
+                elide: Text.ElideRight
                 text: page.packageTransactionManager
                       ? page.packageTransactionManager.queuedCount + " işlem sırada"
                       : "Paket yöneticisi hazır değil"
 
-                color: "#9aa4b2"
-                font.pixelSize: 12
+                color: page.secondaryText
+                font.family: metrics.systemFont.family
+                font.pixelSize: metrics.fontCaption
             }
         }
     }
@@ -188,7 +221,7 @@ Item {
             id: contentColumn
 
             width: flick.width
-            spacing: 18
+            spacing: metrics.spaceExtraLarge
 
             // AKTİF İŞLEM BAŞLIĞI
             Text {
@@ -196,8 +229,9 @@ Item {
                 width: page.contentWidth
 
                 text: "Aktif işlem"
-                color: "#ffffff"
-                font.pixelSize: 19
+                color: themePalette.windowText
+                font.family: metrics.systemFont.family
+                font.pixelSize: metrics.fontSection
                 font.bold: true
             }
 
@@ -210,16 +244,17 @@ Item {
                 width: page.contentWidth
                 height: visible ? 100 : 0
 
-                radius: 18
-                color: "#16202b"
-                border.color: "#263445"
+                radius: metrics.radiusPanel
+                color: themePalette.base
+                border.color: page.secondaryText
                 border.width: 1
 
                 Text {
                     anchors.centerIn: parent
                     text: "Şu anda aktif paket işlemi yok."
-                    color: "#9aa4b2"
-                    font.pixelSize: 14
+                    color: page.secondaryText
+                    font.family: metrics.systemFont.family
+                    font.pixelSize: metrics.fontBody
                 }
             }
 
@@ -237,9 +272,9 @@ Item {
                 width: page.contentWidth
                 height: visible ? (page.narrow ? 230 : 180) : 0
 
-                radius: 18
-                color: "#16202b"
-                border.color: "#334155"
+                radius: metrics.radiusPanel
+                color: themePalette.base
+                border.color: page.secondaryText
                 border.width: 1
                 clip: true
 
@@ -251,8 +286,9 @@ Item {
                     width: parent.width - 40
 
                     text: activeCard.tx ? activeCard.tx.packageName : ""
-                    color: "#ffffff"
-                    font.pixelSize: 18
+                    color: themePalette.text
+                    font.family: metrics.systemFont.family
+                    font.pixelSize: metrics.fontTitle
                     font.bold: true
                     elide: Text.ElideRight
                 }
@@ -268,8 +304,9 @@ Item {
                             + page.stateText(activeCard.tx.state)
                           : ""
 
-                    color: "#9aa4b2"
-                    font.pixelSize: 13
+                    color: page.secondaryText
+                    font.family: metrics.systemFont.family
+                    font.pixelSize: metrics.fontSmall
                 }
 
                 Rectangle {
@@ -280,9 +317,9 @@ Item {
                     width: parent.width - 40
                     height: 26
 
-                    radius: 9
-                    color: "#0b1117"
-                    border.color: "#334155"
+                    radius: metrics.radiusBadge
+                    color: themePalette.button
+                    border.color: themePalette.mid
                     border.width: 1
                     clip: true
 
@@ -300,8 +337,8 @@ Item {
                                : 0
 
                         height: parent.height
-                        radius: 9
-                        color: "#2563eb"
+                        radius: metrics.radiusBadge
+                        color: themePalette.highlight
 
                         Behavior on width {
                             NumberAnimation {
@@ -317,8 +354,11 @@ Item {
                               ? "%" + activeCard.tx.progress
                               : "%0"
 
-                        color: "#dbeafe"
-                        font.pixelSize: 12
+                        color: activeCard.tx && activeCard.tx.progress >= 65
+                               ? themePalette.highlightedText
+                               : themePalette.buttonText
+                        font.family: metrics.systemFont.family
+                        font.pixelSize: metrics.fontCaption
                         font.bold: true
                     }
                 }
@@ -364,8 +404,9 @@ Item {
                                   : "")
                     }
 
-                    color: "#b5c0cc"
-                    font.pixelSize: 13
+                    color: themePalette.text
+                    font.family: metrics.systemFont.family
+                    font.pixelSize: metrics.fontSmall
                     wrapMode: Text.WordWrap
                 }
 
@@ -381,12 +422,13 @@ Item {
                           ? activeCard.tx.errorMessage
                           : ""
 
-                    color: "#f87171"
-                    font.pixelSize: 12
+                    color: themePalette.text
+                    font.family: metrics.systemFont.family
+                    font.pixelSize: metrics.fontCaption
                     wrapMode: Text.WordWrap
                 }
 
-                Button {
+                KeyboardActionButton {
                     visible: activeCard.tx !== null
 
                     text: "İptal"
@@ -395,7 +437,7 @@ Item {
                     height: 36
 
                     anchors.right: parent.right
-                    anchors.rightMargin: 20
+                    anchors.rightMargin: metrics.spaceExtraLarge
 
                     y: page.narrow ? 174 : 126
 
@@ -423,8 +465,9 @@ Item {
                     anchors.verticalCenter: parent.verticalCenter
 
                     text: "Sıradaki işlemler"
-                    color: "#ffffff"
-                    font.pixelSize: 19
+                    color: themePalette.windowText
+                    font.family: metrics.systemFont.family
+                    font.pixelSize: metrics.fontSection
                     font.bold: true
                 }
 
@@ -436,8 +479,9 @@ Item {
                           ? page.packageTransactionManager.queuedCount + " işlem"
                           : "0 işlem"
 
-                    color: "#9aa4b2"
-                    font.pixelSize: 13
+                    color: page.secondaryText
+                    font.family: metrics.systemFont.family
+                    font.pixelSize: metrics.fontSmall
                 }
             }
 
@@ -449,16 +493,17 @@ Item {
                 width: page.contentWidth
                 height: visible ? 82 : 0
 
-                radius: 16
-                color: "#121a22"
-                border.color: "#243447"
+                radius: metrics.radiusInner
+                color: themePalette.base
+                border.color: themePalette.button
                 border.width: 1
 
                 Text {
                     anchors.centerIn: parent
                     text: "Kuyrukta bekleyen işlem yok."
-                    color: "#7f8b99"
-                    font.pixelSize: 13
+                    color: page.secondaryText
+                    font.family: metrics.systemFont.family
+                    font.pixelSize: metrics.fontSmall
                 }
             }
 
@@ -479,9 +524,9 @@ Item {
                     width: page.contentWidth
                     height: visible ? 88 : 0
 
-                    radius: 16
-                    color: "#121a22"
-                    border.color: "#243447"
+                    radius: metrics.radiusInner
+                    color: themePalette.base
+                    border.color: themePalette.button
                     border.width: 1
 
                     Text {
@@ -490,8 +535,9 @@ Item {
                         width: parent.width - 36
 
                         text: parent.tx ? parent.tx.packageName : ""
-                        color: "#e5edf5"
-                        font.pixelSize: 15
+                        color: themePalette.text
+                        font.family: metrics.systemFont.family
+                        font.pixelSize: metrics.fontBodyLarge
                         font.bold: true
                         elide: Text.ElideRight
                     }
@@ -506,8 +552,9 @@ Item {
                                 + " • Sırada"
                               : ""
 
-                        color: "#9aa4b2"
-                        font.pixelSize: 13
+                        color: page.secondaryText
+                        font.family: metrics.systemFont.family
+                        font.pixelSize: metrics.fontSmall
                     }
                 }
             }
@@ -523,8 +570,9 @@ Item {
                     anchors.verticalCenter: parent.verticalCenter
 
                     text: "İşlem geçmişi"
-                    color: "#ffffff"
-                    font.pixelSize: 19
+                    color: themePalette.windowText
+                    font.family: metrics.systemFont.family
+                    font.pixelSize: metrics.fontSection
                     font.bold: true
                 }
 
@@ -533,8 +581,9 @@ Item {
                     anchors.verticalCenter: parent.verticalCenter
 
                     text: "Bu oturum"
-                    color: "#7f8b99"
-                    font.pixelSize: 12
+                    color: page.secondaryText
+                    font.family: metrics.systemFont.family
+                    font.pixelSize: metrics.fontCaption
                 }
             }
 
@@ -570,16 +619,16 @@ Item {
                               )
                             : 0
 
-                    radius: 16
-                    color: "#121a22"
+                    radius: metrics.radiusInner
+                    color: themePalette.base
 
                     border.color: tx
                                   && tx.state === PackageTransaction.Failed
-                                  ? "#7f1d1d"
+                                  ? themePalette.button
                                   : tx
                                     && tx.state === PackageTransaction.Cancelled
-                                    ? "#78350f"
-                                    : "#243447"
+                                    ? themePalette.button
+                                    : themePalette.button
 
                     border.width: 1
 
@@ -592,15 +641,16 @@ Item {
                               ? parent.tx.packageName
                               : ""
 
-                        color: "#e5edf5"
-                        font.pixelSize: 15
+                        color: themePalette.text
+                        font.family: metrics.systemFont.family
+                        font.pixelSize: metrics.fontBodyLarge
                         font.bold: true
                         elide: Text.ElideRight
                     }
 
                     Text {
                         anchors.right: parent.right
-                        anchors.rightMargin: 18
+                        anchors.rightMargin: metrics.spaceExtraLarge
                         y: 15
 
                         text: {
@@ -621,21 +671,22 @@ Item {
 
                         color: {
                             if (!parent.tx)
-                                return "#9aa4b2"
+                                return page.secondaryText
 
                             if (parent.tx.state === PackageTransaction.Finished)
-                                return "#6ee7b7"
+                                return page.mutedAccent
 
                             if (parent.tx.state === PackageTransaction.Failed)
-                                return "#f87171"
+                                return themePalette.text
 
                             if (parent.tx.state === PackageTransaction.Cancelled)
-                                return "#fbbf24"
+                                return page.secondaryText
 
-                            return "#9aa4b2"
+                            return page.secondaryText
                         }
 
-                        font.pixelSize: 12
+                        font.family: metrics.systemFont.family
+                        font.pixelSize: metrics.fontCaption
                         font.bold: true
                     }
 
@@ -650,8 +701,9 @@ Item {
                                 + page.stateText(parent.tx.state)
                               : ""
 
-                        color: "#9aa4b2"
-                        font.pixelSize: 13
+                        color: page.secondaryText
+                        font.family: metrics.systemFont.family
+                        font.pixelSize: metrics.fontSmall
                     }
 
                     Text {
@@ -666,8 +718,9 @@ Item {
                               ? parent.tx.errorMessage
                               : ""
 
-                        color: "#f87171"
-                        font.pixelSize: 12
+                        color: themePalette.text
+                        font.family: metrics.systemFont.family
+                        font.pixelSize: metrics.fontCaption
                         elide: Text.ElideRight
                     }
                 }

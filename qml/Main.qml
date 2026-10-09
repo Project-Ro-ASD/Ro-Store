@@ -6,11 +6,19 @@ import "pages"
 ApplicationWindow {
     id: root
 
+    // Qt Quick Controls (Button, TextField, ComboBox, etc.) inherit this font.
+    // Without an explicit notifying binding, existing controls can retain
+    // the previous KDE font after a live 18 pt -> 10 pt change.
+    font: SystemFontMonitor.currentFont
+
+    SystemPalette {
+        id: themePalette
+    }
     width: 1000
     height: 650
     visible: true
     title: "Ro-Store"
-    color: "#101418"
+    color: themePalette.window
 
     CatalogModel {
         id: catalogModel
@@ -43,6 +51,23 @@ ApplicationWindow {
             )
 
             transactionManager.executeActive()
+        }
+    }
+
+    // One window-level Escape handler: dismiss modal first, then Back.
+    Shortcut {
+        sequence: "Escape"
+        context: Qt.WindowShortcut
+        enabled: stackView.depth > 1
+
+        onActivated: {
+            var current = stackView.currentItem
+            if (current && current.dismissOnEscape
+                    && current.dismissOnEscape())
+                return
+            if (current && current.transactionRunning)
+                return
+            stackView.pop()
         }
     }
 

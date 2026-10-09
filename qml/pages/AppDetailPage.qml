@@ -1,10 +1,34 @@
 import QtQuick
 import QtQuick.Controls
+import org.kde.kirigami.platform as Platform
+import "../components"
 import RoStore 1.0
 
 Item {
     id: page
 
+    ThemeMetrics { id: metrics }
+
+    readonly property color accentForeground: metrics.readableText(
+        themePalette.highlight, themePalette.highlightedText, themePalette.text)
+
+    SystemPalette {
+        id: themePalette
+    }
+
+    // System-controlled readable secondary labels (not QPalette.mid).
+    readonly property color secondaryText: Qt.rgba(
+        themePalette.text.r, themePalette.text.g, themePalette.text.b, 0.76)
+    readonly property color secondaryWindowText: Qt.rgba(
+        themePalette.windowText.r, themePalette.windowText.g, themePalette.windowText.b, 0.76)
+
+    // Blend the active accent with the foreground to keep meaningful labels
+    // colored but comfortable in both light and dark color schemes.
+    readonly property color mutedAccent: Qt.rgba(
+        themePalette.highlight.r * 0.6 + themePalette.text.r * 0.4,
+        themePalette.highlight.g * 0.6 + themePalette.text.g * 0.4,
+        themePalette.highlight.b * 0.6 + themePalette.text.b * 0.4,
+        1.0)
     property string appName: ""
     property string summaryText: ""
     property string descriptionText: ""
@@ -190,9 +214,10 @@ Item {
             )
     }
 
-    property bool narrow: width < 760
-    property int sideMargin: narrow ? 22 : 36
-    property int contentWidth: Math.max(320, width - sideMargin * 2)
+    property bool narrow: width < Math.max(760, Math.ceil(760 * metrics.fontScale))
+    property int sideMargin: Math.min(narrow ? 22 : 36,
+                                      Math.max(8, Math.floor(width / 12)))
+    property int contentWidth: Math.max(0, width - sideMargin * 2)
 
     property bool logsExpanded: false
     property string lastActionMessage: ""
@@ -207,14 +232,16 @@ Item {
                 ? page.repositoryBlockedText
                 : packageStatus.statusText
 
+    // Status text is informational, not a selected control. Keep the
+    // system accent for actions and progress; use readable neutral text here.
     property color displayStatusColor:
         page.transactionRunning
-        ? "#fbbf24"
+        ? page.mutedAccent
         : lastActionMessage.length > 0
-            ? (lastActionSuccess ? "#6ee7b7" : "#f87171")
+            ? (lastActionSuccess ? page.mutedAccent : themePalette.text)
             : page.repositoryBlocked
-                ? "#fbbf24"
-                : (packageStatus.installed ? "#6ee7b7" : "#fbbf24")
+                ? themePalette.text
+                : page.mutedAccent
 
     signal backRequested()
     signal downloadsRequested()
@@ -305,14 +332,17 @@ Item {
         x: page.sideMargin
         y: 20
         width: page.contentWidth
-        height: 44
+        height: Math.max(44, Math.max(backButton.height, downloadsButton.height) + metrics.spaceNormal)
         color: "transparent"
 
-        Button {
+        ThemedIconButton {
             id: backButton
-            text: "← Geri"
-            width: 95
-            height: 36
+            text: "Geri"
+            themedIconName: "go-previous"
+            icon.width: 16
+            icon.height: 16
+            width: Math.max(95, implicitWidth + metrics.spaceMedium)
+            height: Math.max(36, implicitHeight)
             anchors.left: parent.left
             anchors.verticalCenter: parent.verticalCenter
             enabled: !page.transactionRunning
@@ -320,20 +350,25 @@ Item {
         }
 
         Text {
+            visible: !page.narrow
             text: "Ro-Store"
-            color: "#9aa4b2"
-            font.pixelSize: 14
+            color: page.secondaryText
+            font.family: metrics.systemFont.family
+            font.pixelSize: metrics.fontBody
             anchors.right: downloadsButton.left
             anchors.rightMargin: 14
             anchors.verticalCenter: parent.verticalCenter
         }
 
-        Button {
+        ThemedIconButton {
             id: downloadsButton
 
             text: "Yüklemeler"
-            width: 110
-            height: 36
+            themedIconName: "folder-download"
+            icon.width: 16
+            icon.height: 16
+            width: Math.max(128, implicitWidth + metrics.spaceMedium)
+            height: Math.max(36, implicitHeight)
 
             anchors.right: parent.right
             anchors.verticalCenter: parent.verticalCenter
@@ -365,17 +400,21 @@ Item {
             id: contentColumn
 
             width: flick.width
-            spacing: 18
+            spacing: metrics.spaceExtraLarge
 
             // UYGULAMA BAŞLIK KARTI
             Rectangle {
                 width: page.contentWidth
-                height: page.narrow ? 300 : 180
+                height: page.narrow
+                        ? Math.max(300, detailHeaderNarrow.implicitHeight
+                                       + metrics.spaceExtraLarge * 2)
+                        : Math.max(180, detailBadgesWide.y + detailBadgesWide.height
+                                       + metrics.spaceNormal)
                 x: page.sideMargin
 
-                radius: 22
-                color: "#16202b"
-                border.color: "#263445"
+                radius: metrics.radiusCard
+                color: themePalette.base
+                border.color: page.secondaryText
                 border.width: 1
                 antialiasing: true
                 clip: true
@@ -390,8 +429,10 @@ Item {
                         y: 42
                         width: 96
                         height: 96
-                        radius: 24
-                        color: "#243447"
+                        radius: metrics.radiusCard
+                        color: metrics.iconTileColor(themePalette.base, themePalette.text)
+                        border.width: 1
+                        border.color: metrics.iconTileBorderColor(themePalette.mid, themePalette.text)
                         clip: true
                         antialiasing: true
 
@@ -410,67 +451,79 @@ Item {
                             anchors.centerIn: parent
                             visible: !detailIconWide.visible
                             text: page.appName.length > 0 ? page.appName[0].toUpperCase() : "R"
-                            color: "#ffffff"
-                            font.pixelSize: 38
+                            color: themePalette.text
+                            font.family: metrics.systemFont.family
+                            font.pixelSize: metrics.fontPx(38)
                             font.bold: true
                         }
                     }
 
                     Text {
+                        id: detailTitleWide
                         x: 148
                         y: 34
                         width: parent.width - 180
                         text: page.appName
-                        color: "#ffffff"
-                        font.pixelSize: 32
+                        color: themePalette.text
+                        font.family: metrics.systemFont.family
+                        font.pixelSize: metrics.fontPx(32)
                         font.bold: true
                         elide: Text.ElideRight
                     }
 
                     Text {
+                        id: detailSummaryWide
                         x: 148
-                        y: 82
+                        y: detailTitleWide.y + detailTitleWide.height + metrics.spaceCompact
                         width: parent.width - 180
                         text: page.summaryText
-                        color: "#b5c0cc"
-                        font.pixelSize: 16
+                        color: themePalette.text
+                        font.family: metrics.systemFont.family
+                        font.pixelSize: metrics.fontPx(16)
                         wrapMode: Text.WordWrap
                         maximumLineCount: 2
                         elide: Text.ElideRight
                     }
 
                     Row {
+                        id: detailBadgesWide
                         x: 148
-                        y: 123
-                        spacing: 10
+                        y: detailSummaryWide.y + detailSummaryWide.height + metrics.spaceMedium
+                        spacing: metrics.spaceMedium
 
                         Rectangle {
-                            radius: 10
-                            color: "#243447"
-                            height: 32
+                            radius: metrics.radiusControl
+                            color: themePalette.button
+                            border.color: themePalette.mid
+                            border.width: 1
+                            height: Math.max(32, categoryLabelWide.implicitHeight + 10)
                             width: categoryLabelWide.implicitWidth + 24
 
                             Text {
                                 id: categoryLabelWide
                                 anchors.centerIn: parent
                                 text: page.categoryText
-                                color: "#79b8ff"
-                                font.pixelSize: 13
+                                color: page.mutedAccent
+                                font.family: metrics.systemFont.family
+                                font.pixelSize: metrics.fontSmall
                             }
                         }
 
                         Rectangle {
-                            radius: 10
-                            color: "#243447"
-                            height: 32
+                            radius: metrics.radiusControl
+                            color: themePalette.button
+                            border.color: themePalette.mid
+                            border.width: 1
+                            height: Math.max(32, versionLabelWide.implicitHeight + 10)
                             width: versionLabelWide.implicitWidth + 24
 
                             Text {
                                 id: versionLabelWide
                                 anchors.centerIn: parent
                                 text: "Sürüm " + page.versionText
-                                color: "#c7d0dd"
-                                font.pixelSize: 13
+                                color: themePalette.text
+                                font.family: metrics.systemFont.family
+                                font.pixelSize: metrics.fontSmall
                             }
                         }
                     }
@@ -478,16 +531,19 @@ Item {
 
                 // Küçük ekran düzeni
                 Column {
+                    id: detailHeaderNarrow
                     visible: page.narrow
                     anchors.fill: parent
-                    anchors.margins: 22
-                    spacing: 12
+                    anchors.margins: metrics.spaceExtraLarge
+                    spacing: metrics.spaceMedium
 
                     Rectangle {
                         width: 92
                         height: 92
-                        radius: 24
-                        color: "#243447"
+                        radius: metrics.radiusCard
+                        color: metrics.iconTileColor(themePalette.base, themePalette.text)
+                        border.width: 1
+                        border.color: metrics.iconTileBorderColor(themePalette.mid, themePalette.text)
                         clip: true
                         antialiasing: true
                         anchors.horizontalCenter: parent.horizontalCenter
@@ -507,8 +563,9 @@ Item {
                             anchors.centerIn: parent
                             visible: !detailIconNarrow.visible
                             text: page.appName.length > 0 ? page.appName[0].toUpperCase() : "R"
-                            color: "#ffffff"
-                            font.pixelSize: 36
+                            color: themePalette.text
+                            font.family: metrics.systemFont.family
+                            font.pixelSize: metrics.fontPx(36)
                             font.bold: true
                         }
                     }
@@ -516,8 +573,9 @@ Item {
                     Text {
                         width: parent.width
                         text: page.appName
-                        color: "#ffffff"
-                        font.pixelSize: 28
+                        color: themePalette.text
+                        font.family: metrics.systemFont.family
+                        font.pixelSize: metrics.fontPx(28)
                         font.bold: true
                         horizontalAlignment: Text.AlignHCenter
                         wrapMode: Text.WordWrap
@@ -526,43 +584,50 @@ Item {
                     Text {
                         width: parent.width
                         text: page.summaryText
-                        color: "#b5c0cc"
-                        font.pixelSize: 15
+                        color: themePalette.text
+                        font.family: metrics.systemFont.family
+                        font.pixelSize: metrics.fontBodyLarge
                         horizontalAlignment: Text.AlignHCenter
                         wrapMode: Text.WordWrap
                     }
 
                     Row {
-                        spacing: 10
+                        spacing: metrics.spaceMedium
                         anchors.horizontalCenter: parent.horizontalCenter
 
                         Rectangle {
-                            radius: 10
-                            color: "#243447"
-                            height: 32
+                            radius: metrics.radiusControl
+                            color: themePalette.button
+                            border.color: themePalette.mid
+                            border.width: 1
+                            height: Math.max(32, categoryLabelNarrow.implicitHeight + 10)
                             width: categoryLabelNarrow.implicitWidth + 24
 
                             Text {
                                 id: categoryLabelNarrow
                                 anchors.centerIn: parent
                                 text: page.categoryText
-                                color: "#79b8ff"
-                                font.pixelSize: 13
+                                color: page.mutedAccent
+                                font.family: metrics.systemFont.family
+                                font.pixelSize: metrics.fontSmall
                             }
                         }
 
                         Rectangle {
-                            radius: 10
-                            color: "#243447"
-                            height: 32
+                            radius: metrics.radiusControl
+                            color: themePalette.button
+                            border.color: themePalette.mid
+                            border.width: 1
+                            height: Math.max(32, versionLabelNarrow.implicitHeight + 10)
                             width: versionLabelNarrow.implicitWidth + 24
 
                             Text {
                                 id: versionLabelNarrow
                                 anchors.centerIn: parent
                                 text: "Sürüm " + page.versionText
-                                color: "#c7d0dd"
-                                font.pixelSize: 13
+                                color: themePalette.text
+                                font.family: metrics.systemFont.family
+                                font.pixelSize: metrics.fontSmall
                             }
                         }
                     }
@@ -575,9 +640,9 @@ Item {
                 x: page.sideMargin
                 height: infoColumn.implicitHeight + 48
 
-                radius: 18
-                color: "#171d24"
-                border.color: "#2a3440"
+                radius: metrics.radiusPanel
+                color: themePalette.base
+                border.color: page.secondaryText
                 border.width: 1
                 antialiasing: true
 
@@ -587,72 +652,80 @@ Item {
                     x: 24
                     y: 24
                     width: parent.width - 48
-                    spacing: 15
+                    spacing: metrics.spaceLarge
 
                     Text {
                         width: parent.width
                         text: "Açıklama"
-                        color: "#ffffff"
-                        font.pixelSize: 22
+                        color: themePalette.text
+                        font.family: metrics.systemFont.family
+                        font.pixelSize: metrics.fontPageTitle
                         font.bold: true
                     }
 
                     Text {
                         width: parent.width
                         text: page.descriptionText
-                        color: "#b8c2cc"
-                        font.pixelSize: 15
+                        color: themePalette.text
+                        font.family: metrics.systemFont.family
+                        font.pixelSize: metrics.fontBodyLarge
                         wrapMode: Text.WordWrap
                     }
 
                     Rectangle {
                         width: parent.width
                         height: 1
-                        color: "#2a3440"
+                        color: page.secondaryText
                     }
 
                     Text {
                         width: parent.width
                         text: "Paket bilgileri"
-                        color: "#ffffff"
-                        font.pixelSize: 18
+                        color: themePalette.text
+                        font.family: metrics.systemFont.family
+                        font.pixelSize: metrics.fontTitle
                         font.bold: true
                     }
 
                     Text {
                         width: parent.width
                         text: "Paket adı: " + page.packageName
-                        color: "#9aa4b2"
-                        font.pixelSize: 14
+                        color: page.secondaryText
+                        font.family: metrics.systemFont.family
+                        font.pixelSize: metrics.fontBody
                         wrapMode: Text.WordWrap
                     }
 
                     Text {
                         width: parent.width
                         text: "Kaynak: Ro-Repo"
-                        color: "#9aa4b2"
-                        font.pixelSize: 14
+                        color: page.secondaryText
+                        font.family: metrics.systemFont.family
+                        font.pixelSize: metrics.fontBody
                     }
 
                     Text {
                         width: parent.width
                         text: "Kurulu sürüm: " + (packageStatus.installedVersion.length > 0 ? packageStatus.installedVersion : "-")
-                        color: "#9aa4b2"
-                        font.pixelSize: 14
+                        color: page.secondaryText
+                        font.family: metrics.systemFont.family
+                        font.pixelSize: metrics.fontBody
                     }
 
                     Text {
                         width: parent.width
                         text: "Repo sürümü: " + (page.versionText.length > 0 ? page.versionText : "-")
-                        color: "#9aa4b2"
-                        font.pixelSize: 14
+                        color: page.secondaryText
+                        font.family: metrics.systemFont.family
+                        font.pixelSize: metrics.fontBody
                     }
 
                     Text {
                         width: parent.width
                         text: page.displayStatusText
                         color: page.displayStatusColor
-                        font.pixelSize: 14
+                        font.family: metrics.systemFont.family
+                        font.pixelSize: metrics.fontBody
                         font.bold: true
                         wrapMode: Text.WordWrap
                     }
@@ -662,8 +735,9 @@ Item {
                         text: packageStatus.installed
                               ? "Bu uygulama sistemde yüklü."
                               : "Kur/Güncelle/Kaldır işlemleri DNF5 üzerinden yapılır."
-                        color: "#7f8b99"
-                        font.pixelSize: 13
+                        color: page.secondaryText
+                        font.family: metrics.systemFont.family
+                        font.pixelSize: metrics.fontSmall
                         wrapMode: Text.WordWrap
                     }
                 }
@@ -674,7 +748,12 @@ Item {
                 visible: page.trackedTransaction !== null
 
                 width: page.contentWidth
-                height: visible ? (page.logsExpanded ? (page.narrow ? 260 : 285) : 42) : 0
+                height: visible
+                        ? (page.logsExpanded
+                           ? Math.max(page.narrow ? 260 : 285,
+                                      logToggleHeader.height + 200)
+                           : logToggleHeader.height)
+                        : 0
                 x: page.sideMargin
 
                 Behavior on height {
@@ -684,44 +763,60 @@ Item {
                 }
 
                 Rectangle {
+                    id: logToggleHeader
                     anchors.left: parent.left
                     anchors.right: parent.right
                     anchors.top: parent.top
-                    height: 42
-                    radius: 12
-                    color: logToggleMouse.containsMouse ? "#111827" : "transparent"
-                    border.color: logToggleMouse.containsMouse ? "#243447" : "transparent"
+                    height: Math.max(42, metrics.fontPx(42))
+                    radius: metrics.radiusControl
+                    color: logToggleMouse.containsMouse ? themePalette.button : "transparent"
+                    border.color: logToggleMouse.containsMouse ? themePalette.highlight : "transparent"
                     border.width: 1
                     antialiasing: true
 
                     Row {
+                        id: logToggleRow
                         anchors.left: parent.left
-                        anchors.leftMargin: 8
+                        anchors.leftMargin: metrics.spaceNormal
                         anchors.verticalCenter: parent.verticalCenter
-                        spacing: 8
+                        width: Math.max(0, parent.width - metrics.spaceNormal * 2)
+                        spacing: metrics.spaceNormal
 
                         Text {
+                            id: logToggleArrow
                             text: page.logsExpanded ? "⌄" : "›"
-                            color: "#64748b"
-                            font.pixelSize: 18
+                            color: page.secondaryText
+                            font.family: metrics.systemFont.family
+                            font.pixelSize: metrics.fontTitle
                             font.bold: true
                             anchors.verticalCenter: parent.verticalCenter
                         }
 
                         Text {
+                            width: Math.max(0, logToggleRow.width
+                                        - logToggleArrow.implicitWidth
+                                        - logToggleRow.spacing
+                                        - (logToggleStatus.visible
+                                           ? logToggleStatus.implicitWidth + logToggleRow.spacing
+                                           : 0))
+                            elide: Text.ElideRight
                             text: page.logsExpanded
                                   ? "Teknik işlem günlüklerini gizle"
                                   : "Teknik işlem günlüklerini göster"
-                            color: "#64748b"
-                            font.pixelSize: 13
+                            color: page.secondaryText
+                            font.family: metrics.systemFont.family
+                            font.pixelSize: metrics.fontSmall
                             font.italic: true
                             anchors.verticalCenter: parent.verticalCenter
                         }
 
                         Text {
+                            id: logToggleStatus
+                            visible: !page.narrow && logToggleRow.width >= 640
                             text: page.transactionRunning ? "• işlem devam ediyor" : "• ayrıntılar hazır"
-                            color: page.transactionRunning ? "#fbbf24" : "#475569"
-                            font.pixelSize: 12
+                            color: page.transactionRunning ? themePalette.highlight : page.secondaryText
+                            font.family: metrics.systemFont.family
+                            font.pixelSize: metrics.fontCaption
                             font.italic: true
                             anchors.verticalCenter: parent.verticalCenter
                         }
@@ -741,11 +836,11 @@ Item {
                     anchors.left: parent.left
                     anchors.right: parent.right
                     anchors.top: parent.top
-                    anchors.topMargin: 48
-                    height: parent.height - 48
-                    radius: 16
-                    color: "#0b1117"
-                    border.color: "#334155"
+                    anchors.topMargin: logToggleHeader.height + 6
+                    height: Math.max(0, parent.height - logToggleHeader.height - 6)
+                    radius: metrics.radiusInner
+                    color: themePalette.base
+                    border.color: page.secondaryText
                     border.width: 1
                     antialiasing: true
                     clip: true
@@ -753,19 +848,24 @@ Item {
                     Text {
                         x: 16
                         y: 12
+                        width: Math.max(0, parent.width - 32)
+                        elide: Text.ElideRight
                         text: "Teknik İşlem Günlüğü"
-                        color: "#dbeafe"
-                        font.pixelSize: 14
+                        color: themePalette.text
+                        font.family: metrics.systemFont.family
+                        font.pixelSize: metrics.fontBody
                         font.bold: true
                     }
 
                     Text {
+                        visible: !page.narrow && parent.width >= 640
                         anchors.right: parent.right
-                        anchors.rightMargin: 16
+                        anchors.rightMargin: metrics.spaceLarge
                         y: 14
                         text: "DNF5 işlem bilgisi"
-                        color: "#475569"
-                        font.pixelSize: 12
+                        color: page.secondaryText
+                        font.family: metrics.systemFont.family
+                        font.pixelSize: metrics.fontCaption
                     }
 
                     Rectangle {
@@ -773,7 +873,7 @@ Item {
                         y: 38
                         width: parent.width - 32
                         height: 1
-                        color: "#1f2937"
+                        color: themePalette.dark
                     }
 
                     ScrollView {
@@ -789,12 +889,12 @@ Item {
                             readOnly: true
                             selectByMouse: true
                             wrapMode: TextEdit.Wrap
-                            font.family: "monospace"
-                            font.pixelSize: 13
-                            color: "#dbeafe"
+                            font.family: Platform.Theme.fixedWidthFont.family
+                            font.pixelSize: metrics.fontSmall
+                            color: themePalette.text
 
                             background: Rectangle {
-                                color: "#0b1117"
+                                color: themePalette.base
                                 border.color: "transparent"
                             }
                         }
@@ -816,11 +916,15 @@ Item {
         x: page.sideMargin
         y: parent.height - height - 20
         width: page.contentWidth
-        height: page.narrow ? (page.transactionRunning ? 132 : 104) : 62
+        height: page.narrow
+                ? Math.max(page.transactionRunning ? 132 : 104,
+                           (page.transactionRunning ? 82 : 54)
+                           + Math.max(38, metrics.fontPx(38)) + 12)
+                : Math.max(62, metrics.fontPx(38) + metrics.spaceNormal * 2)
 
-        radius: 16
-        color: "#101820"
-        border.color: "#243447"
+        radius: metrics.radiusInner
+        color: themePalette.base
+        border.color: themePalette.button
         border.width: 1
         antialiasing: true
 
@@ -829,12 +933,12 @@ Item {
             visible: !page.narrow
             anchors.fill: parent
 
-            Button {
+            ThemedActionButton {
                 text: "Durumu Yenile"
                 width: 130
                 height: 38
                 anchors.left: parent.left
-                anchors.leftMargin: 12
+                anchors.leftMargin: metrics.spaceMedium
                 anchors.verticalCenter: parent.verticalCenter
                 enabled: !packageStatus.checking && !page.transactionRunning
                 onClicked: packageStatus.checkInstalled(page.packageName, page.versionText)
@@ -846,7 +950,8 @@ Item {
                 anchors.verticalCenter: parent.verticalCenter
                 text: page.displayStatusText
                 color: page.displayStatusColor
-                font.pixelSize: 13
+                font.family: metrics.systemFont.family
+                font.pixelSize: metrics.fontSmall
                 elide: Text.ElideRight
             }
 
@@ -858,9 +963,9 @@ Item {
                 anchors.rightMargin: 282
                 anchors.verticalCenter: parent.verticalCenter
 
-                radius: 10
-                color: "#0b1117"
-                border.color: "#334155"
+                radius: metrics.radiusControl
+                color: themePalette.button
+                border.color: themePalette.mid
                 border.width: 1
                 clip: true
                 antialiasing: true
@@ -868,9 +973,8 @@ Item {
                 Rectangle {
                     width: Math.max(0, parent.width * page.transactionProgress / 100)
                     height: parent.height
-                    radius: 10
-                    color: "#2563eb"
-                    opacity: 0.85
+                    radius: metrics.radiusControl
+                    color: themePalette.highlight
                     antialiasing: true
 
                     Behavior on width {
@@ -883,13 +987,17 @@ Item {
                 Text {
                     anchors.centerIn: parent
                     text: page.transactionPhaseText + "  %" + page.transactionProgress
-                    color: "#dbeafe"
-                    font.pixelSize: 12
+                    color: page.transactionProgress >= 65
+                           ? themePalette.highlightedText
+                           : themePalette.buttonText
+                    font.family: metrics.systemFont.family
+                    font.pixelSize: metrics.fontCaption
                     font.bold: true
                 }
             }
 
-            Button {
+            ThemedActionButton {
+                accented: true
                 visible: packageStatus.installed && !page.transactionRunning
                 text: "Çalıştır"
                 width: 120
@@ -905,13 +1013,18 @@ Item {
                 }
             }
 
-            Button {
+            ThemedActionButton {
+                // Install/update actions are prominent, removal stays outlined.
+                accented: page.repositoryBlocked
+                          || !packageStatus.installed
+                          || packageStatus.updateAvailable
+                outlined: !accented
                 text: page.primaryActionText
 
                 width: page.repositoryBlocked ? 210 : 130
                 height: 38
                 anchors.right: parent.right
-                anchors.rightMargin: 12
+                anchors.rightMargin: metrics.spaceMedium
                 anchors.verticalCenter: parent.verticalCenter
 
                 enabled:
@@ -957,7 +1070,8 @@ Item {
                 width: parent.width - 24
                 text: page.displayStatusText
                 color: page.displayStatusColor
-                font.pixelSize: 13
+                font.family: metrics.systemFont.family
+                font.pixelSize: metrics.fontSmall
                 elide: Text.ElideRight
             }
 
@@ -968,9 +1082,9 @@ Item {
                 width: parent.width - 24
                 height: 28
 
-                radius: 10
-                color: "#0b1117"
-                border.color: "#334155"
+                radius: metrics.radiusControl
+                color: themePalette.button
+                border.color: themePalette.mid
                 border.width: 1
                 clip: true
                 antialiasing: true
@@ -978,9 +1092,8 @@ Item {
                 Rectangle {
                     width: Math.max(0, parent.width * page.transactionProgress / 100)
                     height: parent.height
-                    radius: 10
-                    color: "#2563eb"
-                    opacity: 0.85
+                    radius: metrics.radiusControl
+                    color: themePalette.highlight
                     antialiasing: true
 
                     Behavior on width {
@@ -993,19 +1106,23 @@ Item {
                 Text {
                     anchors.centerIn: parent
                     text: page.transactionPhaseText + "  %" + page.transactionProgress
-                    color: "#dbeafe"
-                    font.pixelSize: 12
+                    color: page.transactionProgress >= 65
+                           ? themePalette.highlightedText
+                           : themePalette.buttonText
+                    font.family: metrics.systemFont.family
+                    font.pixelSize: metrics.fontCaption
                     font.bold: true
                 }
             }
 
-            Button {
+            ThemedActionButton {
+                accented: true
                 visible: packageStatus.installed && !page.transactionRunning
                 text: "Çalıştır"
                 x: 12
                 y: 54
                 width: (parent.width - 48) / 3
-                height: 38
+                height: Math.max(38, metrics.fontPx(38))
 
                 onClicked: {
                     appLauncher.launch(page.packageName)
@@ -1014,17 +1131,22 @@ Item {
                 }
             }
 
-            Button {
+            ThemedActionButton {
                 text: "Durumu Yenile"
                 x: packageStatus.installed && !page.transactionRunning ? 12 + ((parent.width - 48) / 3) + 12 : 12
                 y: page.transactionRunning ? 82 : 54
                 width: packageStatus.installed && !page.transactionRunning ? (parent.width - 48) / 3 : (parent.width - 36) / 2
-                height: 38
+                height: Math.max(38, metrics.fontPx(38))
                 enabled: !packageStatus.checking && !page.transactionRunning
                 onClicked: packageStatus.checkInstalled(page.packageName, page.versionText)
             }
 
-            Button {
+            ThemedActionButton {
+                // Install/update actions are prominent, removal stays outlined.
+                accented: page.repositoryBlocked
+                          || !packageStatus.installed
+                          || packageStatus.updateAvailable
+                outlined: !accented
                 text: page.primaryActionText
 
                 x: packageStatus.installed && !page.transactionRunning
@@ -1037,7 +1159,7 @@ Item {
                        ? (parent.width - 48) / 3
                        : (parent.width - 36) / 2
 
-                height: 38
+                height: Math.max(38, metrics.fontPx(38))
 
                 enabled:
                     !packageStatus.checking
@@ -1070,16 +1192,28 @@ Item {
         }
     }
 
+    // Give the window-level Escape handler a modal-first route.
+    function dismissOnEscape() {
+        if (removeConfirmDialog.visible) {
+            removeConfirmDialog.close()
+            return true
+        }
+        return false
+    }
+
     // KALDIRMA ONAY PENCERESİ
-    Item {
+    FocusScope {
         id: removeConfirmDialog
 
         anchors.fill: parent
         visible: false
+        focus: visible
         z: 9999
 
         function open() {
+            removeDialogScroll.contentY = 0
             visible = true
+            cancelRemoveButton.forceActiveFocus(Qt.TabFocusReason)
         }
 
         function close() {
@@ -1088,7 +1222,7 @@ Item {
 
         Rectangle {
             anchors.fill: parent
-            color: "#99000000"
+            color: Qt.rgba(themePalette.shadow.r, themePalette.shadow.g, themePalette.shadow.b, 0.6)
 
             MouseArea {
                 anchors.fill: parent
@@ -1099,13 +1233,18 @@ Item {
         Rectangle {
             id: removePanel
 
-            width: Math.min(520, page.width - 64)
-            height: 360
+            // Keep the dialog inside the available window. When font size or
+            // window scaling makes its content taller, allow scrolling to
+            // reach both confirmation actions rather than clipping them.
+            width: Math.max(0, Math.min(520, page.width - metrics.spaceLarge * 2))
+            height: Math.max(0, Math.min(page.height - metrics.spaceLarge * 2,
+                                      removeDialogContent.implicitHeight
+                                      + metrics.spaceLarge * 2))
             anchors.centerIn: parent
 
-            radius: 22
-            color: "#171d24"
-            border.color: "#334155"
+            radius: metrics.radiusCard
+            color: themePalette.base
+            border.color: page.secondaryText
             border.width: 1
             clip: true
             antialiasing: true
@@ -1117,155 +1256,184 @@ Item {
                 onClicked: mouse.accepted = true
             }
 
-            Rectangle {
-                x: 1
-                y: 1
-                width: parent.width - 2
-                height: 94
-                radius: 21
-                color: "#16202b"
-                antialiasing: true
-            }
+            Flickable {
+                id: removeDialogScroll
+                anchors.fill: parent
+                anchors.margins: metrics.spaceLarge
+                contentWidth: width
+                contentHeight: removeDialogContent.implicitHeight
+                boundsBehavior: Flickable.StopAtBounds
+                flickableDirection: Flickable.VerticalFlick
+                clip: true
 
-            Rectangle {
-                x: 1
-                y: 58
-                width: parent.width - 2
-                height: 37
-                color: "#16202b"
-            }
-
-            Rectangle {
-                x: 22
-                y: 21
-                width: 52
-                height: 52
-                radius: 16
-                color: "#3a1f1f"
-                antialiasing: true
-
-                Text {
-                    anchors.centerIn: parent
-                    text: "!"
-                    color: "#fca5a5"
-                    font.pixelSize: 28
-                    font.bold: true
+                ScrollBar.vertical: ScrollBar {
+                    policy: ScrollBar.AsNeeded
                 }
-            }
 
-            Text {
-                x: 90
-                y: 22
-                width: parent.width - 112
-                text: "Uygulamayı kaldır"
-                color: "#ffffff"
-                font.pixelSize: 22
-                font.bold: true
-                elide: Text.ElideRight
-            }
+                Column {
+                    id: removeDialogContent
+                    width: removeDialogScroll.width
+                    spacing: metrics.spaceMedium
 
-            Text {
-                x: 90
-                y: 54
-                width: parent.width - 112
-                text: page.appName
-                color: "#9aa4b2"
-                font.pixelSize: 14
-                elide: Text.ElideRight
-            }
+                    Row {
+                        width: parent.width
+                        height: Math.max(removeAlertIcon.height, removeHeadingColumn.implicitHeight)
+                        spacing: metrics.spaceMedium
 
-            Text {
-                x: 22
-                y: 120
-                width: parent.width - 44
-                text: page.appName + " uygulamasını sistemden kaldırmak istediğine emin misin?"
-                color: "#dbeafe"
-                font.pixelSize: 15
-                wrapMode: Text.WordWrap
-                lineHeight: 1.18
-            }
+                        Rectangle {
+                            id: removeAlertIcon
+                            width: Math.max(52, metrics.fontPx(42))
+                            height: width
+                            anchors.verticalCenter: parent.verticalCenter
+                            radius: metrics.radiusInner
+                            color: themePalette.button
+                            antialiasing: true
 
-            Rectangle {
-                x: 22
-                y: 190
-                width: parent.width - 44
-                height: 74
-                radius: 14
-                color: "#0b1117"
-                border.color: "#334155"
-                border.width: 1
-                antialiasing: true
+                            Text {
+                                anchors.centerIn: parent
+                                text: "!"
+                                color: themePalette.buttonText
+                                font.family: metrics.systemFont.family
+                                font.pixelSize: metrics.fontPx(28)
+                                font.bold: true
+                            }
+                        }
 
-                Text {
-                    anchors.fill: parent
-                    anchors.margins: 12
-                    text: "Bu işlem yalnızca seçili paketi kaldırır. İşlem sırasında sistem yönetici yetkisi isteyebilir."
-                    color: "#fbbf24"
-                    font.pixelSize: 13
-                    wrapMode: Text.WordWrap
-                    lineHeight: 1.2
-                    verticalAlignment: Text.AlignVCenter
-                }
-            }
+                        Column {
+                            id: removeHeadingColumn
+                            width: Math.max(0, parent.width - removeAlertIcon.width
+                                                 - parent.spacing)
+                            spacing: metrics.spaceCompact
 
-            Row {
-                width: 336
-                height: 42
-                spacing: 16
-                x: (parent.width - width) / 2
-                y: parent.height - 62
+                            Text {
+                                width: parent.width
+                                text: "Uygulamayı kaldır"
+                                color: themePalette.text
+                                font.family: metrics.systemFont.family
+                                font.pixelSize: metrics.fontPageTitle
+                                font.bold: true
+                                wrapMode: Text.WordWrap
+                            }
 
-                Button {
-                    text: "Vazgeç"
-                    width: 160
-                    height: 42
+                            Text {
+                                width: parent.width
+                                text: page.appName
+                                color: page.secondaryText
+                                font.family: metrics.systemFont.family
+                                font.pixelSize: metrics.fontBody
+                                elide: Text.ElideRight
+                            }
+                        }
+                    }
 
-                    background: Rectangle {
-                        radius: 16
-                        color: parent.down ? "#d1d5db" : parent.hovered ? "#f3f4f6" : "#ffffff"
-                        border.color: "#d1d5db"
+                    Text {
+                        width: parent.width
+                        text: page.appName
+                              + " uygulamasını sistemden kaldırmak istediğine emin misin?"
+                        color: themePalette.text
+                        font.family: metrics.systemFont.family
+                        font.pixelSize: metrics.fontBodyLarge
+                        wrapMode: Text.WordWrap
+                        lineHeight: 1.18
+                    }
+
+                    Rectangle {
+                        width: parent.width
+                        height: Math.max(74, removeWarningText.implicitHeight
+                                            + metrics.spaceMedium * 2)
+                        radius: metrics.radiusInner
+                        color: themePalette.base
+                        border.color: page.secondaryText
                         border.width: 1
                         antialiasing: true
+
+                        Text {
+                            id: removeWarningText
+                            x: metrics.spaceMedium
+                            y: metrics.spaceMedium
+                            width: Math.max(0, parent.width - metrics.spaceMedium * 2)
+                            text: "Bu işlem yalnızca seçili paketi kaldırır. İşlem sırasında sistem yönetici yetkisi isteyebilir."
+                            color: themePalette.highlight
+                            font.family: metrics.systemFont.family
+                            font.pixelSize: metrics.fontSmall
+                            wrapMode: Text.WordWrap
+                            lineHeight: 1.2
+                        }
                     }
 
-                    contentItem: Text {
-                        text: parent.text
-                        color: "#111827"
-                        font.pixelSize: 14
-                        horizontalAlignment: Text.AlignHCenter
-                        verticalAlignment: Text.AlignVCenter
-                    }
+                    Row {
+                        width: parent.width
+                        height: Math.max(42, metrics.fontPx(42))
+                        spacing: metrics.spaceNormal
 
-                    onClicked: removeConfirmDialog.close()
-                }
+                        KeyboardActionButton {
+                            id: cancelRemoveButton
+                            text: "Vazgeç"
+                            activeFocusOnTab: true
+                            KeyNavigation.tab: confirmRemoveButton
+                            KeyNavigation.backtab: confirmRemoveButton
+                            width: Math.max(0, (parent.width - parent.spacing) / 2)
+                            height: parent.height
 
-                Button {
-                    text: "Kaldır"
-                    width: 160
-                    height: 42
+                            background: Rectangle {
+                                radius: metrics.radiusInner
+                                color: cancelRemoveButton.hovered
+                                       ? themePalette.alternateBase : themePalette.button
+                                border.color: cancelRemoveButton.activeFocus
+                                              ? themePalette.highlight : page.secondaryText
+                                border.width: cancelRemoveButton.activeFocus ? 3 : 1
+                                antialiasing: true
+                            }
 
-                    background: Rectangle {
-                        radius: 16
-                        color: parent.down ? "#7f1d1d" : parent.hovered ? "#991b1b" : "#b91c1c"
-                        border.color: "#ef4444"
-                        border.width: 1
-                        antialiasing: true
-                    }
+                            contentItem: Text {
+                                text: parent.text
+                                color: themePalette.buttonText
+                                font.family: metrics.systemFont.family
+                                font.pixelSize: metrics.fontBody
+                                horizontalAlignment: Text.AlignHCenter
+                                verticalAlignment: Text.AlignVCenter
+                                elide: Text.ElideRight
+                            }
 
-                    contentItem: Text {
-                        text: parent.text
-                        color: "#ffffff"
-                        font.pixelSize: 14
-                        font.bold: true
-                        horizontalAlignment: Text.AlignHCenter
-                        verticalAlignment: Text.AlignVCenter
-                    }
+                            onClicked: removeConfirmDialog.close()
+                        }
 
-                    onClicked: {
-                        removeConfirmDialog.close()
-                        page.logsExpanded = false
-                        page.lastActionMessage = ""
-                        page.startRemoveTransaction()
+                        KeyboardActionButton {
+                            id: confirmRemoveButton
+                            text: "Kaldır"
+                            activeFocusOnTab: true
+                            KeyNavigation.tab: cancelRemoveButton
+                            KeyNavigation.backtab: cancelRemoveButton
+                            width: Math.max(0, (parent.width - parent.spacing) / 2)
+                            height: parent.height
+
+                            background: Rectangle {
+                                radius: metrics.radiusInner
+                                color: themePalette.highlight
+                                border.color: confirmRemoveButton.activeFocus
+                                              ? page.accentForeground : themePalette.highlight
+                                border.width: confirmRemoveButton.activeFocus ? 3 : 1
+                                antialiasing: true
+                            }
+
+                            contentItem: Text {
+                                text: parent.text
+                                color: page.accentForeground
+                                font.family: metrics.systemFont.family
+                                font.pixelSize: metrics.fontBody
+                                font.bold: true
+                                horizontalAlignment: Text.AlignHCenter
+                                verticalAlignment: Text.AlignVCenter
+                                elide: Text.ElideRight
+                            }
+
+                            onClicked: {
+                                removeConfirmDialog.close()
+                                page.logsExpanded = false
+                                page.lastActionMessage = ""
+                                page.startRemoveTransaction()
+                            }
+                        }
                     }
                 }
             }

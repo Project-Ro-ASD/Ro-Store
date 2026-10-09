@@ -6,6 +6,44 @@ import "../components"
 Item {
     id: page
 
+    ThemeMetrics {
+        id: metrics
+
+        onFontScaleChanged: {
+            // The home page may be inactive behind another StackView page.
+            // Its GridView and Flickable must not retain the previous font's
+            // geometry or scroll offset after switching back to small fonts.
+            Qt.callLater(page.refreshFontLayout)
+        }
+    }
+
+    function refreshFontLayout() {
+        if (flick) {
+            flick.contentY = 0
+            flick.returnToBounds()
+        }
+
+        if (appsGrid)
+            appsGrid.forceLayout()
+    }
+
+    SystemPalette {
+        id: themePalette
+    }
+
+    // System-controlled readable secondary labels (not QPalette.mid).
+    readonly property color secondaryText: Qt.rgba(
+        themePalette.text.r, themePalette.text.g, themePalette.text.b, 0.76)
+    readonly property color secondaryWindowText: Qt.rgba(
+        themePalette.windowText.r, themePalette.windowText.g, themePalette.windowText.b, 0.76)
+
+    // Blend the active accent with the foreground to keep meaningful labels
+    // colored but comfortable in both light and dark color schemes.
+    readonly property color mutedAccent: Qt.rgba(
+        themePalette.highlight.r * 0.6 + themePalette.text.r * 0.4,
+        themePalette.highlight.g * 0.6 + themePalette.text.g * 0.4,
+        themePalette.highlight.b * 0.6 + themePalette.text.b * 0.4,
+        1.0)
     property var catalog
     property var packageTransactionManager: null
     property var sourceManager: null
@@ -13,15 +51,17 @@ Item {
     // Ana sayfa her tekrar aktif olduğunda kartların RPM durumunu yeniler.
     property int packageStatusRefreshSerial: 0
 
-    property bool narrow: width < 900
-    property int sideMargin: narrow ? 24 : 36
-    property int contentWidth: Math.max(320, width - sideMargin * 2)
+    property bool narrow: width < Math.max(900, Math.ceil(760 * metrics.fontScale))
+    property int sideMargin: Math.min(narrow ? 24 : 36,
+                                      Math.max(8, Math.floor(width / 12)))
+    property int contentWidth: Math.max(0, width - sideMargin * 2)
 
     signal reloadRequested()
     signal downloadsRequested()
     signal repositoryActionRequested()
 
     StackView.onActivated: {
+        Qt.callLater(page.refreshFontLayout)
         page.packageStatusRefreshSerial += 1
 
         console.log(
@@ -63,7 +103,7 @@ Item {
             id: contentColumn
 
             width: flick.width
-            spacing: 16
+            spacing: metrics.spaceLarge
 
             Item {
                 width: parent.width
@@ -73,33 +113,43 @@ Item {
             // ÜST BAR
             Item {
                 width: page.contentWidth
-                height: page.narrow ? 78 : 70
+                height: Math.max(page.narrow ? 78 : 70, headerTitleColumn.implicitHeight + metrics.spaceNormal * 2)
                 x: page.sideMargin
 
                 Column {
+                    id: headerTitleColumn
                     anchors.left: parent.left
                     anchors.verticalCenter: parent.verticalCenter
-                    spacing: 4
+                    width: page.narrow ? parent.width
+                                       : Math.max(0, parent.width - headerControlsWide.width
+                                                     - metrics.spaceLarge)
+                    spacing: metrics.spaceCompact
 
                     Text {
+                        width: parent.width
                         text: "Ro-Store"
-                        color: "#f4f7fb"
-                        font.pixelSize: page.narrow ? 28 : 32
+                        color: themePalette.windowText
+                        font.family: metrics.systemFont.family
+                        font.pixelSize: page.narrow ? metrics.fontPx(28) : metrics.fontPx(32)
                         font.bold: true
                     }
 
                     Text {
+                        width: parent.width
                         text: "Project Ro resmi uygulama mağazası"
-                        color: "#9aa4b2"
-                        font.pixelSize: 15
+                        wrapMode: Text.WordWrap
+                        color: page.secondaryWindowText
+                        font.family: metrics.systemFont.family
+                        font.pixelSize: metrics.fontBodyLarge
                     }
                 }
 
                 Row {
+                    id: headerControlsWide
                     visible: !page.narrow
                     anchors.right: parent.right
                     anchors.verticalCenter: parent.verticalCenter
-                    spacing: 10
+                    spacing: metrics.spaceMedium
 
                     TextField {
                         id: searchFieldWide
@@ -128,16 +178,22 @@ Item {
                         }
                     }
 
-                    Button {
+                    ThemedIconButton {
                         text: "Yenile"
-                        width: 80
+                        themedIconName: "view-refresh"
+                        icon.width: 16
+                        icon.height: 16
+                        width: 96
                         height: 36
                         onClicked: page.reloadRequested()
                     }
 
-                    Button {
+                    ThemedIconButton {
                         text: "Yüklemeler"
-                        width: 110
+                        themedIconName: "folder-download"
+                        icon.width: 16
+                        icon.height: 16
+                        width: 128
                         height: 36
                         onClicked: page.downloadsRequested()
                     }
@@ -148,7 +204,7 @@ Item {
             Item {
                 visible: page.narrow
                 width: page.contentWidth
-                height: visible ? 142 : 0
+                height: visible ? downloadsButtonNarrow.y + downloadsButtonNarrow.height : 0
                 x: page.sideMargin
 
                 TextField {
@@ -156,7 +212,7 @@ Item {
                     x: 0
                     y: 0
                     width: parent.width
-                    height: 38
+                    height: Math.max(38, implicitHeight)
                     placeholderText: "Uygulama ara..."
                     text: page.catalog ? page.catalog.searchText : ""
 
@@ -168,16 +224,17 @@ Item {
                 }
 
                 Row {
+                    id: filterRowNarrow
                     x: 0
-                    y: 50
+                    y: searchFieldNarrow.height + metrics.spaceMedium
                     width: parent.width
-                    height: 38
-                    spacing: 10
+                    height: Math.max(categoryBoxNarrow.height, refreshButtonNarrow.height)
+                    spacing: metrics.spaceMedium
 
                     ComboBox {
                         id: categoryBoxNarrow
-                        width: parent.width - 100
-                        height: 38
+                        width: Math.max(0, parent.width - refreshButtonNarrow.width - parent.spacing)
+                        height: Math.max(38, implicitHeight)
                         model: page.catalog ? page.catalog.categories : ["Tümü"]
 
                         onActivated: {
@@ -187,21 +244,26 @@ Item {
                         }
                     }
 
-                    Button {
+                    KeyboardActionButton {
+                        id: refreshButtonNarrow
                         text: "Yenile"
-                        width: 90
-                        height: 38
+                        width: Math.max(90, implicitWidth)
+                        height: Math.max(38, implicitHeight)
                         onClicked: page.reloadRequested()
                     }
                 }
 
-                Button {
+                ThemedIconButton {
+                    id: downloadsButtonNarrow
                     x: 0
-                    y: 100
+                    y: filterRowNarrow.y + filterRowNarrow.height + metrics.spaceMedium
                     width: parent.width
-                    height: 38
+                    height: Math.max(38, implicitHeight)
 
                     text: "Yüklemeler"
+                    themedIconName: "folder-download"
+                    icon.width: 16
+                    icon.height: 16
                     onClicked: page.downloadsRequested()
                 }
             }
@@ -232,23 +294,24 @@ Item {
                         : 0
                 x: page.sideMargin
 
-                radius: 18
-                color: "#181f27"
-                border.color: "#3a4654"
+                radius: metrics.radiusPanel
+                color: themePalette.window
+                border.color: page.secondaryText
                 border.width: 1
                 antialiasing: true
 
                 Column {
                     visible: page.narrow
                     anchors.fill: parent
-                    anchors.margins: 16
-                    spacing: 10
+                    anchors.margins: metrics.spaceLarge
+                    spacing: metrics.spaceMedium
 
                     Text {
                         width: parent.width
                         text: "Ro-ASD Uygulama Deposu"
-                        color: "#ffffff"
-                        font.pixelSize: 17
+                        color: themePalette.windowText
+                        font.family: metrics.systemFont.family
+                        font.pixelSize: metrics.fontPx(17)
                         font.bold: true
                     }
 
@@ -257,8 +320,9 @@ Item {
                         text: page.sourceManager
                               ? page.sourceManager.roAsdStatusText
                               : ""
-                        color: "#b5c0cc"
-                        font.pixelSize: 13
+                        color: themePalette.text
+                        font.family: metrics.systemFont.family
+                        font.pixelSize: metrics.fontSmall
                         wrapMode: Text.WordWrap
                     }
 
@@ -272,12 +336,13 @@ Item {
                               ? page.sourceManager.repositoryActionError
                               : ""
 
-                        color: "#ffb4ab"
-                        font.pixelSize: 12
+                        color: themePalette.text
+                        font.family: metrics.systemFont.family
+                        font.pixelSize: metrics.fontCaption
                         wrapMode: Text.WordWrap
                     }
 
-                    Button {
+                    KeyboardActionButton {
                         visible: page.sourceManager
                                  && page.sourceManager.roAsdActionAvailable
 
@@ -315,18 +380,19 @@ Item {
 
                     Column {
                         anchors.left: parent.left
-                        anchors.leftMargin: 20
+                        anchors.leftMargin: metrics.spaceExtraLarge
                         anchors.verticalCenter: parent.verticalCenter
                         width: parent.width
                                - 40
                                - (repoActionWide.visible ? 210 : 0)
-                        spacing: 6
+                        spacing: metrics.spaceNormal
 
                         Text {
                             width: parent.width
                             text: "Ro-ASD Uygulama Deposu"
-                            color: "#ffffff"
-                            font.pixelSize: 17
+                            color: themePalette.windowText
+                            font.family: metrics.systemFont.family
+                            font.pixelSize: metrics.fontPx(17)
                             font.bold: true
                         }
 
@@ -335,8 +401,9 @@ Item {
                             text: page.sourceManager
                                   ? page.sourceManager.roAsdStatusText
                                   : ""
-                            color: "#b5c0cc"
-                            font.pixelSize: 13
+                            color: themePalette.text
+                            font.family: metrics.systemFont.family
+                            font.pixelSize: metrics.fontSmall
                             wrapMode: Text.WordWrap
                         }
 
@@ -350,20 +417,21 @@ Item {
                                   ? page.sourceManager.repositoryActionError
                                   : ""
 
-                            color: "#ffb4ab"
-                            font.pixelSize: 12
+                            color: themePalette.text
+                            font.family: metrics.systemFont.family
+                            font.pixelSize: metrics.fontCaption
                             wrapMode: Text.WordWrap
                         }
                     }
 
-                    Button {
+                    KeyboardActionButton {
                         id: repoActionWide
 
                         visible: page.sourceManager
                                  && page.sourceManager.roAsdActionAvailable
 
                         anchors.right: parent.right
-                        anchors.rightMargin: 20
+                        anchors.rightMargin: metrics.spaceExtraLarge
                         anchors.verticalCenter: parent.verticalCenter
 
                         width: 190
@@ -398,12 +466,16 @@ Item {
             // HERO ALANI
             Rectangle {
                 width: page.contentWidth
-                height: page.narrow ? 285 : 132
+                height: page.narrow
+                        ? Math.max(285, heroNarrowColumn.implicitHeight
+                                       + metrics.spaceExtraLarge * 2)
+                        : Math.max(132, heroBadgesWide.y + heroBadgesWide.height
+                                       + metrics.spaceNormal)
                 x: page.sideMargin
 
-                radius: 22
-                color: "#16202b"
-                border.color: "#263445"
+                radius: metrics.radiusCard
+                color: themePalette.base
+                border.color: page.secondaryText
                 border.width: 1
                 antialiasing: true
                 clip: true
@@ -418,73 +490,87 @@ Item {
                         y: 30
                         width: 72
                         height: 72
-                        radius: 20
-                        color: "#243447"
+                        radius: metrics.radiusPanel
+                        color: metrics.iconTileColor(themePalette.base, themePalette.text)
+                        border.width: 1
+                        border.color: metrics.iconTileBorderColor(themePalette.mid, themePalette.text)
                         antialiasing: true
 
                         Text {
                             anchors.centerIn: parent
                             text: "R"
-                            color: "#79b8ff"
-                            font.pixelSize: 36
+                            color: themePalette.highlight
+                            font.family: metrics.systemFont.family
+                            font.pixelSize: metrics.fontPx(36)
                             font.bold: true
                         }
                     }
 
                     Text {
+                        id: heroTitleWide
                         x: 112
                         y: 24
                         width: parent.width - 140
                         text: "Ro uygulamalarını keşfet"
-                        color: "#ffffff"
-                        font.pixelSize: 24
+                        color: themePalette.text
+                        font.family: metrics.systemFont.family
+                        font.pixelSize: metrics.fontPx(24)
                         font.bold: true
                         elide: Text.ElideRight
                     }
 
                     Text {
+                        id: heroSummaryWide
                         x: 112
-                        y: 60
+                        y: heroTitleWide.y + heroTitleWide.height + metrics.spaceCompact
                         width: parent.width - 140
                         text: "Ro-Repo içindeki resmi Project Ro uygulamalarını terminal kullanmadan görüntüle, kur, güncelle veya kaldır."
-                        color: "#b5c0cc"
-                        font.pixelSize: 15
+                        color: themePalette.text
+                        font.family: metrics.systemFont.family
+                        font.pixelSize: metrics.fontBodyLarge
                         elide: Text.ElideRight
                     }
 
                     Row {
+                        id: heroBadgesWide
                         x: 112
-                        y: 88
-                        spacing: 10
+                        y: heroSummaryWide.y + heroSummaryWide.height + metrics.spaceNormal
+                        spacing: metrics.spaceMedium
 
                         Rectangle {
-                            radius: 10
-                            color: "#243447"
-                            height: 32
+                            radius: metrics.radiusControl
+                            color: themePalette.button
+                            border.color: themePalette.mid
+                            border.width: 1
+                            height: Math.max(32, appCountLabelWide.implicitHeight + 10)
                             width: appCountLabelWide.implicitWidth + 24
 
                             Text {
                                 id: appCountLabelWide
                                 anchors.centerIn: parent
                                 text: appsGrid.count + " uygulama"
-                                color: "#dbeafe"
-                                font.pixelSize: 13
+                                color: themePalette.buttonText
+                                font.family: metrics.systemFont.family
+                                font.pixelSize: metrics.fontSmall
                                 font.bold: true
                             }
                         }
 
                         Rectangle {
-                            radius: 10
-                            color: "#243447"
-                            height: 32
+                            radius: metrics.radiusControl
+                            color: themePalette.button
+                            border.color: themePalette.mid
+                            border.width: 1
+                            height: Math.max(32, repoLabelWide.implicitHeight + 10)
                             width: repoLabelWide.implicitWidth + 24
 
                             Text {
                                 id: repoLabelWide
                                 anchors.centerIn: parent
                                 text: "Kaynak: Ro-Repo"
-                                color: "#6ee7b7"
-                                font.pixelSize: 13
+                                color: page.mutedAccent
+                                font.family: metrics.systemFont.family
+                                font.pixelSize: metrics.fontSmall
                                 font.bold: true
                             }
                         }
@@ -493,24 +579,28 @@ Item {
 
                 // Küçük ekran düzeni
                 Column {
+                    id: heroNarrowColumn
                     visible: page.narrow
                     anchors.fill: parent
-                    anchors.margins: 20
-                    spacing: 12
+                    anchors.margins: metrics.spaceExtraLarge
+                    spacing: metrics.spaceMedium
 
                     Rectangle {
                         width: 78
                         height: 78
-                        radius: 22
-                        color: "#243447"
+                        radius: metrics.radiusCard
+                        color: metrics.iconTileColor(themePalette.base, themePalette.text)
+                        border.width: 1
+                        border.color: metrics.iconTileBorderColor(themePalette.mid, themePalette.text)
                         antialiasing: true
                         anchors.horizontalCenter: parent.horizontalCenter
 
                         Text {
                             anchors.centerIn: parent
                             text: "R"
-                            color: "#79b8ff"
-                            font.pixelSize: 38
+                            color: themePalette.highlight
+                            font.family: metrics.systemFont.family
+                            font.pixelSize: metrics.fontPx(38)
                             font.bold: true
                         }
                     }
@@ -518,8 +608,9 @@ Item {
                     Text {
                         width: parent.width
                         text: "Ro uygulamalarını keşfet"
-                        color: "#ffffff"
-                        font.pixelSize: 23
+                        color: themePalette.text
+                        font.family: metrics.systemFont.family
+                        font.pixelSize: metrics.fontPx(23)
                         font.bold: true
                         horizontalAlignment: Text.AlignHCenter
                         wrapMode: Text.WordWrap
@@ -528,44 +619,51 @@ Item {
                     Text {
                         width: parent.width
                         text: "Ro-Repo içindeki resmi Project Ro uygulamalarını terminal kullanmadan görüntüle, kur, güncelle veya kaldır."
-                        color: "#b5c0cc"
-                        font.pixelSize: 14
+                        color: themePalette.text
+                        font.family: metrics.systemFont.family
+                        font.pixelSize: metrics.fontBody
                         horizontalAlignment: Text.AlignHCenter
                         wrapMode: Text.WordWrap
                     }
 
                     Row {
-                        spacing: 10
+                        spacing: metrics.spaceMedium
                         anchors.horizontalCenter: parent.horizontalCenter
 
                         Rectangle {
-                            radius: 10
-                            color: "#243447"
-                            height: 32
+                            radius: metrics.radiusControl
+                            color: themePalette.button
+                            border.color: themePalette.mid
+                            border.width: 1
+                            height: Math.max(32, appCountLabelNarrow.implicitHeight + 10)
                             width: appCountLabelNarrow.implicitWidth + 24
 
                             Text {
                                 id: appCountLabelNarrow
                                 anchors.centerIn: parent
                                 text: appsGrid.count + " uygulama"
-                                color: "#dbeafe"
-                                font.pixelSize: 13
+                                color: themePalette.buttonText
+                                font.family: metrics.systemFont.family
+                                font.pixelSize: metrics.fontSmall
                                 font.bold: true
                             }
                         }
 
                         Rectangle {
-                            radius: 10
-                            color: "#243447"
-                            height: 32
+                            radius: metrics.radiusControl
+                            color: themePalette.button
+                            border.color: themePalette.mid
+                            border.width: 1
+                            height: Math.max(32, repoLabelNarrow.implicitHeight + 10)
                             width: repoLabelNarrow.implicitWidth + 24
 
                             Text {
                                 id: repoLabelNarrow
                                 anchors.centerIn: parent
                                 text: "Ro-Repo"
-                                color: "#6ee7b7"
-                                font.pixelSize: 13
+                                color: page.mutedAccent
+                                font.family: metrics.systemFont.family
+                                font.pixelSize: metrics.fontSmall
                                 font.bold: true
                             }
                         }
@@ -576,15 +674,16 @@ Item {
             // BAŞLIK
             Item {
                 width: page.contentWidth
-                height: 32
+                height: Math.max(32, metrics.fontPx(32))
                 x: page.sideMargin
 
                 Text {
                     anchors.left: parent.left
                     anchors.verticalCenter: parent.verticalCenter
                     text: "Öne çıkan Ro uygulamaları"
-                    color: "#ffffff"
-                    font.pixelSize: page.narrow ? 18 : 20
+                    color: themePalette.text
+                    font.family: metrics.systemFont.family
+                    font.pixelSize: page.narrow ? metrics.fontTitle : metrics.fontPx(20)
                     font.bold: true
                 }
 
@@ -593,8 +692,9 @@ Item {
                     anchors.right: parent.right
                     anchors.verticalCenter: parent.verticalCenter
                     text: page.catalog && page.catalog.loading ? "Katalog yükleniyor..." : ""
-                    color: "#9aa4b2"
-                    font.pixelSize: 13
+                    color: page.secondaryText
+                    font.family: metrics.systemFont.family
+                    font.pixelSize: metrics.fontSmall
                 }
             }
 
@@ -603,8 +703,9 @@ Item {
                 width: page.contentWidth
                 x: page.sideMargin
                 text: page.catalog ? page.catalog.error : ""
-                color: "#ff6b6b"
-                font.pixelSize: 15
+                color: themePalette.text
+                font.family: metrics.systemFont.family
+                font.pixelSize: metrics.fontBodyLarge
                 wrapMode: Text.WordWrap
             }
 
@@ -613,8 +714,9 @@ Item {
                 width: page.contentWidth
                 x: page.sideMargin
                 text: "Sonuç bulunamadı."
-                color: "#9aa4b2"
-                font.pixelSize: 15
+                color: page.secondaryText
+                font.family: metrics.systemFont.family
+                font.pixelSize: metrics.fontBodyLarge
             }
 
             // UYGULAMA KARTLARI
@@ -624,9 +726,10 @@ Item {
                 width: page.contentWidth
                 x: page.sideMargin
 
-                property int cardWidth: 300
-                property int cardHeight: 218
-                property int gap: 18
+                property int cardWidth: Math.max(300, Math.ceil(300 * metrics.fontScale))
+                // Keep the grid cell in sync with the theme-sized AppCard.
+                property int cardHeight: Math.ceil(metrics.applicationCardHeight)
+                property int gap: Math.ceil(metrics.spaceExtraLarge)
                 property int columns: page.narrow ? 1 : Math.max(1, Math.floor((width + gap) / (cardWidth + gap)))
                 property int rows: Math.max(1, Math.ceil(appsGrid.count / columns))
 
@@ -650,7 +753,7 @@ Item {
 
                         AppCard {
                             anchors.horizontalCenter: page.narrow ? parent.horizontalCenter : undefined
-                            width: page.narrow ? Math.min(300, parent.width) : 300
+                            width: Math.min(gridArea.cardWidth, parent.width)
 
                             titleText: model.appName
                             summaryText: model.summary
