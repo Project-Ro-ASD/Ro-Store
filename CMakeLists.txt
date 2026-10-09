@@ -89,6 +89,7 @@ qt_add_qml_module(ro-store
         qml/components/ThemeMetrics.qml
         qml/components/ThemedActionButton.qml
         qml/components/ThemedIconButton.qml
+        qml/components/KeyboardActionButton.qml
 )
 
 target_link_libraries(ro-store
