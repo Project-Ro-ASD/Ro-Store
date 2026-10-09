@@ -741,7 +741,12 @@ Item {
                 visible: page.trackedTransaction !== null
 
                 width: page.contentWidth
-                height: visible ? (page.logsExpanded ? (page.narrow ? 260 : 285) : 42) : 0
+                height: visible
+                        ? (page.logsExpanded
+                           ? Math.max(page.narrow ? 260 : 285,
+                                      logToggleHeader.height + 200)
+                           : logToggleHeader.height)
+                        : 0
                 x: page.sideMargin
 
                 Behavior on height {
@@ -751,10 +756,11 @@ Item {
                 }
 
                 Rectangle {
+                    id: logToggleHeader
                     anchors.left: parent.left
                     anchors.right: parent.right
                     anchors.top: parent.top
-                    height: 42
+                    height: Math.max(42, metrics.fontPx(42))
                     radius: metrics.radiusControl
                     color: logToggleMouse.containsMouse ? themePalette.button : "transparent"
                     border.color: logToggleMouse.containsMouse ? themePalette.highlight : "transparent"
@@ -762,12 +768,15 @@ Item {
                     antialiasing: true
 
                     Row {
+                        id: logToggleRow
                         anchors.left: parent.left
                         anchors.leftMargin: metrics.spaceNormal
                         anchors.verticalCenter: parent.verticalCenter
+                        width: Math.max(0, parent.width - metrics.spaceNormal * 2)
                         spacing: metrics.spaceNormal
 
                         Text {
+                            id: logToggleArrow
                             text: page.logsExpanded ? "⌄" : "›"
                             color: page.secondaryText
                             font.family: metrics.systemFont.family
@@ -777,6 +786,13 @@ Item {
                         }
 
                         Text {
+                            width: Math.max(0, logToggleRow.width
+                                        - logToggleArrow.implicitWidth
+                                        - logToggleRow.spacing
+                                        - (logToggleStatus.visible
+                                           ? logToggleStatus.implicitWidth + logToggleRow.spacing
+                                           : 0))
+                            elide: Text.ElideRight
                             text: page.logsExpanded
                                   ? "Teknik işlem günlüklerini gizle"
                                   : "Teknik işlem günlüklerini göster"
@@ -788,6 +804,8 @@ Item {
                         }
 
                         Text {
+                            id: logToggleStatus
+                            visible: !page.narrow && logToggleRow.width >= 640
                             text: page.transactionRunning ? "• işlem devam ediyor" : "• ayrıntılar hazır"
                             color: page.transactionRunning ? themePalette.highlight : page.secondaryText
                             font.family: metrics.systemFont.family
@@ -811,8 +829,8 @@ Item {
                     anchors.left: parent.left
                     anchors.right: parent.right
                     anchors.top: parent.top
-                    anchors.topMargin: 48
-                    height: parent.height - 48
+                    anchors.topMargin: logToggleHeader.height + 6
+                    height: Math.max(0, parent.height - logToggleHeader.height - 6)
                     radius: metrics.radiusInner
                     color: themePalette.base
                     border.color: page.secondaryText
@@ -823,6 +841,8 @@ Item {
                     Text {
                         x: 16
                         y: 12
+                        width: Math.max(0, parent.width - 32)
+                        elide: Text.ElideRight
                         text: "Teknik İşlem Günlüğü"
                         color: themePalette.text
                         font.family: metrics.systemFont.family
@@ -831,6 +851,7 @@ Item {
                     }
 
                     Text {
+                        visible: !page.narrow && parent.width >= 640
                         anchors.right: parent.right
                         anchors.rightMargin: metrics.spaceLarge
                         y: 14
@@ -1193,8 +1214,13 @@ Item {
         Rectangle {
             id: removePanel
 
-            width: Math.min(520, page.width - 64)
-            height: 360
+            // Keep the dialog inside the available window. When font size or
+            // window scaling makes its content taller, allow scrolling to
+            // reach both confirmation actions rather than clipping them.
+            width: Math.max(0, Math.min(520, page.width - metrics.spaceLarge * 2))
+            height: Math.max(0, Math.min(page.height - metrics.spaceLarge * 2,
+                                Math.max(360, removeDialogContent.implicitHeight
+                                              + metrics.spaceLarge * 2)))
             anchors.centerIn: parent
 
             radius: metrics.radiusCard
@@ -1211,162 +1237,173 @@ Item {
                 onClicked: mouse.accepted = true
             }
 
-            Rectangle {
-                x: 1
-                y: 1
-                width: parent.width - 2
-                height: 94
-                radius: metrics.radiusCard
-                color: themePalette.base
-                antialiasing: true
-            }
+            Flickable {
+                id: removeDialogScroll
+                anchors.fill: parent
+                anchors.margins: metrics.spaceLarge
+                contentWidth: width
+                contentHeight: removeDialogContent.implicitHeight
+                boundsBehavior: Flickable.StopAtBounds
+                flickableDirection: Flickable.VerticalFlick
+                clip: true
 
-            Rectangle {
-                x: 1
-                y: 58
-                width: parent.width - 2
-                height: 37
-                color: themePalette.base
-            }
-
-            Rectangle {
-                x: 22
-                y: 21
-                width: 52
-                height: 52
-                radius: metrics.radiusInner
-                color: themePalette.button
-                antialiasing: true
-
-                Text {
-                    anchors.centerIn: parent
-                    text: "!"
-                    color: themePalette.buttonText
-                    font.family: metrics.systemFont.family
-                    font.pixelSize: metrics.fontPx(28)
-                    font.bold: true
+                ScrollBar.vertical: ScrollBar {
+                    policy: ScrollBar.AsNeeded
                 }
-            }
 
-            Text {
-                x: 90
-                y: 22
-                width: parent.width - 112
-                text: "Uygulamayı kaldır"
-                color: themePalette.text
-                font.family: metrics.systemFont.family
-                font.pixelSize: metrics.fontPageTitle
-                font.bold: true
-                elide: Text.ElideRight
-            }
+                Column {
+                    id: removeDialogContent
+                    width: removeDialogScroll.width
+                    spacing: metrics.spaceMedium
 
-            Text {
-                x: 90
-                y: 54
-                width: parent.width - 112
-                text: page.appName
-                color: page.secondaryText
-                font.family: metrics.systemFont.family
-                font.pixelSize: metrics.fontBody
-                elide: Text.ElideRight
-            }
+                    Row {
+                        width: parent.width
+                        height: Math.max(removeAlertIcon.height, removeHeadingColumn.implicitHeight)
+                        spacing: metrics.spaceMedium
 
-            Text {
-                x: 22
-                y: 120
-                width: parent.width - 44
-                text: page.appName + " uygulamasını sistemden kaldırmak istediğine emin misin?"
-                color: themePalette.text
-                font.family: metrics.systemFont.family
-                font.pixelSize: metrics.fontBodyLarge
-                wrapMode: Text.WordWrap
-                lineHeight: 1.18
-            }
+                        Rectangle {
+                            id: removeAlertIcon
+                            width: Math.max(52, metrics.fontPx(42))
+                            height: width
+                            anchors.verticalCenter: parent.verticalCenter
+                            radius: metrics.radiusInner
+                            color: themePalette.button
+                            antialiasing: true
 
-            Rectangle {
-                x: 22
-                y: 190
-                width: parent.width - 44
-                height: 74
-                radius: metrics.radiusInner
-                color: themePalette.base
-                border.color: page.secondaryText
-                border.width: 1
-                antialiasing: true
+                            Text {
+                                anchors.centerIn: parent
+                                text: "!"
+                                color: themePalette.buttonText
+                                font.family: metrics.systemFont.family
+                                font.pixelSize: metrics.fontPx(28)
+                                font.bold: true
+                            }
+                        }
 
-                Text {
-                    anchors.fill: parent
-                    anchors.margins: metrics.spaceMedium
-                    text: "Bu işlem yalnızca seçili paketi kaldırır. İşlem sırasında sistem yönetici yetkisi isteyebilir."
-                    color: themePalette.highlight
-                    font.family: metrics.systemFont.family
-                    font.pixelSize: metrics.fontSmall
-                    wrapMode: Text.WordWrap
-                    lineHeight: 1.2
-                    verticalAlignment: Text.AlignVCenter
-                }
-            }
+                        Column {
+                            id: removeHeadingColumn
+                            width: Math.max(0, parent.width - removeAlertIcon.width
+                                                 - parent.spacing)
+                            spacing: metrics.spaceCompact
 
-            Row {
-                width: 336
-                height: 42
-                spacing: metrics.spaceLarge
-                x: (parent.width - width) / 2
-                y: parent.height - 62
+                            Text {
+                                width: parent.width
+                                text: "Uygulamayı kaldır"
+                                color: themePalette.text
+                                font.family: metrics.systemFont.family
+                                font.pixelSize: metrics.fontPageTitle
+                                font.bold: true
+                                wrapMode: Text.WordWrap
+                            }
 
-                Button {
-                    text: "Vazgeç"
-                    width: 160
-                    height: 42
+                            Text {
+                                width: parent.width
+                                text: page.appName
+                                color: page.secondaryText
+                                font.family: metrics.systemFont.family
+                                font.pixelSize: metrics.fontBody
+                                elide: Text.ElideRight
+                            }
+                        }
+                    }
 
-                    background: Rectangle {
+                    Text {
+                        width: parent.width
+                        text: page.appName
+                              + " uygulamasını sistemden kaldırmak istediğine emin misin?"
+                        color: themePalette.text
+                        font.family: metrics.systemFont.family
+                        font.pixelSize: metrics.fontBodyLarge
+                        wrapMode: Text.WordWrap
+                        lineHeight: 1.18
+                    }
+
+                    Rectangle {
+                        width: parent.width
+                        height: Math.max(74, removeWarningText.implicitHeight
+                                            + metrics.spaceMedium * 2)
                         radius: metrics.radiusInner
-                        color: parent.hovered ? themePalette.alternateBase : themePalette.button
+                        color: themePalette.base
                         border.color: page.secondaryText
                         border.width: 1
                         antialiasing: true
+
+                        Text {
+                            id: removeWarningText
+                            x: metrics.spaceMedium
+                            y: metrics.spaceMedium
+                            width: Math.max(0, parent.width - metrics.spaceMedium * 2)
+                            text: "Bu işlem yalnızca seçili paketi kaldırır. İşlem sırasında sistem yönetici yetkisi isteyebilir."
+                            color: themePalette.highlight
+                            font.family: metrics.systemFont.family
+                            font.pixelSize: metrics.fontSmall
+                            wrapMode: Text.WordWrap
+                            lineHeight: 1.2
+                        }
                     }
 
-                    contentItem: Text {
-                        text: parent.text
-                        color: themePalette.buttonText
-                        font.family: metrics.systemFont.family
-                        font.pixelSize: metrics.fontBody
-                        horizontalAlignment: Text.AlignHCenter
-                        verticalAlignment: Text.AlignVCenter
-                    }
+                    Row {
+                        width: parent.width
+                        height: Math.max(42, metrics.fontPx(42))
+                        spacing: metrics.spaceNormal
 
-                    onClicked: removeConfirmDialog.close()
-                }
+                        Button {
+                            text: "Vazgeç"
+                            width: Math.max(0, (parent.width - parent.spacing) / 2)
+                            height: parent.height
 
-                Button {
-                    text: "Kaldır"
-                    width: 160
-                    height: 42
+                            background: Rectangle {
+                                radius: metrics.radiusInner
+                                color: parent.hovered ? themePalette.alternateBase : themePalette.button
+                                border.color: page.secondaryText
+                                border.width: 1
+                                antialiasing: true
+                            }
 
-                    background: Rectangle {
-                        radius: metrics.radiusInner
-                        color: themePalette.highlight
-                        border.color: themePalette.highlight
-                        border.width: 1
-                        antialiasing: true
-                    }
+                            contentItem: Text {
+                                text: parent.text
+                                color: themePalette.buttonText
+                                font.family: metrics.systemFont.family
+                                font.pixelSize: metrics.fontBody
+                                horizontalAlignment: Text.AlignHCenter
+                                verticalAlignment: Text.AlignVCenter
+                                elide: Text.ElideRight
+                            }
 
-                    contentItem: Text {
-                        text: parent.text
-                        color: themePalette.highlightedText
-                        font.family: metrics.systemFont.family
-                        font.pixelSize: metrics.fontBody
-                        font.bold: true
-                        horizontalAlignment: Text.AlignHCenter
-                        verticalAlignment: Text.AlignVCenter
-                    }
+                            onClicked: removeConfirmDialog.close()
+                        }
 
-                    onClicked: {
-                        removeConfirmDialog.close()
-                        page.logsExpanded = false
-                        page.lastActionMessage = ""
-                        page.startRemoveTransaction()
+                        Button {
+                            text: "Kaldır"
+                            width: Math.max(0, (parent.width - parent.spacing) / 2)
+                            height: parent.height
+
+                            background: Rectangle {
+                                radius: metrics.radiusInner
+                                color: themePalette.highlight
+                                border.color: themePalette.highlight
+                                border.width: 1
+                                antialiasing: true
+                            }
+
+                            contentItem: Text {
+                                text: parent.text
+                                color: themePalette.highlightedText
+                                font.family: metrics.systemFont.family
+                                font.pixelSize: metrics.fontBody
+                                font.bold: true
+                                horizontalAlignment: Text.AlignHCenter
+                                verticalAlignment: Text.AlignVCenter
+                                elide: Text.ElideRight
+                            }
+
+                            onClicked: {
+                                removeConfirmDialog.close()
+                                page.logsExpanded = false
+                                page.lastActionMessage = ""
+                                page.startRemoveTransaction()
+                            }
+                        }
                     }
                 }
             }

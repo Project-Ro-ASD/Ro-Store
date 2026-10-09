@@ -128,3 +128,26 @@ Local KDE verification is REQUIRED before closing responsive QA:
 - Run QT_SCALE_FACTOR=1.25 and 1.5 in separate processes for a quick
   Qt-level smoke check (not a substitute for Plasma native display scaling).
 - No release/merge before visual inspection and successful CI.
+
+## Remove confirmation and log panel — responsive QA
+
+The removal confirmation previously had a 360px fixed height and hard-coded
+text positions (22/54/120/190), warning block height (74), and button row
+width (336). Now the modal's height follows the content when possible,
+its text and warning wrap, both actions fit the available width, and the
+whole content scrolls when even the dynamic dialog exceeds the window.
+The Cancel and Remove action handlers are unchanged.
+
+The technical log toggle now elides its long label rather than allowing the
+optional status text to overlap it; expanded content begins below the
+font-scaled header. The auxiliary DNF5 label is omitted in narrow layouts.
+
+Test on the actual Fedora KDE desktop with an already-installed program:
+- At 100% and 150%, open the removal confirmation at 400x500 and 800x600.
+- Switch between 10pt and 18pt live with the dialog open.
+- Verify the warning is legible and both actions are reachable by scrolling.
+- Click ONLY Vazgeç while testing; do not confirm package removal.
+- For logs, inspect a genuine existing package transaction if available.
+  No extra install/remove action is required merely to exercise the log UI.
+- The CI headless QML smoke test cannot verify dialog readability or
+  focus behavior, which still requires desktop inspection.
