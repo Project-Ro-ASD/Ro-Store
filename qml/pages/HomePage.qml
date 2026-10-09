@@ -260,7 +260,7 @@ Item {
                 Column {
                     visible: page.narrow
                     anchors.fill: parent
-                    anchors.margins: 16
+                    anchors.margins: metrics.spaceLarge
                     spacing: metrics.spaceMedium
 
                     Text {
@@ -334,7 +334,7 @@ Item {
 
                     Column {
                         anchors.left: parent.left
-                        anchors.leftMargin: 20
+                        anchors.leftMargin: metrics.spaceExtraLarge
                         anchors.verticalCenter: parent.verticalCenter
                         width: parent.width
                                - 40
@@ -382,7 +382,7 @@ Item {
                                  && page.sourceManager.roAsdActionAvailable
 
                         anchors.right: parent.right
-                        anchors.rightMargin: 20
+                        anchors.rightMargin: metrics.spaceExtraLarge
                         anchors.verticalCenter: parent.verticalCenter
 
                         width: 190
@@ -518,7 +518,7 @@ Item {
                 Column {
                     visible: page.narrow
                     anchors.fill: parent
-                    anchors.margins: 20
+                    anchors.margins: metrics.spaceExtraLarge
                     spacing: metrics.spaceMedium
 
                     Rectangle {
