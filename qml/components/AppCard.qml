@@ -1,10 +1,13 @@
 import QtQuick
 import QtQuick.Controls
 import QtQuick.Layouts
+import "."
 import RoStore 1.0
 
 Rectangle {
     id: card
+
+    ThemeMetrics { id: metrics }
 
     SystemPalette {
         id: themePalette
@@ -46,7 +49,7 @@ Rectangle {
 
     width: 300
     height: 218
-    radius: 22
+    radius: metrics.radiusCard
     color: mouseArea.containsMouse ? themePalette.alternateBase : themePalette.base
     border.color: mouseArea.containsMouse ? themePalette.highlight : themePalette.mid
     border.width: 1
@@ -130,16 +133,16 @@ Rectangle {
     ColumnLayout {
         anchors.fill: parent
         anchors.margins: 16
-        spacing: 10
+        spacing: metrics.spaceMedium
 
         RowLayout {
             Layout.fillWidth: true
-            spacing: 12
+            spacing: metrics.spaceMedium
 
             Rectangle {
                 width: 54
                 height: 54
-                radius: 16
+                radius: metrics.radiusInner
                 color: themePalette.button
                 clip: true
                 antialiasing: true
@@ -166,7 +169,7 @@ Rectangle {
             }
 
             ColumnLayout {
-                spacing: 4
+                spacing: metrics.spaceCompact
                 Layout.fillWidth: true
 
                 Label {
@@ -179,7 +182,7 @@ Rectangle {
                 }
 
                 Rectangle {
-                    radius: 9
+                    radius: metrics.radiusBadge
                     color: themePalette.button
                     border.color: themePalette.mid
                     border.width: 1
@@ -241,7 +244,7 @@ Rectangle {
 
         RowLayout {
             Layout.fillWidth: true
-            spacing: 8
+            spacing: metrics.spaceNormal
 
             // Native Qt Quick Controls inherit the active KDE control style.
             Button {
