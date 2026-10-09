@@ -417,7 +417,7 @@ Item {
                     height: 36
 
                     anchors.right: parent.right
-                    anchors.rightMargin: 20
+                    anchors.rightMargin: metrics.spaceExtraLarge
 
                     y: page.narrow ? 174 : 126
 
@@ -622,7 +622,7 @@ Item {
 
                     Text {
                         anchors.right: parent.right
-                        anchors.rightMargin: 18
+                        anchors.rightMargin: metrics.spaceExtraLarge
                         y: 15
 
                         text: {
