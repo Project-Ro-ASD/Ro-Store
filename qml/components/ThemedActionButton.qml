@@ -5,7 +5,7 @@ import "."
 // Reusable action button which follows the active Qt/KDE system palette.
 // "accented" marks the primary action; "outlined" keeps destructive
 // shortcuts neutral until the user confirms the operation.
-Button {
+KeyboardActionButton {
     id: control
 
     property bool accented: false
