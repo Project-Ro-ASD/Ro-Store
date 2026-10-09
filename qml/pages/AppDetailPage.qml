@@ -877,26 +877,25 @@ Item {
                     }
 
                     ScrollView {
+                        id: technicalLogScroll
                         x: 12
                         y: 48
                         width: parent.width - 24
                         height: parent.height - 60
                         clip: true
 
-                        TextArea {
+                        // A read-only TextEdit avoids the KDE Breeze TextArea
+                        // style's type-assignment warning, while retaining
+                        // text selection, wrapping and scrolling.
+                        TextEdit {
+                            width: technicalLogScroll.availableWidth
                             text: page.transactionTechnicalText
-
                             readOnly: true
                             selectByMouse: true
                             wrapMode: TextEdit.Wrap
                             font.family: Platform.Theme.fixedWidthFont.family
                             font.pixelSize: metrics.fontSmall
                             color: themePalette.text
-
-                            background: Rectangle {
-                                color: themePalette.base
-                                border.color: "transparent"
-                            }
                         }
                     }
                 }
