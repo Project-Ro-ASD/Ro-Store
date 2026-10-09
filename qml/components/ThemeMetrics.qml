@@ -66,6 +66,27 @@ QtObject {
              : Qt.rgba(1, 1, 1, 1)
     }
 
+    // Subtly separate app and repository artwork from equal-brightness
+    // surfaces in light KDE themes, while retaining dark-theme behavior.
+    // These are derived from the active palette, not hardcoded colors.
+    function iconTileColor(base, foreground) {
+        return Qt.rgba(
+            base.r * 0.88 + foreground.r * 0.12,
+            base.g * 0.88 + foreground.g * 0.12,
+            base.b * 0.88 + foreground.b * 0.12,
+            1.0
+        )
+    }
+
+    function iconTileBorderColor(mid, foreground) {
+        return Qt.rgba(
+            mid.r * 0.70 + foreground.r * 0.30,
+            mid.g * 0.70 + foreground.g * 0.30,
+            mid.b * 0.70 + foreground.b * 0.30,
+            0.90
+        )
+    }
+
     readonly property real radiusUnit: Platform.Units.cornerRadius
     readonly property real radiusBadge: radiusUnit * 2
     readonly property real radiusControl: radiusUnit * 2.5
