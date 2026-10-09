@@ -149,10 +149,10 @@ Item {
         width: page.contentWidth
         height: Math.max(54, downloadsTitleColumn.implicitHeight + metrics.spaceNormal * 2)
 
-        Button {
+        ThemedIconButton {
             id: backButton
             text: "Geri"
-            icon.name: "go-previous"
+            themedIconName: "go-previous"
             icon.width: 16
             icon.height: 16
             width: Math.max(95, implicitWidth + metrics.spaceMedium)

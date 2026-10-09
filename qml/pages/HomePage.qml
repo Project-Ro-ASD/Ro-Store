@@ -170,9 +170,9 @@ Item {
                         }
                     }
 
-                    Button {
+                    ThemedIconButton {
                         text: "Yenile"
-                        icon.name: "view-refresh"
+                        themedIconName: "view-refresh"
                         icon.width: 16
                         icon.height: 16
                         width: 96
@@ -180,9 +180,9 @@ Item {
                         onClicked: page.reloadRequested()
                     }
 
-                    Button {
+                    ThemedIconButton {
                         text: "Yüklemeler"
-                        icon.name: "folder-download"
+                        themedIconName: "folder-download"
                         icon.width: 16
                         icon.height: 16
                         width: 128
@@ -243,14 +243,14 @@ Item {
                     }
                 }
 
-                Button {
+                ThemedIconButton {
                     x: 0
                     y: 100
                     width: parent.width
                     height: 38
 
                     text: "Yüklemeler"
-                    icon.name: "folder-download"
+                    themedIconName: "folder-download"
                     icon.width: 16
                     icon.height: 16
                     onClicked: page.downloadsRequested()

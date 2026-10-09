@@ -331,10 +331,10 @@ Item {
         height: Math.max(44, Math.max(backButton.height, downloadsButton.height) + metrics.spaceNormal)
         color: "transparent"
 
-        Button {
+        ThemedIconButton {
             id: backButton
             text: "Geri"
-            icon.name: "go-previous"
+            themedIconName: "go-previous"
             icon.width: 16
             icon.height: 16
             width: Math.max(95, implicitWidth + metrics.spaceMedium)
@@ -355,11 +355,11 @@ Item {
             anchors.verticalCenter: parent.verticalCenter
         }
 
-        Button {
+        ThemedIconButton {
             id: downloadsButton
 
             text: "Yüklemeler"
-            icon.name: "folder-download"
+            themedIconName: "folder-download"
             icon.width: 16
             icon.height: 16
             width: Math.max(128, implicitWidth + metrics.spaceMedium)

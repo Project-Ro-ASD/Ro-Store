@@ -80,3 +80,31 @@ Manual regression sequence:
 
 The GitHub Action QML startup smoke test does not prove this live KDE behavior;
 it must still be checked on a real Plasma session.
+
+## KDE icon theme live update — October 2026
+
+Problem: after Breeze → Papirus, restarting Ro-Store or opening a fresh
+App Detail page uses the new icon theme, but existing Home buttons retain
+the old icons. The Qt Quick Controls `icon.name` image can stay cached.
+
+Solution: a Qt-side `SystemIconMonitor` listens for KDE
+`org.kde.KIconLoader.iconChanged(int)` events and watches the KDE
+`kdeglobals` configuration (including atomic replacements). It emits
+a revision change whenever the icon theme changes/refreshes.
+`ThemedIconButton` then briefly clears and restores `icon.name` on
+the next event-loop turn without recreating the page or resetting search,
+catalog, package transactions, font or color bindings.
+
+Checks on a real KDE Plasma session:
+1. With Home open, change Breeze → Papirus; inspect the existing Refresh
+   and Downloads buttons without restarting or navigating.
+2. Navigate to Ro Assist Detail and Downloads and inspect the Back and
+   Downloads buttons.
+3. Change Papirus → Breeze *while Home remains visible*. Confirm icons
+   revert without restarting.
+4. Repeat while Home is behind Detail, then press Back; old theme icons
+   must not reappear.
+5. Check both narrow and wide Home layouts, and verify icon-less controls
+   and catalog app artwork are unaffected.
+6. Restore the originally configured theme (Breeze).
+7. QML startup smoke tests cannot prove the running KDE refresh behavior.

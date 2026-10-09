@@ -8,6 +8,7 @@
 #include "PackageStatus.h"
 #include "AppLauncher.h"
 #include "SystemFontMonitor.h"
+#include "SystemIconMonitor.h"
 #include "sources/SourceManager.h"
 #include "packages/backends/Dnf5Backend.h"
 #include "packages/PackageTransaction.h"
@@ -23,6 +24,11 @@ int main(int argc, char *argv[])
     SystemFontMonitor systemFontMonitor;
     qmlRegisterSingletonInstance(
         "RoStore", 1, 0, "SystemFontMonitor", &systemFontMonitor
+    );
+
+    SystemIconMonitor systemIconMonitor;
+    qmlRegisterSingletonInstance(
+        "RoStore", 1, 0, "SystemIconMonitor", &systemIconMonitor
     );
 
     qmlRegisterType<CatalogModel>("RoStore", 1, 0, "CatalogModel");

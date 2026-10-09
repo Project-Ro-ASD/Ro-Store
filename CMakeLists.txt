@@ -44,6 +44,7 @@ qt_add_executable(ro-store
     src/AppLauncher.h
     src/AppLauncher.cpp
     src/SystemFontMonitor.h
+    src/SystemIconMonitor.h
     src/sources/SourceManager.h
     src/sources/SourceManager.cpp
     src/packages/backends/Dnf5Backend.h
@@ -87,6 +88,7 @@ qt_add_qml_module(ro-store
         qml/components/AppCard.qml
         qml/components/ThemeMetrics.qml
         qml/components/ThemedActionButton.qml
+        qml/components/ThemedIconButton.qml
 )
 
 target_link_libraries(ro-store
