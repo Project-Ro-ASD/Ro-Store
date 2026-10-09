@@ -9,6 +9,9 @@ Rectangle {
 
     ThemeMetrics { id: metrics }
 
+    readonly property color accentForeground: metrics.readableText(
+        themePalette.highlight, themePalette.highlightedText, themePalette.text)
+
     SystemPalette {
         id: themePalette
     }
@@ -342,7 +345,7 @@ Rectangle {
                                                                        themePalette.base.b, 0.12))
                              : themePalette.highlight
                     border.width: launchButton.activeFocus ? 3 : 0
-                    border.color: themePalette.highlightedText
+                    border.color: card.accentForeground
                     antialiasing: true
 
                     Behavior on color {
@@ -352,7 +355,7 @@ Rectangle {
 
                 contentItem: Label {
                     text: launchButton.text
-                    color: themePalette.highlightedText
+                    color: card.accentForeground
                     font: launchButton.font
                     horizontalAlignment: Text.AlignHCenter
                     verticalAlignment: Text.AlignVCenter
