@@ -187,3 +187,24 @@ Manual tests:
 - Repeat the same sequence with Detail/Remove confirmation on top and
   navigate back to Home. Verify neither cached font nor page dimensions
   remain in the old state.
+
+## AppCard category badge after live font enlargement — 2026-10-09
+
+At large font size, the card title and action buttons scaled correctly,
+but the "Yardımcı Araçlar" category label rendered below the title without
+a visible badge background and overlapped the icon. The badge Rectangle
+used raw width/height, which a ColumnLayout can override with its own
+implicit geometry. The icon rectangle had the same risky pattern.
+
+AppCard now declares explicit Layout.preferredWidth/Height for the category
+badge, uses Layout minimum height tied to the live label measurements,
+sets explicit layout dimensions for the icon, and constrains the badge text
+inside its own padding. The divider also has an explicit layout height.
+
+Manual regression:
+- Without restarting, change font 10 pt -> 18 pt on the Home page.
+- Confirm category badge background remains visible beside the icon,
+  text stays within the badge, and title/summary don't overlap.
+- Switch 18 pt -> 10 pt and repeat, including after visiting Detail.
+- Check 400x500 and 800x600 at 100% and 150% scale.
+- Keep app launch/install handlers and the separate click actions intact.

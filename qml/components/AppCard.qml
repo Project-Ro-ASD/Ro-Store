@@ -140,8 +140,12 @@ Rectangle {
             spacing: metrics.spaceMedium
 
             Rectangle {
-                width: 54
-                height: 54
+                // Qt Quick Layouts position/size their children using Layout
+                // hints. Plain width/height are overridden by RowLayout.
+                Layout.preferredWidth: 54
+                Layout.preferredHeight: 54
+                Layout.minimumWidth: 54
+                Layout.minimumHeight: 54
                 radius: metrics.radiusInner
                 color: themePalette.button
                 clip: true
@@ -184,17 +188,27 @@ Rectangle {
                 }
 
                 Rectangle {
+                    // ColumnLayout ignores manually assigned width/height
+                    // once it controls the child. Keep the badge's actual
+                    // layout size bound to the live system-font text metrics.
+                    Layout.preferredHeight: Math.max(25, categoryLabel.implicitHeight + 8)
+                    Layout.preferredWidth: categoryLabel.implicitWidth + 18
+                    Layout.minimumHeight: Math.max(25, categoryLabel.implicitHeight + 8)
+                    Layout.fillWidth: false
                     radius: metrics.radiusBadge
                     color: themePalette.button
                     border.color: themePalette.mid
                     border.width: 1
-                    height: Math.max(25, categoryLabel.implicitHeight + 8)
-                    width: categoryLabel.implicitWidth + 18
+                    clip: true
 
                     Label {
                         id: categoryLabel
-                        anchors.centerIn: parent
+                        anchors.fill: parent
+                        anchors.leftMargin: 9
+                        anchors.rightMargin: 9
                         text: card.categoryText
+                        elide: Text.ElideRight
+                        verticalAlignment: Text.AlignVCenter
                         color: card.mutedAccent
                         font.family: metrics.systemFont.family
                         font.pixelSize: metrics.fontCaption
@@ -217,7 +231,8 @@ Rectangle {
 
         Rectangle {
             Layout.fillWidth: true
-            height: 1
+            Layout.preferredHeight: 1
+            Layout.minimumHeight: 1
             color: themePalette.mid
         }
 
