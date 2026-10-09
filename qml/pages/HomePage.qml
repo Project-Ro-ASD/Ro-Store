@@ -244,7 +244,7 @@ Item {
                         }
                     }
 
-                    Button {
+                    KeyboardActionButton {
                         id: refreshButtonNarrow
                         text: "Yenile"
                         width: Math.max(90, implicitWidth)
@@ -342,7 +342,7 @@ Item {
                         wrapMode: Text.WordWrap
                     }
 
-                    Button {
+                    KeyboardActionButton {
                         visible: page.sourceManager
                                  && page.sourceManager.roAsdActionAvailable
 
@@ -424,7 +424,7 @@ Item {
                         }
                     }
 
-                    Button {
+                    KeyboardActionButton {
                         id: repoActionWide
 
                         visible: page.sourceManager
