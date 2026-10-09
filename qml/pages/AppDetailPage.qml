@@ -1,9 +1,12 @@
 import QtQuick
 import QtQuick.Controls
+import "../components"
 import RoStore 1.0
 
 Item {
     id: page
+
+    ThemeMetrics { id: metrics }
 
     SystemPalette {
         id: themePalette
@@ -384,7 +387,7 @@ Item {
             id: contentColumn
 
             width: flick.width
-            spacing: 18
+            spacing: metrics.spaceExtraLarge
 
             // UYGULAMA BAŞLIK KARTI
             Rectangle {
@@ -392,7 +395,7 @@ Item {
                 height: page.narrow ? 300 : 180
                 x: page.sideMargin
 
-                radius: 22
+                radius: metrics.radiusCard
                 color: themePalette.base
                 border.color: page.secondaryText
                 border.width: 1
@@ -409,7 +412,7 @@ Item {
                         y: 42
                         width: 96
                         height: 96
-                        radius: 24
+                        radius: metrics.radiusCard
                         color: themePalette.button
                         clip: true
                         antialiasing: true
@@ -461,10 +464,10 @@ Item {
                     Row {
                         x: 148
                         y: 123
-                        spacing: 10
+                        spacing: metrics.spaceMedium
 
                         Rectangle {
-                            radius: 10
+                            radius: metrics.radiusControl
                             color: themePalette.button
                             border.color: themePalette.mid
                             border.width: 1
@@ -481,7 +484,7 @@ Item {
                         }
 
                         Rectangle {
-                            radius: 10
+                            radius: metrics.radiusControl
                             color: themePalette.button
                             border.color: themePalette.mid
                             border.width: 1
@@ -504,12 +507,12 @@ Item {
                     visible: page.narrow
                     anchors.fill: parent
                     anchors.margins: 22
-                    spacing: 12
+                    spacing: metrics.spaceMedium
 
                     Rectangle {
                         width: 92
                         height: 92
-                        radius: 24
+                        radius: metrics.radiusCard
                         color: themePalette.button
                         clip: true
                         antialiasing: true
@@ -556,11 +559,11 @@ Item {
                     }
 
                     Row {
-                        spacing: 10
+                        spacing: metrics.spaceMedium
                         anchors.horizontalCenter: parent.horizontalCenter
 
                         Rectangle {
-                            radius: 10
+                            radius: metrics.radiusControl
                             color: themePalette.button
                             border.color: themePalette.mid
                             border.width: 1
@@ -577,7 +580,7 @@ Item {
                         }
 
                         Rectangle {
-                            radius: 10
+                            radius: metrics.radiusControl
                             color: themePalette.button
                             border.color: themePalette.mid
                             border.width: 1
@@ -602,7 +605,7 @@ Item {
                 x: page.sideMargin
                 height: infoColumn.implicitHeight + 48
 
-                radius: 18
+                radius: metrics.radiusPanel
                 color: themePalette.base
                 border.color: page.secondaryText
                 border.width: 1
@@ -614,7 +617,7 @@ Item {
                     x: 24
                     y: 24
                     width: parent.width - 48
-                    spacing: 15
+                    spacing: metrics.spaceLarge
 
                     Text {
                         width: parent.width
@@ -715,7 +718,7 @@ Item {
                     anchors.right: parent.right
                     anchors.top: parent.top
                     height: 42
-                    radius: 12
+                    radius: metrics.radiusControl
                     color: logToggleMouse.containsMouse ? themePalette.button : "transparent"
                     border.color: logToggleMouse.containsMouse ? themePalette.highlight : "transparent"
                     border.width: 1
@@ -725,7 +728,7 @@ Item {
                         anchors.left: parent.left
                         anchors.leftMargin: 8
                         anchors.verticalCenter: parent.verticalCenter
-                        spacing: 8
+                        spacing: metrics.spaceNormal
 
                         Text {
                             text: page.logsExpanded ? "⌄" : "›"
@@ -770,7 +773,7 @@ Item {
                     anchors.top: parent.top
                     anchors.topMargin: 48
                     height: parent.height - 48
-                    radius: 16
+                    radius: metrics.radiusInner
                     color: themePalette.base
                     border.color: page.secondaryText
                     border.width: 1
@@ -845,7 +848,7 @@ Item {
         width: page.contentWidth
         height: page.narrow ? (page.transactionRunning ? 132 : 104) : 62
 
-        radius: 16
+        radius: metrics.radiusInner
         color: themePalette.base
         border.color: themePalette.button
         border.width: 1
@@ -885,7 +888,7 @@ Item {
                 anchors.rightMargin: 282
                 anchors.verticalCenter: parent.verticalCenter
 
-                radius: 10
+                radius: metrics.radiusControl
                 color: themePalette.button
                 border.color: themePalette.mid
                 border.width: 1
@@ -895,7 +898,7 @@ Item {
                 Rectangle {
                     width: Math.max(0, parent.width * page.transactionProgress / 100)
                     height: parent.height
-                    radius: 10
+                    radius: metrics.radiusControl
                     color: themePalette.highlight
                     antialiasing: true
 
@@ -996,7 +999,7 @@ Item {
                 width: parent.width - 24
                 height: 28
 
-                radius: 10
+                radius: metrics.radiusControl
                 color: themePalette.button
                 border.color: themePalette.mid
                 border.width: 1
@@ -1006,7 +1009,7 @@ Item {
                 Rectangle {
                     width: Math.max(0, parent.width * page.transactionProgress / 100)
                     height: parent.height
-                    radius: 10
+                    radius: metrics.radiusControl
                     color: themePalette.highlight
                     antialiasing: true
 
@@ -1132,7 +1135,7 @@ Item {
             height: 360
             anchors.centerIn: parent
 
-            radius: 22
+            radius: metrics.radiusCard
             color: themePalette.base
             border.color: page.secondaryText
             border.width: 1
@@ -1151,7 +1154,7 @@ Item {
                 y: 1
                 width: parent.width - 2
                 height: 94
-                radius: 21
+                radius: metrics.radiusCard
                 color: themePalette.base
                 antialiasing: true
             }
@@ -1169,7 +1172,7 @@ Item {
                 y: 21
                 width: 52
                 height: 52
-                radius: 16
+                radius: metrics.radiusInner
                 color: themePalette.button
                 antialiasing: true
 
@@ -1219,7 +1222,7 @@ Item {
                 y: 190
                 width: parent.width - 44
                 height: 74
-                radius: 14
+                radius: metrics.radiusInner
                 color: themePalette.base
                 border.color: page.secondaryText
                 border.width: 1
@@ -1240,7 +1243,7 @@ Item {
             Row {
                 width: 336
                 height: 42
-                spacing: 16
+                spacing: metrics.spaceLarge
                 x: (parent.width - width) / 2
                 y: parent.height - 62
 
@@ -1250,7 +1253,7 @@ Item {
                     height: 42
 
                     background: Rectangle {
-                        radius: 16
+                        radius: metrics.radiusInner
                         color: parent.hovered ? themePalette.alternateBase : themePalette.button
                         border.color: page.secondaryText
                         border.width: 1
@@ -1274,7 +1277,7 @@ Item {
                     height: 42
 
                     background: Rectangle {
-                        radius: 16
+                        radius: metrics.radiusInner
                         color: themePalette.highlight
                         border.color: themePalette.highlight
                         border.width: 1
