@@ -35,6 +35,37 @@ QtObject {
     readonly property int fontSection: fontPx(19)
     readonly property int fontPageTitle: fontPx(22)
 
+    // KDE can provide a bright accent with a light highlightedText role.
+    // Evaluate sRGB contrast instead of assuming highlightedText is readable
+    // against highlight in every color scheme (e.g. Fedora Breeze Light).
+    function channelLuminance(value) {
+        return value <= 0.04045 ? value / 12.92
+                                : Math.pow((value + 0.055) / 1.055, 2.4)
+    }
+
+    function luminance(colorValue) {
+        return 0.2126 * channelLuminance(colorValue.r)
+             + 0.7152 * channelLuminance(colorValue.g)
+             + 0.0722 * channelLuminance(colorValue.b)
+    }
+
+    function contrastRatio(foreground, background) {
+        const a = luminance(foreground)
+        const b = luminance(background)
+        return (Math.max(a, b) + 0.05) / (Math.min(a, b) + 0.05)
+    }
+
+    function readableText(background, preferred, alternate) {
+        if (contrastRatio(preferred, background) >= 4.5)
+            return preferred
+        if (contrastRatio(alternate, background) >= 4.5)
+            return alternate
+        // Black or white always reaches at least 4.5:1 against opaque sRGB.
+        return luminance(background) > 0.179
+             ? Qt.rgba(0, 0, 0, 1)
+             : Qt.rgba(1, 1, 1, 1)
+    }
+
     readonly property real radiusUnit: Platform.Units.cornerRadius
     readonly property real radiusBadge: radiusUnit * 2
     readonly property real radiusControl: radiusUnit * 2.5
