@@ -27,7 +27,7 @@ Item {
         1.0)
     property var packageTransactionManager: null
 
-    property bool narrow: width < 760
+    property bool narrow: width < Math.max(760, Math.ceil(760 * metrics.fontScale))
     property int sideMargin: narrow ? 22 : 36
     property int contentWidth: Math.max(320, width - sideMargin * 2)
 
@@ -147,15 +147,16 @@ Item {
         x: page.sideMargin
         y: 20
         width: page.contentWidth
-        height: 54
+        height: Math.max(54, downloadsTitleColumn.implicitHeight + metrics.spaceNormal * 2)
 
         Button {
+            id: backButton
             text: "Geri"
             icon.name: "go-previous"
             icon.width: 16
             icon.height: 16
-            width: 95
-            height: 36
+            width: Math.max(95, implicitWidth + metrics.spaceMedium)
+            height: Math.max(36, implicitHeight)
 
             anchors.left: parent.left
             anchors.verticalCenter: parent.verticalCenter
@@ -164,8 +165,9 @@ Item {
         }
 
         Column {
+            id: downloadsTitleColumn
             anchors.left: parent.left
-            anchors.leftMargin: 115
+            anchors.leftMargin: backButton.width + metrics.spaceNormal
             anchors.verticalCenter: parent.verticalCenter
             spacing: metrics.spaceCompact
 

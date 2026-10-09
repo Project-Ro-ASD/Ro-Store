@@ -188,7 +188,7 @@ Rectangle {
                     color: themePalette.button
                     border.color: themePalette.mid
                     border.width: 1
-                    height: 25
+                    height: Math.max(25, categoryLabel.implicitHeight + 8)
                     width: categoryLabel.implicitWidth + 18
 
                     Label {
@@ -212,7 +212,7 @@ Rectangle {
             maximumLineCount: 2
             elide: Text.ElideRight
             Layout.fillWidth: true
-            Layout.preferredHeight: 42
+            Layout.preferredHeight: metrics.applicationCardSummaryHeight
         }
 
         Rectangle {
@@ -257,7 +257,7 @@ Rectangle {
             Button {
                 id: detailsButton
                 Layout.fillWidth: true
-                Layout.preferredHeight: 34
+                Layout.preferredHeight: metrics.applicationCardActionHeight
                 hoverEnabled: true
                 text: "Detayları Gör"
 
@@ -301,8 +301,8 @@ Rectangle {
             Button {
                 id: launchButton
                 visible: cardPackageStatus.installed
-                Layout.preferredWidth: 92
-                Layout.preferredHeight: 34
+                Layout.preferredWidth: Math.max(92, metrics.fontPx(92))
+                Layout.preferredHeight: metrics.applicationCardActionHeight
                 hoverEnabled: true
                 text: "Çalıştır"
 

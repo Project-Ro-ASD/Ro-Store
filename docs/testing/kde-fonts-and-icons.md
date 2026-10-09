@@ -40,3 +40,16 @@ comes from `Qt.application.font.family`. The DNF5 technical log uses
 - Check RoDark, RoLight and Breeze Light/Dark colors after changing fonts.
 - Inspect 100%, 125% and 150% display scaling in the responsive QA stage.
 - Do not merge PR #12 until visual and accessibility checks are done.
+
+## Large-font layout regression — October 2026
+
+A live 18 pt change formerly clipped Back/Downloads, overlaid the App Detail
+title and summary, and truncated "Durumu Yenile".
+
+- Compare KDE 10 pt, 12 pt and 18 pt without restarting Ro-Store.
+- Confirm the app header and Home hero grow instead of overlaying text.
+- Confirm narrow layout engages automatically for large fonts.
+- Confirm cards and GridView cells grow together.
+- Check the download header, detail footer and action labels.
+- Inspect the removal dialog separately before marking all responsive
+  layout testing complete.

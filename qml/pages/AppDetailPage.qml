@@ -211,7 +211,7 @@ Item {
             )
     }
 
-    property bool narrow: width < 760
+    property bool narrow: width < Math.max(760, Math.ceil(760 * metrics.fontScale))
     property int sideMargin: narrow ? 22 : 36
     property int contentWidth: Math.max(320, width - sideMargin * 2)
 
@@ -328,7 +328,7 @@ Item {
         x: page.sideMargin
         y: 20
         width: page.contentWidth
-        height: 44
+        height: Math.max(44, Math.max(backButton.height, downloadsButton.height) + metrics.spaceNormal)
         color: "transparent"
 
         Button {
@@ -337,8 +337,8 @@ Item {
             icon.name: "go-previous"
             icon.width: 16
             icon.height: 16
-            width: 95
-            height: 36
+            width: Math.max(95, implicitWidth + metrics.spaceMedium)
+            height: Math.max(36, implicitHeight)
             anchors.left: parent.left
             anchors.verticalCenter: parent.verticalCenter
             enabled: !page.transactionRunning
@@ -362,8 +362,8 @@ Item {
             icon.name: "folder-download"
             icon.width: 16
             icon.height: 16
-            width: 128
-            height: 36
+            width: Math.max(128, implicitWidth + metrics.spaceMedium)
+            height: Math.max(36, implicitHeight)
 
             anchors.right: parent.right
             anchors.verticalCenter: parent.verticalCenter
@@ -400,7 +400,11 @@ Item {
             // UYGULAMA BAŞLIK KARTI
             Rectangle {
                 width: page.contentWidth
-                height: page.narrow ? 300 : 180
+                height: page.narrow
+                        ? Math.max(300, detailHeaderNarrow.implicitHeight
+                                       + metrics.spaceExtraLarge * 2)
+                        : Math.max(180, detailBadgesWide.y + detailBadgesWide.height
+                                       + metrics.spaceNormal)
                 x: page.sideMargin
 
                 radius: metrics.radiusCard
@@ -448,6 +452,7 @@ Item {
                     }
 
                     Text {
+                        id: detailTitleWide
                         x: 148
                         y: 34
                         width: parent.width - 180
@@ -460,8 +465,9 @@ Item {
                     }
 
                     Text {
+                        id: detailSummaryWide
                         x: 148
-                        y: 82
+                        y: detailTitleWide.y + detailTitleWide.height + metrics.spaceCompact
                         width: parent.width - 180
                         text: page.summaryText
                         color: themePalette.text
@@ -473,8 +479,9 @@ Item {
                     }
 
                     Row {
+                        id: detailBadgesWide
                         x: 148
-                        y: 123
+                        y: detailSummaryWide.y + detailSummaryWide.height + metrics.spaceMedium
                         spacing: metrics.spaceMedium
 
                         Rectangle {
@@ -482,7 +489,7 @@ Item {
                             color: themePalette.button
                             border.color: themePalette.mid
                             border.width: 1
-                            height: 32
+                            height: Math.max(32, categoryLabelWide.implicitHeight + 10)
                             width: categoryLabelWide.implicitWidth + 24
 
                             Text {
@@ -500,7 +507,7 @@ Item {
                             color: themePalette.button
                             border.color: themePalette.mid
                             border.width: 1
-                            height: 32
+                            height: Math.max(32, versionLabelWide.implicitHeight + 10)
                             width: versionLabelWide.implicitWidth + 24
 
                             Text {
@@ -517,6 +524,7 @@ Item {
 
                 // Küçük ekran düzeni
                 Column {
+                    id: detailHeaderNarrow
                     visible: page.narrow
                     anchors.fill: parent
                     anchors.margins: metrics.spaceExtraLarge
@@ -583,7 +591,7 @@ Item {
                             color: themePalette.button
                             border.color: themePalette.mid
                             border.width: 1
-                            height: 32
+                            height: Math.max(32, categoryLabelNarrow.implicitHeight + 10)
                             width: categoryLabelNarrow.implicitWidth + 24
 
                             Text {
@@ -601,7 +609,7 @@ Item {
                             color: themePalette.button
                             border.color: themePalette.mid
                             border.width: 1
-                            height: 32
+                            height: Math.max(32, versionLabelNarrow.implicitHeight + 10)
                             width: versionLabelNarrow.implicitWidth + 24
 
                             Text {
@@ -878,7 +886,11 @@ Item {
         x: page.sideMargin
         y: parent.height - height - 20
         width: page.contentWidth
-        height: page.narrow ? (page.transactionRunning ? 132 : 104) : 62
+        height: page.narrow
+                ? Math.max(page.transactionRunning ? 132 : 104,
+                           (page.transactionRunning ? 82 : 54)
+                           + Math.max(38, metrics.fontPx(38)) + 12)
+                : Math.max(62, metrics.fontPx(38) + metrics.spaceNormal * 2)
 
         radius: metrics.radiusInner
         color: themePalette.base
@@ -1080,7 +1092,7 @@ Item {
                 x: 12
                 y: 54
                 width: (parent.width - 48) / 3
-                height: 38
+                height: Math.max(38, metrics.fontPx(38))
 
                 onClicked: {
                     appLauncher.launch(page.packageName)
@@ -1094,7 +1106,7 @@ Item {
                 x: packageStatus.installed && !page.transactionRunning ? 12 + ((parent.width - 48) / 3) + 12 : 12
                 y: page.transactionRunning ? 82 : 54
                 width: packageStatus.installed && !page.transactionRunning ? (parent.width - 48) / 3 : (parent.width - 36) / 2
-                height: 38
+                height: Math.max(38, metrics.fontPx(38))
                 enabled: !packageStatus.checking && !page.transactionRunning
                 onClicked: packageStatus.checkInstalled(page.packageName, page.versionText)
             }
@@ -1117,7 +1129,7 @@ Item {
                        ? (parent.width - 48) / 3
                        : (parent.width - 36) / 2
 
-                height: 38
+                height: Math.max(38, metrics.fontPx(38))
 
                 enabled:
                     !packageStatus.checking

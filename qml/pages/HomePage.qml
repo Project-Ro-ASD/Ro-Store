@@ -32,7 +32,7 @@ Item {
     // Ana sayfa her tekrar aktif olduğunda kartların RPM durumunu yeniler.
     property int packageStatusRefreshSerial: 0
 
-    property bool narrow: width < 900
+    property bool narrow: width < Math.max(900, Math.ceil(760 * metrics.fontScale))
     property int sideMargin: narrow ? 24 : 36
     property int contentWidth: Math.max(320, width - sideMargin * 2)
 
@@ -92,10 +92,11 @@ Item {
             // ÜST BAR
             Item {
                 width: page.contentWidth
-                height: page.narrow ? 78 : 70
+                height: Math.max(page.narrow ? 78 : 70, headerTitleColumn.implicitHeight + metrics.spaceNormal * 2)
                 x: page.sideMargin
 
                 Column {
+                    id: headerTitleColumn
                     anchors.left: parent.left
                     anchors.verticalCenter: parent.verticalCenter
                     spacing: metrics.spaceCompact
@@ -434,7 +435,11 @@ Item {
             // HERO ALANI
             Rectangle {
                 width: page.contentWidth
-                height: page.narrow ? 285 : 132
+                height: page.narrow
+                        ? Math.max(285, heroNarrowColumn.implicitHeight
+                                       + metrics.spaceExtraLarge * 2)
+                        : Math.max(132, heroBadgesWide.y + heroBadgesWide.height
+                                       + metrics.spaceNormal)
                 x: page.sideMargin
 
                 radius: metrics.radiusCard
@@ -469,6 +474,7 @@ Item {
                     }
 
                     Text {
+                        id: heroTitleWide
                         x: 112
                         y: 24
                         width: parent.width - 140
@@ -481,8 +487,9 @@ Item {
                     }
 
                     Text {
+                        id: heroSummaryWide
                         x: 112
-                        y: 60
+                        y: heroTitleWide.y + heroTitleWide.height + metrics.spaceCompact
                         width: parent.width - 140
                         text: "Ro-Repo içindeki resmi Project Ro uygulamalarını terminal kullanmadan görüntüle, kur, güncelle veya kaldır."
                         color: themePalette.text
@@ -492,8 +499,9 @@ Item {
                     }
 
                     Row {
+                        id: heroBadgesWide
                         x: 112
-                        y: 88
+                        y: heroSummaryWide.y + heroSummaryWide.height + metrics.spaceNormal
                         spacing: metrics.spaceMedium
 
                         Rectangle {
@@ -501,7 +509,7 @@ Item {
                             color: themePalette.button
                             border.color: themePalette.mid
                             border.width: 1
-                            height: 32
+                            height: Math.max(32, appCountLabelWide.implicitHeight + 10)
                             width: appCountLabelWide.implicitWidth + 24
 
                             Text {
@@ -520,7 +528,7 @@ Item {
                             color: themePalette.button
                             border.color: themePalette.mid
                             border.width: 1
-                            height: 32
+                            height: Math.max(32, repoLabelWide.implicitHeight + 10)
                             width: repoLabelWide.implicitWidth + 24
 
                             Text {
@@ -538,6 +546,7 @@ Item {
 
                 // Küçük ekran düzeni
                 Column {
+                    id: heroNarrowColumn
                     visible: page.narrow
                     anchors.fill: parent
                     anchors.margins: metrics.spaceExtraLarge
@@ -591,7 +600,7 @@ Item {
                             color: themePalette.button
                             border.color: themePalette.mid
                             border.width: 1
-                            height: 32
+                            height: Math.max(32, appCountLabelNarrow.implicitHeight + 10)
                             width: appCountLabelNarrow.implicitWidth + 24
 
                             Text {
@@ -610,7 +619,7 @@ Item {
                             color: themePalette.button
                             border.color: themePalette.mid
                             border.width: 1
-                            height: 32
+                            height: Math.max(32, repoLabelNarrow.implicitHeight + 10)
                             width: repoLabelNarrow.implicitWidth + 24
 
                             Text {
@@ -682,7 +691,7 @@ Item {
                 width: page.contentWidth
                 x: page.sideMargin
 
-                property int cardWidth: 300
+                property int cardWidth: Math.max(300, Math.ceil(300 * metrics.fontScale))
                 // Keep the grid cell in sync with the theme-sized AppCard.
                 property int cardHeight: Math.ceil(metrics.applicationCardHeight)
                 property int gap: Math.ceil(metrics.spaceExtraLarge)
@@ -709,7 +718,7 @@ Item {
 
                         AppCard {
                             anchors.horizontalCenter: page.narrow ? parent.horizontalCenter : undefined
-                            width: page.narrow ? Math.min(300, parent.width) : 300
+                            width: Math.min(gridArea.cardWidth, parent.width)
 
                             titleText: model.appName
                             summaryText: model.summary
