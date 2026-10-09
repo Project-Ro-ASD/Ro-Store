@@ -269,7 +269,7 @@ Rectangle {
 
             // Use palette roles rather than fixed colors: inverted neutral
             // action like the original design, and system accent for Launch.
-            Button {
+            KeyboardActionButton {
                 id: detailsButton
                 Layout.fillWidth: true
                 Layout.preferredHeight: metrics.applicationCardActionHeight
@@ -317,7 +317,7 @@ Rectangle {
                 )
             }
 
-            Button {
+            KeyboardActionButton {
                 id: launchButton
                 visible: cardPackageStatus.installed
                 Layout.preferredWidth: Math.max(92, metrics.fontPx(92))
