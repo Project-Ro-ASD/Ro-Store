@@ -652,8 +652,9 @@ Item {
                 x: page.sideMargin
 
                 property int cardWidth: 300
-                property int cardHeight: 218
-                property int gap: 18
+                // Keep the grid cell in sync with the theme-sized AppCard.
+                property int cardHeight: Math.ceil(metrics.applicationCardHeight)
+                property int gap: Math.ceil(metrics.spaceExtraLarge)
                 property int columns: page.narrow ? 1 : Math.max(1, Math.floor((width + gap) / (cardWidth + gap)))
                 property int rows: Math.max(1, Math.ceil(appsGrid.count / columns))
 

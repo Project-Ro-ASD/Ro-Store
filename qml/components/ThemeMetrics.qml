@@ -24,5 +24,14 @@ QtObject {
     readonly property real spaceLarge: Platform.Units.largeSpacing * 2
     readonly property real spaceExtraLarge: Platform.Units.gridUnit
 
+    // A single size contract for the GridView cell and its AppCard.
+    // Account for the 54 px icon row, 42 px summary, 1 px divider,
+    // 20 px version row and 34 px action row, plus theme-derived gaps.
+    readonly property real applicationCardHeight: Math.ceil(
+        54 + 42 + 1 + 20 + 34
+        + spaceLarge * 2
+        + spaceMedium * 5
+        + spaceNormal)
+
     readonly property int durationShort: Platform.Units.shortDuration
 }

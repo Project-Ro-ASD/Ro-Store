@@ -1286,7 +1286,7 @@ Item {
 
                     contentItem: Text {
                         text: parent.text
-                        color: page.transactionProgress >= 50 ? themePalette.highlightedText : themePalette.text
+                        color: themePalette.highlightedText
                         font.pixelSize: 14
                         font.bold: true
                         horizontalAlignment: Text.AlignHCenter

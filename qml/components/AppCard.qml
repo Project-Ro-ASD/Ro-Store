@@ -48,7 +48,7 @@ Rectangle {
     )
 
     width: 300
-    height: 218
+    height: metrics.applicationCardHeight
     radius: metrics.radiusCard
     color: mouseArea.containsMouse ? themePalette.alternateBase : themePalette.base
     border.color: mouseArea.containsMouse ? themePalette.highlight : themePalette.mid
