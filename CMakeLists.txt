@@ -85,6 +85,7 @@ qt_add_qml_module(ro-store
         qml/pages/DownloadsPage.qml
         qml/components/AppCard.qml
         qml/components/ThemeMetrics.qml
+        qml/components/ThemedActionButton.qml
 )
 
 target_link_libraries(ro-store

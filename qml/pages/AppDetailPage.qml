@@ -859,7 +859,7 @@ Item {
             visible: !page.narrow
             anchors.fill: parent
 
-            Button {
+            ThemedActionButton {
                 text: "Durumu Yenile"
                 width: 130
                 height: 38
@@ -920,7 +920,8 @@ Item {
                 }
             }
 
-            Button {
+            ThemedActionButton {
+                accented: true
                 visible: packageStatus.installed && !page.transactionRunning
                 text: "Çalıştır"
                 width: 120
@@ -936,7 +937,12 @@ Item {
                 }
             }
 
-            Button {
+            ThemedActionButton {
+                // Install/update actions are prominent, removal stays outlined.
+                accented: page.repositoryBlocked
+                          || !packageStatus.installed
+                          || packageStatus.updateAvailable
+                outlined: !accented
                 text: page.primaryActionText
 
                 width: page.repositoryBlocked ? 210 : 130
@@ -1031,7 +1037,8 @@ Item {
                 }
             }
 
-            Button {
+            ThemedActionButton {
+                accented: true
                 visible: packageStatus.installed && !page.transactionRunning
                 text: "Çalıştır"
                 x: 12
@@ -1046,7 +1053,7 @@ Item {
                 }
             }
 
-            Button {
+            ThemedActionButton {
                 text: "Durumu Yenile"
                 x: packageStatus.installed && !page.transactionRunning ? 12 + ((parent.width - 48) / 3) + 12 : 12
                 y: page.transactionRunning ? 82 : 54
@@ -1056,7 +1063,12 @@ Item {
                 onClicked: packageStatus.checkInstalled(page.packageName, page.versionText)
             }
 
-            Button {
+            ThemedActionButton {
+                // Install/update actions are prominent, removal stays outlined.
+                accented: page.repositoryBlocked
+                          || !packageStatus.installed
+                          || packageStatus.updateAvailable
+                outlined: !accented
                 text: page.primaryActionText
 
                 x: packageStatus.installed && !page.transactionRunning
