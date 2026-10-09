@@ -1185,6 +1185,15 @@ Item {
         }
     }
 
+    // Give the window-level Escape handler a modal-first route.
+    function dismissOnEscape() {
+        if (removeConfirmDialog.visible) {
+            removeConfirmDialog.close()
+            return true
+        }
+        return false
+    }
+
     // KALDIRMA ONAY PENCERESİ
     FocusScope {
         id: removeConfirmDialog
@@ -1202,13 +1211,6 @@ Item {
 
         function close() {
             visible = false
-        }
-
-        Shortcut {
-            sequence: "Esc"
-            context: Qt.WindowShortcut
-            enabled: removeConfirmDialog.visible
-            onActivated: removeConfirmDialog.close()
         }
 
         Rectangle {
@@ -1368,9 +1370,11 @@ Item {
 
                             background: Rectangle {
                                 radius: metrics.radiusInner
-                                color: parent.hovered ? themePalette.alternateBase : themePalette.button
-                                border.color: page.secondaryText
-                                border.width: 1
+                                color: cancelRemoveButton.hovered
+                                       ? themePalette.alternateBase : themePalette.button
+                                border.color: cancelRemoveButton.activeFocus
+                                              ? themePalette.highlight : page.secondaryText
+                                border.width: cancelRemoveButton.activeFocus ? 3 : 1
                                 antialiasing: true
                             }
 
