@@ -338,6 +338,8 @@ Rectangle {
                                                                        themePalette.base.g,
                                                                        themePalette.base.b, 0.12))
                              : themePalette.highlight
+                    border.width: launchButton.activeFocus ? 3 : 0
+                    border.color: themePalette.highlightedText
                     antialiasing: true
 
                     Behavior on color {
