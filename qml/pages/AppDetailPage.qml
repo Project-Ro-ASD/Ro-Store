@@ -506,7 +506,7 @@ Item {
                 Column {
                     visible: page.narrow
                     anchors.fill: parent
-                    anchors.margins: 22
+                    anchors.margins: metrics.spaceExtraLarge
                     spacing: metrics.spaceMedium
 
                     Rectangle {
@@ -726,7 +726,7 @@ Item {
 
                     Row {
                         anchors.left: parent.left
-                        anchors.leftMargin: 8
+                        anchors.leftMargin: metrics.spaceNormal
                         anchors.verticalCenter: parent.verticalCenter
                         spacing: metrics.spaceNormal
 
@@ -791,7 +791,7 @@ Item {
 
                     Text {
                         anchors.right: parent.right
-                        anchors.rightMargin: 16
+                        anchors.rightMargin: metrics.spaceLarge
                         y: 14
                         text: "DNF5 işlem bilgisi"
                         color: page.secondaryText
@@ -864,7 +864,7 @@ Item {
                 width: 130
                 height: 38
                 anchors.left: parent.left
-                anchors.leftMargin: 12
+                anchors.leftMargin: metrics.spaceMedium
                 anchors.verticalCenter: parent.verticalCenter
                 enabled: !packageStatus.checking && !page.transactionRunning
                 onClicked: packageStatus.checkInstalled(page.packageName, page.versionText)
@@ -942,7 +942,7 @@ Item {
                 width: page.repositoryBlocked ? 210 : 130
                 height: 38
                 anchors.right: parent.right
-                anchors.rightMargin: 12
+                anchors.rightMargin: metrics.spaceMedium
                 anchors.verticalCenter: parent.verticalCenter
 
                 enabled:
@@ -1230,7 +1230,7 @@ Item {
 
                 Text {
                     anchors.fill: parent
-                    anchors.margins: 12
+                    anchors.margins: metrics.spaceMedium
                     text: "Bu işlem yalnızca seçili paketi kaldırır. İşlem sırasında sistem yönetici yetkisi isteyebilir."
                     color: themePalette.highlight
                     font.pixelSize: 13
