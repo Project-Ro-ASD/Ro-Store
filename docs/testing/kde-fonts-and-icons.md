@@ -108,3 +108,23 @@ Checks on a real KDE Plasma session:
    and catalog app artwork are unaffected.
 6. Restore the originally configured theme (Breeze).
 7. QML startup smoke tests cannot prove the running KDE refresh behavior.
+
+## Responsive baseline – 2026-10-09
+
+The next patch preserves wide layouts but prevents a hard 320 px content
+floor from overflowing very narrow windows. In Home, the narrow search,
+filter/refresh and Downloads rows use implicit control heights and actual
+spacing instead of fixed y=50/y=100. The Home title/subtitle and Downloads
+header use available-width constraints; the Detail "Ro-Store" header label
+is hidden in narrow mode to preserve navigation actions.
+
+Local KDE verification is REQUIRED before closing responsive QA:
+- Resize Home to 1000x650, 800x600, 600x500 and 400x500; check the
+  search/filter/refresh/downloads controls and featured card.
+- Check App Detail and Downloads at all four window sizes.
+- With 10 pt and 18 pt fonts, repeat 400x500 and 800x600 to find clipping.
+- Inspect remove confirmation modal at 400x500 and 18 pt separately.
+- Inspect DNF technical log, disabled states, and visible focus indication.
+- Run QT_SCALE_FACTOR=1.25 and 1.5 in separate processes for a quick
+  Qt-level smoke check (not a substitute for Plasma native display scaling).
+- No release/merge before visual inspection and successful CI.

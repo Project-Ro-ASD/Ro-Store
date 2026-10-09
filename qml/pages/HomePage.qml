@@ -52,8 +52,9 @@ Item {
     property int packageStatusRefreshSerial: 0
 
     property bool narrow: width < Math.max(900, Math.ceil(760 * metrics.fontScale))
-    property int sideMargin: narrow ? 24 : 36
-    property int contentWidth: Math.max(320, width - sideMargin * 2)
+    property int sideMargin: Math.min(narrow ? 24 : 36,
+                                      Math.max(8, Math.floor(width / 12)))
+    property int contentWidth: Math.max(0, width - sideMargin * 2)
 
     signal reloadRequested()
     signal downloadsRequested()
@@ -119,9 +120,13 @@ Item {
                     id: headerTitleColumn
                     anchors.left: parent.left
                     anchors.verticalCenter: parent.verticalCenter
+                    width: page.narrow ? parent.width
+                                       : Math.max(0, parent.width - headerControlsWide.width
+                                                     - metrics.spaceLarge)
                     spacing: metrics.spaceCompact
 
                     Text {
+                        width: parent.width
                         text: "Ro-Store"
                         color: themePalette.windowText
                         font.family: metrics.systemFont.family
@@ -130,7 +135,9 @@ Item {
                     }
 
                     Text {
+                        width: parent.width
                         text: "Project Ro resmi uygulama mağazası"
+                        wrapMode: Text.WordWrap
                         color: page.secondaryWindowText
                         font.family: metrics.systemFont.family
                         font.pixelSize: metrics.fontBodyLarge
@@ -138,6 +145,7 @@ Item {
                 }
 
                 Row {
+                    id: headerControlsWide
                     visible: !page.narrow
                     anchors.right: parent.right
                     anchors.verticalCenter: parent.verticalCenter
@@ -196,7 +204,7 @@ Item {
             Item {
                 visible: page.narrow
                 width: page.contentWidth
-                height: visible ? 142 : 0
+                height: visible ? downloadsButtonNarrow.y + downloadsButtonNarrow.height : 0
                 x: page.sideMargin
 
                 TextField {
@@ -204,7 +212,7 @@ Item {
                     x: 0
                     y: 0
                     width: parent.width
-                    height: 38
+                    height: Math.max(38, implicitHeight)
                     placeholderText: "Uygulama ara..."
                     text: page.catalog ? page.catalog.searchText : ""
 
@@ -216,16 +224,17 @@ Item {
                 }
 
                 Row {
+                    id: filterRowNarrow
                     x: 0
-                    y: 50
+                    y: searchFieldNarrow.height + metrics.spaceMedium
                     width: parent.width
-                    height: 38
+                    height: Math.max(categoryBoxNarrow.height, refreshButtonNarrow.height)
                     spacing: metrics.spaceMedium
 
                     ComboBox {
                         id: categoryBoxNarrow
-                        width: parent.width - 100
-                        height: 38
+                        width: Math.max(0, parent.width - refreshButtonNarrow.width - parent.spacing)
+                        height: Math.max(38, implicitHeight)
                         model: page.catalog ? page.catalog.categories : ["Tümü"]
 
                         onActivated: {
@@ -236,18 +245,20 @@ Item {
                     }
 
                     Button {
+                        id: refreshButtonNarrow
                         text: "Yenile"
-                        width: 90
-                        height: 38
+                        width: Math.max(90, implicitWidth)
+                        height: Math.max(38, implicitHeight)
                         onClicked: page.reloadRequested()
                     }
                 }
 
                 ThemedIconButton {
+                    id: downloadsButtonNarrow
                     x: 0
-                    y: 100
+                    y: filterRowNarrow.y + filterRowNarrow.height + metrics.spaceMedium
                     width: parent.width
-                    height: 38
+                    height: Math.max(38, implicitHeight)
 
                     text: "Yüklemeler"
                     themedIconName: "folder-download"
@@ -659,7 +670,7 @@ Item {
             // BAŞLIK
             Item {
                 width: page.contentWidth
-                height: 32
+                height: Math.max(32, metrics.fontPx(32))
                 x: page.sideMargin
 
                 Text {

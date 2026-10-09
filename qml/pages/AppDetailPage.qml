@@ -212,8 +212,9 @@ Item {
     }
 
     property bool narrow: width < Math.max(760, Math.ceil(760 * metrics.fontScale))
-    property int sideMargin: narrow ? 22 : 36
-    property int contentWidth: Math.max(320, width - sideMargin * 2)
+    property int sideMargin: Math.min(narrow ? 22 : 36,
+                                      Math.max(8, Math.floor(width / 12)))
+    property int contentWidth: Math.max(0, width - sideMargin * 2)
 
     property bool logsExpanded: false
     property string lastActionMessage: ""
@@ -346,6 +347,7 @@ Item {
         }
 
         Text {
+            visible: !page.narrow
             text: "Ro-Store"
             color: page.secondaryText
             font.family: metrics.systemFont.family
