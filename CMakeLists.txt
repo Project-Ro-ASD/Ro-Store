@@ -84,6 +84,7 @@ qt_add_qml_module(ro-store
         qml/pages/AppDetailPage.qml
         qml/pages/DownloadsPage.qml
         qml/components/AppCard.qml
+        qml/components/ThemeMetrics.qml
 )
 
 target_link_libraries(ro-store
@@ -166,7 +167,7 @@ set(CPACK_RPM_PACKAGE_AUTOREQ ON)
 set(CPACK_RPM_PACKAGE_AUTOPROV ON)
 
 # Ro-Store package transactions use the DNF5 daemon over D-Bus.
-set(CPACK_RPM_PACKAGE_REQUIRES "dnf5daemon-server, dnf5daemon-server-polkit, polkit")
+set(CPACK_RPM_PACKAGE_REQUIRES "dnf5daemon-server, dnf5daemon-server-polkit, polkit, kf6-kirigami")
 
 set(CPACK_RPM_FILE_NAME "RPM-DEFAULT")
 
