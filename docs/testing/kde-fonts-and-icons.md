@@ -151,3 +151,16 @@ Test on the actual Fedora KDE desktop with an already-installed program:
   No extra install/remove action is required merely to exercise the log UI.
 - The CI headless QML smoke test cannot verify dialog readability or
   focus behavior, which still requires desktop inspection.
+
+## Dialog compact-height visual correction — 2026-10-09
+
+The 400x500, 800x600, and approximately 1300x700 screenshots confirmed the
+modal was functional but had about 90–120 px of unnecessary empty space below
+the Cancel/Remove actions due to an unconditional 360 px minimum height.
+Use the natural content implicit height plus internal margins, clamped to
+the viewport; the existing Flickable is retained for enlarged fonts or
+short screens. Reset its scroll origin when opening the dialog.
+
+Re-check the modal at those three window sizes and with 18 pt KDE fonts.
+The normal dialog should fit its content; all actions remain reachable on
+small screens. Do not press the destructive confirmation during visual QA.

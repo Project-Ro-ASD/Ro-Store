@@ -1194,6 +1194,8 @@ Item {
         z: 9999
 
         function open() {
+            // Always show the heading after a previous tall-font scroll.
+            removeDialogScroll.contentY = 0
             visible = true
         }
 
@@ -1219,8 +1221,8 @@ Item {
             // reach both confirmation actions rather than clipping them.
             width: Math.max(0, Math.min(520, page.width - metrics.spaceLarge * 2))
             height: Math.max(0, Math.min(page.height - metrics.spaceLarge * 2,
-                                Math.max(360, removeDialogContent.implicitHeight
-                                              + metrics.spaceLarge * 2)))
+                                      removeDialogContent.implicitHeight
+                                      + metrics.spaceLarge * 2))
             anchors.centerIn: parent
 
             radius: metrics.radiusCard
