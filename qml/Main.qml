@@ -1,5 +1,6 @@
 import QtQuick
 import QtQuick.Controls
+import QtQuick.Layouts
 import RoStore 1.0
 import "pages"
 import "components"
@@ -20,6 +21,30 @@ ApplicationWindow {
     visible: true
     title: "Ro-Store"
     property bool exitingFromTray: false
+    property var pendingConfirmation: null
+
+    function formatSize(bytes) {
+        var value = Number(bytes)
+        if (!isFinite(value) || value <= 0) return "0 MB"
+        return value < 1073741824
+             ? (value / 1048576).toFixed(2) + " MB"
+             : (value / 1073741824).toFixed(2) + " GB"
+    }
+
+    function resolvedPlanText(transaction) {
+        if (!transaction) return ""
+        var items = transaction.resolvedItems
+        var lines = []
+        for (var i = 0; i < items.length; ++i) {
+            var row = items[i]
+            var pkg = row.object || {}
+            lines.push((i + 1) + ". " + (row.action || "İşlem") + " — "
+                       + (pkg.name || "?") + " " + (pkg.version || "")
+                       + " [" + (row.reason || "—") + "]")
+        }
+        return lines.join("\n")
+    }
+
 
     // The system tray keeps the QML engine and transaction manager alive.
     // If KDE provides no tray, do not allow closing during a package operation.
@@ -109,6 +134,84 @@ ApplicationWindow {
         }
     }
 
+    Dialog {
+        id: transactionApproval
+        parent: Overlay.overlay
+        anchors.centerIn: parent
+        modal: true
+        closePolicy: Popup.NoAutoClose
+        title: "Paket işlemini onayla"
+        width: Math.min(root.width - 24, 610)
+        height: Math.min(root.height - 24, 550)
+        standardButtons: Dialog.NoButton
+
+        onClosed: {
+            if (root.pendingConfirmation) {
+                transactionManager.cancelTransaction(root.pendingConfirmation)
+                root.pendingConfirmation = null
+            }
+        }
+
+        ColumnLayout {
+            anchors.fill: parent
+            spacing: 10
+            Label {
+                Layout.fillWidth: true
+                wrapMode: Text.WordWrap
+                font.bold: true
+                text: root.pendingConfirmation
+                      ? root.pendingConfirmation.packageName + " — "
+                        + root.pendingConfirmation.resolvedItemCount + " paket işlemi"
+                      : ""
+            }
+            Label {
+                Layout.fillWidth: true
+                wrapMode: Text.WordWrap
+                text: root.pendingConfirmation
+                      ? "Toplam tahmini indirme: "
+                        + root.formatSize(root.pendingConfirmation.totalBytes)
+                        + ". Ek bağımlılıkları ve kaldırılacak paketleri inceleyin."
+                      : ""
+            }
+            ScrollView {
+                Layout.fillWidth: true
+                Layout.fillHeight: true
+                clip: true
+                TextEdit {
+                    width: parent.width
+                    readOnly: true
+                    selectByMouse: true
+                    wrapMode: TextEdit.Wrap
+                    color: themePalette.text
+                    text: root.resolvedPlanText(root.pendingConfirmation)
+                }
+            }
+            RowLayout {
+                Layout.fillWidth: true
+                spacing: 12
+                ThemedActionButton {
+                    text: "Vazgeç"
+                    Layout.fillWidth: true
+                    Layout.minimumHeight: 42
+                    onClicked: transactionApproval.close()
+                }
+                ThemedActionButton {
+                    text: "Onayla ve uygula"
+                    accented: true
+                    Layout.fillWidth: true
+                    Layout.minimumHeight: 42
+                    onClicked: {
+                        if (!root.pendingConfirmation)
+                            return
+                        root.pendingConfirmation = null
+                        transactionApproval.close()
+                        transactionManager.executeActive()
+                    }
+                }
+            }
+        }
+    }
+
     CatalogModel {
         id: catalogModel
     }
@@ -140,7 +243,11 @@ ApplicationWindow {
                 transaction.totalBytes
             )
 
-            transactionManager.executeActive()
+            if (!transactionManager.outcomeUncertain
+                    && transaction.state === PackageTransaction.Ready) {
+                root.pendingConfirmation = transaction
+                transactionApproval.open()
+            }
         }
     }
 
