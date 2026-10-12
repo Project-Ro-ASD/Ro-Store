@@ -38,6 +38,7 @@ public:
         Running,
         Finished,
         Failed,
+        OutcomeUnknown,
         Cancelled
     };
     Q_ENUM(State)
@@ -83,6 +84,7 @@ public:
     void setResolvedItems(const QVariantList &items);
 
     void fail(const QString &message);
+    void markOutcomeUnknown(const QString &message);
 
 signals:
     void stateChanged();
