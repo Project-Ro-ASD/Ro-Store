@@ -2,6 +2,7 @@ import QtQuick
 import QtQuick.Controls
 import RoStore 1.0
 import "pages"
+import "components"
 
 ApplicationWindow {
     id: root
