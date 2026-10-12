@@ -7,6 +7,7 @@
 #include <QDir>
 #include <QSaveFile>
 #include <QFile>
+#include <QFileInfo>
 #include <QJsonDocument>
 #include <QJsonObject>
 #include <QDateTime>
@@ -742,8 +743,23 @@ void PackageTransactionManager::recheckRecovery()
                 "İşlem geçmişini ve dnf5daemon-server durumunu kontrol edip "
                 "önceki işlemin bittiğinden emin olmadan kilidi kaldırmayın.")
                 .arg(m_pendingPackage, m_pendingOperation, m_pendingStartedAt, rpmResult);
-            setRecoveryDetails(message);
             process->deleteLater();
+            // Cross-check DNF5's actual history. This stays read-only,
+            // and never silently reenqueues a recovered mutation.
+            auto *history = new QProcess(this);
+            history->setProgram(QStringLiteral("dnf5"));
+            history->setArguments({QStringLiteral("history"), QStringLiteral("list")});
+            connect(history, &QProcess::finished, this,
+                [this, history, message](int code, QProcess::ExitStatus result) {
+                    const QString output = QString::fromLocal8Bit(history->readAllStandardOutput());
+                    const QString historyStatus = result == QProcess::NormalExit && code == 0
+                        ? QStringLiteral("DNF5 geçmişi okundu; son Ro-Store işlemleri ayrıca doğrulanmalı.\\n")
+                          + output.left(3500)
+                        : QStringLiteral("DNF5 geçmişi okunamadı. Servis durumu ve geçmiş manuel kontrol edilmeli.");
+                    setRecoveryDetails(message + QStringLiteral("\\n") + historyStatus);
+                    history->deleteLater();
+                });
+            history->start();
         });
     process->start();
 }
