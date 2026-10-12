@@ -270,8 +270,9 @@ PackageTransactionManager::PackageTransactionManager(
         for (PackageTransaction *queued : m_queue) {
             queued->appendTechnicalLog(QStringLiteral(
                 "Önceki DNF5 işleminin sonucu belirsiz olduğundan bu istek çalıştırılmadı."));
-            queued->markOutcomeUnknown(QStringLiteral(
-                "Güvenlik nedeniyle gönderilmedi. Önceki işlemin sonucu doğrulanmalı."));
+            queued->setErrorMessage(QStringLiteral(
+                "İşlem DNF5'e gönderilmedi; önceki işlem belirsizleşince kuyruktan kaldırıldı."));
+            queued->setState(PackageTransaction::State::Cancelled);
         }
         m_queue.clear();
         emit queuedCountChanged();
