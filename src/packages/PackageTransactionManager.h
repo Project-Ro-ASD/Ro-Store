@@ -154,4 +154,5 @@ private:
     QString m_pendingOperation;
     QString m_pendingStartedAt;
     bool m_recheckBusy = false;
+    bool m_recoveryVerified = false;
 };
