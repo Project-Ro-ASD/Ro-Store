@@ -2,6 +2,8 @@
 
 #include <QtGlobal>
 #include <QDateTime>
+#include <QClipboard>
+#include <QGuiApplication>
 
 PackageTransaction::PackageTransaction(
     const QString &packageName,
@@ -19,6 +21,12 @@ PackageTransaction::PackageTransaction(
 QString PackageTransaction::packageName() const
 {
     return m_packageName;
+}
+
+void PackageTransaction::copyTechnicalLog(const QString &text) const
+{
+    if (QGuiApplication::clipboard())
+        QGuiApplication::clipboard()->setText(text);
 }
 
 QString PackageTransaction::repositoryId() const
