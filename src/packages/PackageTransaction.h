@@ -52,6 +52,7 @@ public:
     QString repositoryId() const;
     QString technicalLog() const;
     void appendTechnicalLog(const QString &message);
+    Q_INVOKABLE void copyTechnicalLog(const QString &text) const;
     Operation operation() const;
     State state() const;
 
