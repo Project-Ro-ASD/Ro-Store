@@ -11,6 +11,7 @@
 #include <QJsonDocument>
 #include <QJsonObject>
 #include <QDateTime>
+#include <QTimeZone>
 #include <QProcess>
 #include <QProcessEnvironment>
 #include <QTimer>
@@ -762,9 +763,9 @@ void PackageTransactionManager::recheckRecovery()
             const bool installed = status == QProcess::NormalExit && exitCode == 0;
             const QString rpmResult = installed ? QStringLiteral("Kurulu") : QStringLiteral("Kurulu görünmüyor");
             const QString message = QStringLiteral(
-                "Önceki paket: %1 | İşlem kodu: %2 | Başlangıç (UTC): %3\\n"
+                "Önceki paket: %1 | İşlem kodu: %2 | Başlangıç (UTC): %3\n"
                 "RPM durumu: %4. Bu kontrol tek başına DNF5 işleminin tamamlandığını "
-                "veya artık çalışmadığını kanıtlamaz.\\n"
+                "veya artık çalışmadığını kanıtlamaz.\n"
                 "İşlem geçmişini ve dnf5daemon-server durumunu kontrol edip "
                 "önceki işlemin bittiğinden emin olmadan kilidi kaldırmayın.")
                 .arg(m_pendingPackage, m_pendingOperation, m_pendingStartedAt, rpmResult);
@@ -801,7 +802,7 @@ void PackageTransactionManager::recheckRecovery()
                         const auto entry = iterator.next();
                         QDateTime candidate = QDateTime::fromString(
                             entry.captured(2), QStringLiteral("yyyy-MM-dd HH:mm:ss"));
-                        candidate.setTimeSpec(Qt::UTC);
+                        candidate.setTimeZone(QTimeZone::UTC);
                         if (candidate.isValid() && expectedStart.isValid()
                             && candidate >= expectedStart.addSecs(-20)) {
                             id = entry.captured(1);
@@ -829,7 +830,7 @@ void PackageTransactionManager::recheckRecovery()
                             const auto startMatch = beginPattern.match(text);
                             QDateTime recordedStart = QDateTime::fromString(
                                 startMatch.captured(1), QStringLiteral("yyyy-MM-dd HH:mm:ss"));
-                            recordedStart.setTimeSpec(Qt::UTC);
+                            recordedStart.setTimeZone(QTimeZone::UTC);
                             const QDateTime expectedStart = QDateTime::fromString(
                                 m_pendingStartedAt, Qt::ISODate).toUTC();
                             const bool matchingDate = recordedStart.isValid()
