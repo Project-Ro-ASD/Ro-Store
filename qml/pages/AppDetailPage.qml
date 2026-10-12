@@ -48,6 +48,21 @@ Item {
         && trackedTransaction.state !== PackageTransaction.Failed
         && trackedTransaction.state !== PackageTransaction.Cancelled
 
+    property bool canCancelTransaction: page.transactionRunning
+        && !page.trackedTransaction.cancelRequested
+        && (page.trackedTransaction.state === PackageTransaction.Queued
+            || page.trackedTransaction.state === PackageTransaction.Resolving
+            || page.trackedTransaction.state === PackageTransaction.Ready
+            || page.trackedTransaction.state === PackageTransaction.Downloading)
+
+    function formatBytes(bytes) {
+        var size = Number(bytes)
+        if (!isFinite(size) || size <= 0) return "0 MB"
+        if (size < 1024 * 1024) return (size / 1024).toFixed(1) + " KB"
+        if (size < 1024 * 1024 * 1024) return (size / (1024 * 1024)).toFixed(2) + " MB"
+        return (size / (1024 * 1024 * 1024)).toFixed(2) + " GB"
+    }
+
     property int transactionProgress:
         trackedTransaction !== null
         ? trackedTransaction.progress
@@ -164,10 +179,9 @@ Item {
         if (trackedTransaction.totalBytes > 0) {
             lines.push(
                 "İndirilen: "
-                + trackedTransaction.downloadedBytes
+                + page.formatBytes(trackedTransaction.downloadedBytes)
                 + " / "
-                + trackedTransaction.totalBytes
-                + " bayt"
+                + page.formatBytes(trackedTransaction.totalBytes)
             )
         }
 
@@ -1031,6 +1045,18 @@ Item {
             }
 
             ThemedActionButton {
+                text: page.trackedTransaction && page.trackedTransaction.cancelRequested ? "İptal bekleniyor" : "İptal Et"
+                visible: page.transactionRunning
+                enabled: page.canCancelTransaction
+                width: 140
+                height: 38
+                anchors.right: parent.right
+                anchors.rightMargin: 148
+                anchors.verticalCenter: parent.verticalCenter
+                onClicked: page.packageTransactionManager.cancelTransaction(page.trackedTransaction)
+            }
+
+            ThemedActionButton {
                 // Install/update actions are prominent, removal stays outlined.
                 accented: page.repositoryBlocked
                           || !packageStatus.installed
@@ -1149,7 +1175,19 @@ Item {
             }
 
             ThemedActionButton {
+                text: page.trackedTransaction && page.trackedTransaction.cancelRequested ? "İptal bekleniyor" : "İptal Et"
+                visible: page.transactionRunning
+                enabled: page.canCancelTransaction
+                x: 12
+                y: 82
+                width: Math.max(0, (parent.width - 36) / 2)
+                height: Math.max(38, metrics.fontPx(38))
+                onClicked: page.packageTransactionManager.cancelTransaction(page.trackedTransaction)
+            }
+
+            ThemedActionButton {
                 text: "Durumu Yenile"
+                visible: !page.transactionRunning
                 x: packageStatus.installed && !page.transactionRunning ? 12 + ((parent.width - 48) / 3) + 12 : 12
                 y: page.transactionRunning ? 82 : 54
                 width: packageStatus.installed && !page.transactionRunning ? (parent.width - 48) / 3 : (parent.width - 36) / 2
