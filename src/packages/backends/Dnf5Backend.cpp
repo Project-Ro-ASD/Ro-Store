@@ -2331,6 +2331,12 @@ void Dnf5Backend::ensureSessionAsync(std::function<void(bool)> callback)
         return;
     }
 
+    // Loading metadata for multiple enabled Fedora repositories can take
+    // longer than Qt D-Bus's 25-second default, especially on first launch.
+    // This is only session creation; do not silently retry package mutations.
+    constexpr int sessionOpenTimeoutMs = 120000;
+    manager.setTimeout(sessionOpenTimeoutMs);
+
     QVariantMap options;
 
     QMap<QString, QString> config;
@@ -2365,8 +2371,15 @@ void Dnf5Backend::ensureSessionAsync(std::function<void(bool)> callback)
 
             if (reply.isError()) {
                 setLastError(
-                    QStringLiteral("DNF5 oturumu açılamadı: %1")
-                        .arg(reply.error().message())
+                    QStringLiteral("DNF5 oturumu açılamadı: %1%2")
+                        .arg(reply.error().message(),
+                             reply.error().type() == QDBusError::NoReply
+                                 ? QStringLiteral(
+                                     "\\nDNF5 servisi 120 saniye içinde cevap vermedi. "
+                                     "Başka bir DNF işlemi, servis kilitlenmesi veya "
+                                     "depo meta verisi yüklemesi olabilir. "
+                                     "Servis günlüklerini ve etkin depoları kontrol edin.")
+                                 : QString())
                 );
 
                 qWarning()
