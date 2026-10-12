@@ -72,24 +72,30 @@ ApplicationWindow {
                 wrapMode: Text.WordWrap
                 text: "Paket kurulumu veya kaldırma işlemi devam ediyor. Uygulamadan tamamen çıkarsanız işlem kesilebilir. Emin misiniz?"
             }
-            Row {
+            Column {
+                width: parent.width
                 spacing: 8
                 ThemedActionButton {
+                    width: parent.width
+                    height: Math.max(38, implicitHeight)
+                    visible: TrayController.available
                     text: "Arka planda sürdür"
                     onClicked: {
                         exitConfirmation.close()
-                        if (TrayController.available) {
-                            root.hide()
-                            TrayController.notifyBackground()
-                        }
+                        root.hide()
+                        TrayController.notifyBackground()
                     }
                 }
                 ThemedActionButton {
+                    width: parent.width
+                    height: Math.max(38, implicitHeight)
                     text: "Vazgeç"
                     onClicked: exitConfirmation.close()
                 }
                 ThemedActionButton {
-                    text: "Yine de çık"
+                    width: parent.width
+                    height: Math.max(38, implicitHeight)
+                    text: "Yine de çık (işlem kesilebilir)"
                     onClicked: {
                         exitConfirmation.close()
                         root.exitingFromTray = true
