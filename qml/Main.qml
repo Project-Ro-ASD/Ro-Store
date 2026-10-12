@@ -196,12 +196,13 @@ ApplicationWindow {
 
         DownloadsPage {
             packageTransactionManager: transactionManager
-            onPackageRequested: function(name, repository) {
-                var fedoraRepo = repository && repository !== "ro-asd-beta"
+            onPackageRequested: function(tx) {
+                var fedoraRepo = tx.repositoryId && tx.repositoryId !== "ro-asd-beta"
                 stackView.push(detailPageComponent, {
-                    appName: name,
-                    packageName: name,
-                    packageRepository: fedoraRepo ? repository : "ro-asd",
+                    appName: tx.packageName,
+                    packageName: tx.packageName,
+                    initialTransaction: tx,
+                    packageRepository: fedoraRepo ? tx.repositoryId : "ro-asd",
                     categoryText: fedoraRepo ? "Fedora RPM" : "Ro-ASD",
                     summaryText: "",
                     descriptionText: "",
