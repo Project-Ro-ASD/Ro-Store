@@ -47,9 +47,11 @@ Item {
         trackedTransaction !== null
         && trackedTransaction.state !== PackageTransaction.Finished
         && trackedTransaction.state !== PackageTransaction.Failed
+        && trackedTransaction.state !== PackageTransaction.OutcomeUnknown
         && trackedTransaction.state !== PackageTransaction.Cancelled
 
     property bool canCancelTransaction: page.transactionRunning
+        && !page.packageTransactionManager.outcomeUncertain
         && !page.trackedTransaction.cancelRequested
         && (page.trackedTransaction.state === PackageTransaction.Queued
             || page.trackedTransaction.state === PackageTransaction.Resolving
@@ -160,6 +162,8 @@ Item {
             return "Tamamlandı"
         case PackageTransaction.Failed:
             return "Başarısız"
+        case PackageTransaction.OutcomeUnknown:
+            return "Sonuç belirsiz"
         case PackageTransaction.Cancelled:
             return "İptal edildi"
         }
@@ -196,7 +200,7 @@ Item {
     }
 
     function startInstallTransaction() {
-        if (!packageTransactionManager || transactionRunning)
+        if (!packageTransactionManager || packageTransactionManager.outcomeUncertain || transactionRunning)
             return
 
         page.logsExpanded = false
@@ -209,7 +213,7 @@ Item {
     }
 
     function startUpgradeTransaction() {
-        if (!packageTransactionManager || transactionRunning)
+        if (!packageTransactionManager || packageTransactionManager.outcomeUncertain || transactionRunning)
             return
 
         page.logsExpanded = false
@@ -222,7 +226,7 @@ Item {
     }
 
     function startRemoveTransaction() {
-        if (!packageTransactionManager || transactionRunning)
+        if (!packageTransactionManager || packageTransactionManager.outcomeUncertain || transactionRunning)
             return
 
         page.logsExpanded = false
@@ -298,6 +302,10 @@ Item {
                     page.versionText
                 )
 
+            } else if (page.trackedTransaction.state === PackageTransaction.OutcomeUnknown) {
+                page.lastActionMessage = page.trackedTransaction.errorMessage
+                page.lastActionSuccess = false
+                page.logsExpanded = true
             } else if (page.trackedTransaction.state === PackageTransaction.Failed) {
                 page.lastActionMessage =
                     page.trackedTransaction.errorMessage.length > 0
