@@ -161,6 +161,28 @@ ApplicationWindow {
         }
     }
 
+    Rectangle {
+        id: transactionSafetyNotice
+        visible: transactionManager.outcomeUncertain
+        anchors.top: parent.top
+        anchors.left: parent.left
+        anchors.right: parent.right
+        height: Math.max(66, noticeLabel.implicitHeight + 20)
+        z: 100
+        color: themePalette.base
+        border.color: themePalette.highlight
+        border.width: 2
+        Label {
+            id: noticeLabel
+            anchors.fill: parent
+            anchors.margins: 10
+            text: "DNF5 işlem sonucu belirsiz! Yeni paket işlemleri durduruldu. " +
+                  "Önce Yüklemeler ekranındaki teknik günlüğü ve sistem paket durumunu kontrol edin."
+            color: themePalette.text
+            wrapMode: Text.WordWrap
+        }
+    }
+
     StackView {
         id: stackView
         anchors.fill: parent
