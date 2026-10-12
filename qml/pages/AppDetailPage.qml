@@ -947,11 +947,17 @@ Item {
         x: page.sideMargin
         y: parent.height - height - 20
         width: page.contentWidth
+        // Running transactions use a separate status row and action row.
+        // No absolute horizontal positioning can collide with the progress bar.
         height: page.narrow
                 ? Math.max(page.transactionRunning ? 132 : 104,
                            (page.transactionRunning ? 82 : 54)
                            + Math.max(38, metrics.fontPx(38)) + 12)
-                : Math.max(62, metrics.fontPx(38) + metrics.spaceNormal * 2)
+                : page.transactionRunning
+                  ? Math.max(108, metrics.fontPx(38)
+                                   + metrics.spaceLarge * 2
+                                   + metrics.spaceMedium * 2)
+                  : Math.max(62, metrics.fontPx(38) + metrics.spaceNormal * 2)
 
         radius: metrics.radiusInner
         color: themePalette.base
@@ -966,6 +972,7 @@ Item {
 
             ThemedActionButton {
                 text: "Durumu Yenile"
+                visible: !page.transactionRunning
                 width: 130
                 height: 38
                 anchors.left: parent.left
@@ -976,9 +983,13 @@ Item {
             }
 
             Text {
-                x: 155
-                width: parent.width - (page.transactionRunning ? 665 : 455)
-                anchors.verticalCenter: parent.verticalCenter
+                x: page.transactionRunning ? metrics.spaceMedium : 155
+                y: page.transactionRunning
+                   ? metrics.spaceNormal
+                   : Math.max(0, (parent.height - height) / 2)
+                width: page.transactionRunning
+                       ? Math.max(0, parent.width - metrics.spaceMedium * 2)
+                       : Math.max(0, parent.width - 455)
                 text: page.displayStatusText
                 color: page.displayStatusColor
                 font.family: metrics.systemFont.family
@@ -988,11 +999,12 @@ Item {
 
             Rectangle {
                 visible: page.transactionRunning
-                width: 185
                 height: 30
-                anchors.right: parent.right
-                anchors.rightMargin: 282
-                anchors.verticalCenter: parent.verticalCenter
+                anchors.left: parent.left
+                anchors.leftMargin: metrics.spaceMedium
+                anchors.right: cancelButtonWide.left
+                anchors.rightMargin: metrics.spaceMedium
+                anchors.verticalCenter: cancelButtonWide.verticalCenter
 
                 radius: metrics.radiusControl
                 color: themePalette.button
@@ -1045,18 +1057,23 @@ Item {
             }
 
             ThemedActionButton {
-                text: page.trackedTransaction && page.trackedTransaction.cancelRequested ? "İptal bekleniyor" : "İptal Et"
+                id: cancelButtonWide
+                text: page.trackedTransaction && page.trackedTransaction.cancelRequested
+                      ? "İptal bekleniyor"
+                      : page.canCancelTransaction ? "İptal Et" : "İptal edilemez"
                 visible: page.transactionRunning
                 enabled: page.canCancelTransaction
-                width: 140
-                height: 38
+                width: Math.max(148, implicitWidth + metrics.spaceMedium * 2)
+                height: Math.max(38, metrics.fontPx(38))
                 anchors.right: parent.right
-                anchors.rightMargin: 148
-                anchors.verticalCenter: parent.verticalCenter
+                anchors.rightMargin: metrics.spaceMedium
+                anchors.bottom: parent.bottom
+                anchors.bottomMargin: metrics.spaceNormal
                 onClicked: page.packageTransactionManager.cancelTransaction(page.trackedTransaction)
             }
 
             ThemedActionButton {
+                visible: !page.transactionRunning
                 // Install/update actions are prominent, removal stays outlined.
                 accented: page.repositoryBlocked
                           || !packageStatus.installed
@@ -1175,12 +1192,14 @@ Item {
             }
 
             ThemedActionButton {
-                text: page.trackedTransaction && page.trackedTransaction.cancelRequested ? "İptal bekleniyor" : "İptal Et"
+                text: page.trackedTransaction && page.trackedTransaction.cancelRequested
+                      ? "İptal bekleniyor"
+                      : page.canCancelTransaction ? "İptal Et" : "İptal edilemez"
                 visible: page.transactionRunning
                 enabled: page.canCancelTransaction
                 x: 12
                 y: 82
-                width: Math.max(0, (parent.width - 36) / 2)
+                width: Math.max(0, parent.width - 24)
                 height: Math.max(38, metrics.fontPx(38))
                 onClicked: page.packageTransactionManager.cancelTransaction(page.trackedTransaction)
             }
@@ -1197,6 +1216,7 @@ Item {
             }
 
             ThemedActionButton {
+                visible: !page.transactionRunning
                 // Install/update actions are prominent, removal stays outlined.
                 accented: page.repositoryBlocked
                           || !packageStatus.installed
