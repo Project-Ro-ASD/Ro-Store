@@ -18,6 +18,40 @@ ApplicationWindow {
     height: 650
     visible: true
     title: "Ro-Store"
+    property bool exitingFromTray: false
+
+    // The system tray keeps the QML engine and transaction manager alive.
+    // If KDE provides no tray, do not allow closing during a package operation.
+    onClosing: function(close) {
+        if (root.exitingFromTray)
+            return
+        close.accepted = false
+        if (TrayController.available) {
+            root.hide()
+            TrayController.notifyBackground()
+        } else if (!transactionManager.busy) {
+            Qt.quit()
+        } else {
+            root.show()
+            root.raise()
+            root.requestActivate()
+        }
+    }
+
+    Connections {
+        target: TrayController
+        function onShowRequested() {
+            root.show()
+            root.raise()
+            root.requestActivate()
+        }
+        function onQuitRequested() {
+            if (!transactionManager.busy) {
+                root.exitingFromTray = true
+                Qt.quit()
+            }
+        }
+    }
     color: themePalette.window
 
     CatalogModel {
@@ -30,6 +64,7 @@ ApplicationWindow {
 
     PackageTransactionManager {
         id: transactionManager
+        onBusyChanged: TrayController.setBusy(busy)
 
         onTransactionActivated: function(transaction) {
             console.log(
