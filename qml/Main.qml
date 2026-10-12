@@ -175,7 +175,6 @@ ApplicationWindow {
                             + "başladığında gerçek boyut gösterilecek. ")
                         + "Ek bağımlılıkları ve kaldırılacak paketleri inceleyin."
                       : ""
-                      : ""
             }
             ScrollView {
                 Layout.fillWidth: true
