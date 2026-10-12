@@ -33,9 +33,9 @@ Item {
     property int contentWidth: Math.max(0, width - sideMargin * 2)
 
     signal backRequested()
-    signal packageRequested(string name, string repository)
+    signal packageRequested(var transaction)
     function openTransaction(tx) {
-        if (tx) page.packageRequested(tx.packageName, tx.repositoryId)
+        if (tx) page.packageRequested(tx)
     }
 
     function operationText(operation) {
