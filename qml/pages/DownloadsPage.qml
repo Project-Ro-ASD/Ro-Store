@@ -33,6 +33,10 @@ Item {
     property int contentWidth: Math.max(0, width - sideMargin * 2)
 
     signal backRequested()
+    signal packageRequested(string name, string repository)
+    function openTransaction(tx) {
+        if (tx) page.packageRequested(tx.packageName, tx.repositoryId)
+    }
 
     function operationText(operation) {
         switch (operation) {
@@ -261,6 +265,14 @@ Item {
             // AKTİF İŞLEM
             Rectangle {
                 id: activeCard
+                activeFocusOnTab: true
+                Keys.onReturnPressed: page.openTransaction(tx)
+                Keys.onEnterPressed: page.openTransaction(tx)
+                MouseArea {
+                    anchors.fill: parent
+                    cursorShape: Qt.PointingHandCursor
+                    onClicked: page.openTransaction(activeCard.tx)
+                }
 
                 property var tx: page.packageTransactionManager
                                  ? page.packageTransactionManager.activeTransaction
@@ -514,6 +526,15 @@ Item {
                        : null
 
                 delegate: Rectangle {
+                    id: queuedCard
+                    activeFocusOnTab: true
+                    Keys.onReturnPressed: page.openTransaction(tx)
+                    Keys.onEnterPressed: page.openTransaction(tx)
+                    MouseArea {
+                        anchors.fill: parent
+                        cursorShape: Qt.PointingHandCursor
+                        onClicked: page.openTransaction(queuedCard.tx)
+                    }
                     property var tx: page.packageTransactionManager
                                      ? page.packageTransactionManager.model.get(index)
                                      : null
@@ -594,6 +615,15 @@ Item {
                        : null
 
                 delegate: Rectangle {
+                    id: historyCard
+                    activeFocusOnTab: true
+                    Keys.onReturnPressed: page.openTransaction(tx)
+                    Keys.onEnterPressed: page.openTransaction(tx)
+                    MouseArea {
+                        anchors.fill: parent
+                        cursorShape: Qt.PointingHandCursor
+                        onClicked: page.openTransaction(historyCard.tx)
+                    }
                     property var tx: page.packageTransactionManager
                                      ? page.packageTransactionManager.model.get(index)
                                      : null
