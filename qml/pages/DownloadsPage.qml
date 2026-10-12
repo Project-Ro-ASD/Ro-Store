@@ -455,12 +455,10 @@ Item {
 
                     y: page.narrow ? 174 : 126
 
-                    enabled: activeCard.tx
-                             && !activeCard.tx.cancelRequested
+                    enabled: activeCard.tx && page.packageTransactionManager
                              && (activeCard.tx.state === PackageTransaction.Queued
-                                 || activeCard.tx.state === PackageTransaction.Resolving
-                                 || activeCard.tx.state === PackageTransaction.Ready
-                                 || activeCard.tx.state === PackageTransaction.Downloading)
+                                 || (activeCard.tx === page.packageTransactionManager.activeTransaction
+                                     && page.packageTransactionManager.canCancelActive))
 
                     onClicked: {
                         if (page.packageTransactionManager && activeCard.tx)
