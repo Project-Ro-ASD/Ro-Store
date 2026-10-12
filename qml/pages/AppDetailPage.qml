@@ -41,6 +41,7 @@ Item {
     property var packageTransactionManager: null
     property var repositorySourceManager: null
     property var trackedTransaction: null
+    property var initialTransaction: null
 
     property bool transactionRunning:
         trackedTransaction !== null
@@ -334,8 +335,7 @@ Item {
                     page.packageName
                 )
 
-            if (pending)
-                page.trackedTransaction = pending
+            page.trackedTransaction = page.initialTransaction || pending
         }
 
         packageStatus.checkInstalled(
