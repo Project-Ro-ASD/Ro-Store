@@ -110,6 +110,8 @@ signals:
     void transactionResetFinished();
     void transactionResetFailed(QString error);
 
+    void transactionCancelOutcomeUnknown(QString error);
+
     void transactionCancelFinished(
         bool success,
         QString error
