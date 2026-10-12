@@ -103,6 +103,10 @@ signals:
 
     void transactionExecutionFailed(QString error);
 
+    // A failed D-Bus response after dispatch does not prove the daemon stopped.
+    // The transaction must remain on safety hold, never be marked Failed.
+    void transactionExecutionOutcomeUnknown(QString error);
+
     void transactionResetFinished();
     void transactionResetFailed(QString error);
 
