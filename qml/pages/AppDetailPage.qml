@@ -36,6 +36,7 @@ Item {
     property string versionText: ""
     property string packageName: ""
     property string iconUrl: ""
+    property string packageRepository: "ro-asd"
 
     property var packageTransactionManager: null
     property var repositorySourceManager: null
@@ -59,7 +60,8 @@ Item {
         || packageStatus.updateAvailable
 
     property bool repositoryBlocked:
-        repositoryRequired
+        packageRepository === "ro-asd"
+        && repositoryRequired
         && (
             repositorySourceManager === null
             || !repositorySourceManager.roAsdReady
@@ -698,7 +700,7 @@ Item {
 
                     Text {
                         width: parent.width
-                        text: "Kaynak: Ro-Repo"
+                        text: "Kaynak: " + (page.packageRepository === "ro-asd" ? "Ro-Repo" : page.packageRepository)
                         color: page.secondaryText
                         font.family: metrics.systemFont.family
                         font.pixelSize: metrics.fontBody
