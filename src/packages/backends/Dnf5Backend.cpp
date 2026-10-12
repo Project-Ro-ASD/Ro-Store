@@ -1562,6 +1562,11 @@ void Dnf5Backend::executeResolvedTransaction(
         QStringLiteral("Ro-Store")
     );
 
+    // do_transaction can legitimately spend minutes downloading RPMs.
+    // The default 25-second D-Bus reply timeout must not misreport success
+    // or failure while the remote daemon continues mutating the system.
+    goal.setTimeout(60 * 60 * 1000);
+
     setBusy(true);
     setLastError(QString());
 
@@ -1611,9 +1616,10 @@ void Dnf5Backend::executeResolvedTransaction(
                     << "DNF5 DO TRANSACTION ERROR:"
                     << error;
 
-                emit transactionExecutionFailed(
-                    error
-                );
+                // This method was already dispatched. Even for a D-Bus
+                // error other than NoReply, we cannot safely prove whether
+                // the daemon started or completed the mutation.
+                emit transactionExecutionOutcomeUnknown(error);
 
                 watcher->deleteLater();
                 return;
