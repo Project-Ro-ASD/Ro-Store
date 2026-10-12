@@ -1813,6 +1813,10 @@ void Dnf5Backend::cancelTransaction()
         return;
     }
 
+    // Cancellation may wait while the daemon holds its transaction lock.
+    // A missing reply never proves that the RPM operation stopped.
+    goal.setTimeout(120000);
+
     qInfo()
         << "DNF5 CANCEL REQUEST";
 
@@ -1847,10 +1851,7 @@ void Dnf5Backend::cancelTransaction()
                     << "DNF5 CANCEL ERROR:"
                     << error;
 
-                emit transactionCancelFinished(
-                    false,
-                    error
-                );
+                emit transactionCancelOutcomeUnknown(error);
 
                 watcher->deleteLater();
                 return;
