@@ -65,8 +65,8 @@ ApplicationWindow {
             if (current && current.dismissOnEscape
                     && current.dismissOnEscape())
                 return
-            if (current && current.transactionRunning)
-                return
+            // The manager lives for the whole app lifetime.
+            // Escape navigates while operations continue in Downloads.
             stackView.pop()
         }
     }
