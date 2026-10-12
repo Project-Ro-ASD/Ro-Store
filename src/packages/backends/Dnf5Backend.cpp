@@ -1029,7 +1029,8 @@ void Dnf5Backend::queryPackageState(const QString &packageName)
 
 void Dnf5Backend::resolveTransaction(
     const QString &packageName,
-    TransactionOperation operation
+    TransactionOperation operation,
+    const QString &repositoryId
 )
 {
     const QString cleanName = packageName.trimmed();
@@ -1067,7 +1068,7 @@ void Dnf5Backend::resolveTransaction(
     }
 
     ensureSessionAsync(
-        [this, cleanName, operation](bool success) {
+        [this, cleanName, operation, repositoryId](bool success) {
             if (!success) {
                 emit transactionResolveFailed(
                     operation,
@@ -1110,12 +1111,11 @@ void Dnf5Backend::resolveTransaction(
             case TransactionOperation::Install:
                 method = QStringLiteral("install");
 
-                operationOptions.insert(
-                    QStringLiteral("repo_ids"),
-                    QStringList {
-                        QStringLiteral("ro-asd-beta")
-                    }
-                );
+                if (!repositoryId.isEmpty())
+                    operationOptions.insert(
+                        QStringLiteral("repo_ids"),
+                        QStringList { repositoryId }
+                    );
                 break;
 
             case TransactionOperation::Remove:
@@ -1125,12 +1125,11 @@ void Dnf5Backend::resolveTransaction(
             case TransactionOperation::Upgrade:
                 method = QStringLiteral("upgrade");
 
-                operationOptions.insert(
-                    QStringLiteral("repo_ids"),
-                    QStringList {
-                        QStringLiteral("ro-asd-beta")
-                    }
-                );
+                if (!repositoryId.isEmpty())
+                    operationOptions.insert(
+                        QStringLiteral("repo_ids"),
+                        QStringList { repositoryId }
+                    );
                 break;
             }
 
