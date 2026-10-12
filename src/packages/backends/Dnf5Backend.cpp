@@ -1438,11 +1438,22 @@ void Dnf5Backend::resolveTransaction(
                                 << result;
 
                             if (result >= 2) {
+                                // Query the actual solver diagnostics before the
+                                // transaction manager resets the DNF5 session.
+                                QDBusInterface problems(
+                                    QString::fromLatin1(DNF5_SERVICE),
+                                    m_sessionPath,
+                                    QStringLiteral("org.rpm.dnf.v0.Goal"),
+                                    QDBusConnection::systemBus());
+                                const QDBusReply<QStringList> details =
+                                    problems.call(QStringLiteral("get_transaction_problems_string"));
+                                const QString explanation = details.isValid()
+                                    ? details.value().join(QStringLiteral("\n"))
+                                    : QStringLiteral("Ayrıntılı çözümleme bilgisi alınamadı: %1")
+                                        .arg(details.error().message());
                                 const QString error =
-                                    QStringLiteral(
-                                        "DNF5 transaction çözümlenemedi "
-                                        "(result=%1)."
-                                    ).arg(result);
+                                    QStringLiteral("DNF5 transaction çözümlenemedi (result=%1).\n%2")
+                                        .arg(result).arg(explanation);
 
                                 setLastError(error);
 
