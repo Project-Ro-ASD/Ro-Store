@@ -22,7 +22,7 @@ endif()
 set(CMAKE_CXX_STANDARD 20)
 set(CMAKE_CXX_STANDARD_REQUIRED ON)
 
-find_package(Qt6 REQUIRED COMPONENTS Core Quick Network DBus)
+find_package(Qt6 REQUIRED COMPONENTS Core Quick Network DBus Widgets)
 
 qt_standard_project_setup()
 
@@ -31,6 +31,8 @@ qt_policy(SET QTP0004 NEW)
 
 qt_add_executable(ro-store
     src/main.cpp
+    src/TrayController.h
+    src/TrayController.cpp
     src/CatalogModel.h
     src/CatalogModel.cpp
     src/FedoraPackageModel.h
@@ -101,6 +103,7 @@ target_link_libraries(ro-store
         Qt6::Quick
         Qt6::Network
         Qt6::DBus
+        Qt6::Widgets
 )
 
 target_include_directories(ro-store
