@@ -1,14 +1,17 @@
 #include "PackageTransaction.h"
 
 #include <QtGlobal>
+#include <QDateTime>
 
 PackageTransaction::PackageTransaction(
     const QString &packageName,
     Operation operation,
+    const QString &repositoryId,
     QObject *parent
 )
     : QObject(parent),
       m_packageName(packageName),
+      m_repositoryId(repositoryId),
       m_operation(operation)
 {
 }
@@ -16,6 +19,31 @@ PackageTransaction::PackageTransaction(
 QString PackageTransaction::packageName() const
 {
     return m_packageName;
+}
+
+QString PackageTransaction::repositoryId() const
+{
+    return m_repositoryId;
+}
+
+QString PackageTransaction::technicalLog() const
+{
+    return m_technicalLog;
+}
+
+void PackageTransaction::appendTechnicalLog(const QString &message)
+{
+    // Keep the diagnostic history bound to the transaction so it survives
+    // manager session recycling and can be copied from QML after failure.
+    const QString line = QStringLiteral("[%1] %2\n")
+        .arg(QDateTime::currentDateTime().toString(Qt::ISODateWithMs), message);
+    m_technicalLog += line;
+    constexpr qsizetype maxSize = 96 * 1024;
+    if (m_technicalLog.size() > maxSize) {
+        m_technicalLog = QStringLiteral("[Earlier entries truncated]\n")
+                         + m_technicalLog.right(maxSize - 200);
+    }
+    emit technicalLogChanged();
 }
 
 PackageTransaction::Operation PackageTransaction::operation() const
