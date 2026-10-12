@@ -1057,6 +1057,10 @@ void PackageTransactionManager::startNext()
     }
 
     m_activeTransaction = m_queue.dequeue();
+    connect(m_activeTransaction, &PackageTransaction::stateChanged, this,
+            &PackageTransactionManager::activeTransactionChanged);
+    connect(m_activeTransaction, &PackageTransaction::cancelRequestedChanged, this,
+            &PackageTransactionManager::activeTransactionChanged);
 
     m_downloadedById.clear();
     m_downloadTotalById.clear();
@@ -1165,6 +1169,7 @@ void PackageTransactionManager::executeActive()
         return;
     m_downloadOnlyPhase = true;
     m_rpmPhaseStarted = false;
+    emit activeTransactionChanged();
     m_backend->executeResolvedTransaction(true);
 }
 
