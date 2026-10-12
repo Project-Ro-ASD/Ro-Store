@@ -92,6 +92,10 @@ PackageTransactionManager::PackageTransactionManager(
             m_activeTransaction->setState(
                 PackageTransaction::State::Ready
             );
+            if (m_cancelRequested) {
+                cancelActiveFinished();
+                return;
+            }
 
             qInfo()
                 << "TRANSACTION MANAGER READY:"
@@ -138,6 +142,10 @@ PackageTransactionManager::PackageTransactionManager(
                 << error;
 
             m_activeTransaction->appendTechnicalLog(QStringLiteral("ÇÖZÜMLEME HATASI: ") + error);
+            if (m_cancelRequested) {
+                cancelActiveFinished();
+                return;
+            }
             failActive(error);
         }
     );
@@ -190,6 +198,8 @@ PackageTransactionManager::PackageTransactionManager(
                 return;
             }
 
+            // An accepted cancel request is not evidence of cancellation;
+            // successful DNF completion remains authoritative.
             finishActive();
         }
     );
@@ -207,11 +217,6 @@ PackageTransactionManager::PackageTransactionManager(
                 << "TRANSACTION MANAGER EXECUTION FAILED:"
                 << m_activeTransaction->packageName()
                 << error;
-
-            if (m_cancelRequested) {
-                cancelActiveFinished();
-                return;
-            }
 
             if (m_cancelRequested) {
                 qInfo()
@@ -561,6 +566,8 @@ PackageTransactionManager::PackageTransactionManager(
 
             if (!success) {
                 m_cancelRequested = false;
+                m_activeTransaction->setCancelRequested(false);
+                m_activeTransaction->appendTechnicalLog(QStringLiteral("DNF5 iptal isteğini reddetti: ") + error);
 
                 qWarning()
                     << "TRANSACTION MANAGER CANCEL REJECTED:"
@@ -568,6 +575,7 @@ PackageTransactionManager::PackageTransactionManager(
                 return;
             }
 
+            m_activeTransaction->appendTechnicalLog(QStringLiteral("DNF5 iptal isteğini kabul etti; işlem sonucu bekleniyor."));
             qInfo()
                 << "TRANSACTION MANAGER CANCEL ACCEPTED:"
                 << m_activeTransaction->packageName();
@@ -839,32 +847,50 @@ void PackageTransactionManager::executeActive()
 
 void PackageTransactionManager::cancelActive()
 {
-    if (!m_activeTransaction) {
-        qWarning()
-            << "TRANSACTION MANAGER:"
-            << "no active transaction";
+    if (!m_activeTransaction)
+        return;
+    cancelTransaction(m_activeTransaction);
+}
+
+void PackageTransactionManager::cancelTransaction(QObject *transactionObject)
+{
+    auto *transaction = qobject_cast<PackageTransaction *>(transactionObject);
+    if (!transaction || transaction->isFinished() || transaction->cancelRequested())
+        return;
+
+    if (transaction != m_activeTransaction) {
+        if (transaction->state() != PackageTransaction::State::Queued)
+            return;
+        if (!m_queue.removeOne(transaction))
+            return;
+        transaction->appendTechnicalLog(QStringLiteral("Bekleyen işlem kullanıcı tarafından iptal edildi."));
+        transaction->setState(PackageTransaction::State::Cancelled);
+        emit queuedCountChanged();
         return;
     }
 
-    if (m_activeTransaction->state() !=
-        PackageTransaction::State::Downloading) {
+    if (m_resetInProgress || m_cancelRequested)
+        return;
 
-        qWarning()
-            << "TRANSACTION MANAGER CANCEL:"
-            << "cancellation is only allowed while downloading";
+    // RPM's Running phase must never be interrupted. During Resolving we
+    // remember the request and cancel before any RPM execution starts.
+    const auto state = transaction->state();
+    if (state == PackageTransaction::State::Resolving
+        || state == PackageTransaction::State::Ready) {
+        m_cancelRequested = true;
+        transaction->setCancelRequested(true);
+        transaction->appendTechnicalLog(QStringLiteral("İptal istendi; çözümleme/oturumun güvenli bitişi bekleniyor."));
+        if (state == PackageTransaction::State::Ready)
+            cancelActiveFinished();
         return;
     }
 
-    if (m_cancelRequested) {
+    if (state != PackageTransaction::State::Downloading)
         return;
-    }
 
     m_cancelRequested = true;
-
-    qInfo()
-        << "TRANSACTION MANAGER CANCEL REQUEST:"
-        << m_activeTransaction->packageName();
-
+    transaction->setCancelRequested(true);
+    transaction->appendTechnicalLog(QStringLiteral("DNF5 indirme iptali istendi."));
     m_backend->cancelTransaction();
 }
 
@@ -946,6 +972,7 @@ void PackageTransactionManager::cancelActiveFinished()
         return;
     }
 
+    m_activeTransaction->appendTechnicalLog(QStringLiteral("İşlem iptal edildi."));
     m_activeTransaction->setState(
         PackageTransaction::State::Cancelled
     );
@@ -996,6 +1023,8 @@ void PackageTransactionManager::finishActive()
     const QString packageName =
         m_activeTransaction->packageName();
 
+    m_cancelRequested = false;
+    m_activeTransaction->setCancelRequested(false);
     m_activeTransaction->setProgress(100);
 
     m_activeTransaction->appendTechnicalLog(QStringLiteral("Paket işlemi başarıyla tamamlandı."));
