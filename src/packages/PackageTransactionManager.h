@@ -68,6 +68,7 @@ public:
     Q_INVOKABLE void testDownloadOnlyActive();
     Q_INVOKABLE void executeActive();
     Q_INVOKABLE void cancelActive();
+    Q_INVOKABLE void cancelTransaction(QObject *transaction);
 
     Q_INVOKABLE QObject *pendingTransaction(
         const QString &packageName
