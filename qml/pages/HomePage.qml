@@ -58,6 +58,7 @@ Item {
 
     signal reloadRequested()
     signal downloadsRequested()
+    signal fedoraCatalogRequested()
     signal repositoryActionRequested()
 
     StackView.onActivated: {
@@ -266,6 +267,15 @@ Item {
                     icon.height: 16
                     onClicked: page.downloadsRequested()
                 }
+            }
+
+            ThemedActionButton {
+                x: page.sideMargin
+                width: page.contentWidth
+                height: Math.max(42, metrics.fontPx(42))
+                text: "Fedora RPM kataloğunu keşfet  →"
+                accented: true
+                onClicked: page.fedoraCatalogRequested()
             }
 
             // RO-ASD REPOSITORY DURUMU
