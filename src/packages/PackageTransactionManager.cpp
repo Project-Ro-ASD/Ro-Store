@@ -736,6 +736,7 @@ void PackageTransactionManager::recheckRecovery()
     connect(process, &QProcess::finished, this,
         [this, process](int exitCode, QProcess::ExitStatus status) {
             m_recheckBusy = false;
+            const bool rpmQueryValid = status == QProcess::NormalExit && (exitCode == 0 || exitCode == 1);
             const bool installed = status == QProcess::NormalExit && exitCode == 0;
             const QString rpmResult = installed ? QStringLiteral("Kurulu") : QStringLiteral("Kurulu görünmüyor");
             const QString message = QStringLiteral(
@@ -752,7 +753,7 @@ void PackageTransactionManager::recheckRecovery()
             history->setProgram(QStringLiteral("dnf5"));
             history->setArguments({QStringLiteral("history"), QStringLiteral("list")});
             connect(history, &QProcess::finished, this,
-                [this, history, message, installed](int code, QProcess::ExitStatus result) {
+                [this, history, message, installed, rpmQueryValid](int code, QProcess::ExitStatus result) {
                     const QString output = QString::fromLocal8Bit(history->readAllStandardOutput());
                     if (result != QProcess::NormalExit || code != 0) {
                         setRecoveryDetails(message + QStringLiteral("\nDNF5 geçmişi okunamadı. Kilit korunuyor."));
@@ -774,7 +775,7 @@ void PackageTransactionManager::recheckRecovery()
                     details->setProgram(QStringLiteral("dnf5"));
                     details->setArguments({QStringLiteral("history"), QStringLiteral("info"), id});
                     connect(details, &QProcess::finished, this,
-                        [this, details, message, id, installed](int exit, QProcess::ExitStatus state) {
+                        [this, details, message, id, installed, rpmQueryValid](int exit, QProcess::ExitStatus state) {
                             const QString text = QString::fromLocal8Bit(details->readAllStandardOutput());
                             const QRegularExpression beginPattern(QStringLiteral("Begin time\\s*:\\s*(\\d{4}-\\d{2}-\\d{2} \\d{2}:\\d{2}:\\d{2})"));
                             const auto startMatch = beginPattern.match(text);
@@ -792,7 +793,7 @@ void PackageTransactionManager::recheckRecovery()
                                 && text.contains(QStringLiteral("Ro-Store"))
                                 && text.contains(m_pendingPackage, Qt::CaseInsensitive)
                                 && matchingDate
-                                && correctInstalledState;
+                                && correctInstalledState && rpmQueryValid;
                             m_recoveryVerified = completed;
                             // This is supporting evidence only. An older entry with
                             // the same package name is not necessarily our transaction.
