@@ -1390,10 +1390,13 @@ void Dnf5Backend::resolveTransaction(
                                         QStringLiteral("install_size")
                                     );
 
-                                const QVariant packageSize =
-                                    object.value(
-                                        QStringLiteral("package_size")
-                                    );
+                                // DNF5 transaction objects can omit package_size.
+                                // Their download_size is the RPM transfer size when
+                                // provided; zero is unknown, not a zero-byte download.
+                                QVariant packageSize = object.value(
+                                    QStringLiteral("download_size"));
+                                if (!packageSize.isValid() || packageSize.toULongLong() == 0)
+                                    packageSize = object.value(QStringLiteral("package_size"));
 
                                 if (packageSize.isValid() &&
                                     item.value(
