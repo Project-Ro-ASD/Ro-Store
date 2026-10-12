@@ -163,7 +163,7 @@ PackageTransactionManager::PackageTransactionManager(
         &Dnf5Backend::transactionExecutionStarted,
         this,
         [this](bool downloadOnly) {
-            if (!m_activeTransaction) {
+            if (!m_activeTransaction || m_outcomeUncertain) {
                 return;
             }
 
@@ -217,7 +217,7 @@ PackageTransactionManager::PackageTransactionManager(
         &Dnf5Backend::transactionExecutionFailed,
         this,
         [this](const QString &error) {
-            if (!m_activeTransaction) {
+            if (!m_activeTransaction || m_outcomeUncertain) {
                 return;
             }
 
@@ -275,7 +275,7 @@ PackageTransactionManager::PackageTransactionManager(
             const QString &description,
             qlonglong totalBytes
         ) {
-            if (!m_activeTransaction ||
+            if (m_outcomeUncertain || !m_activeTransaction ||
                 !downloadId.startsWith(
                     QStringLiteral("package:")
                 )) {
@@ -489,7 +489,7 @@ PackageTransactionManager::PackageTransactionManager(
             uint action,
             qulonglong total
         ) {
-            if (!m_activeTransaction) {
+            if (m_outcomeUncertain || !m_activeTransaction) {
                 return;
             }
 
