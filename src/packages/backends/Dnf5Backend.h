@@ -49,7 +49,8 @@ public:
 
     Q_INVOKABLE void resolveTransaction(
         const QString &packageName,
-        TransactionOperation operation
+        TransactionOperation operation,
+        const QString &repositoryId
     );
 
     void executeResolvedTransaction(
