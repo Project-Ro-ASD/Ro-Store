@@ -46,9 +46,12 @@ ApplicationWindow {
             root.requestActivate()
         }
         function onQuitRequested() {
-            if (transactionManager.busy)
+            if (transactionManager.busy) {
+                root.show()
+                root.raise()
+                root.requestActivate()
                 exitConfirmation.open()
-            else {
+            } else {
                 root.exitingFromTray = true
                 Qt.quit()
             }
