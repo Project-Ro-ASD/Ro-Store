@@ -208,19 +208,21 @@ PackageTransactionManager::PackageTransactionManager(
                 << downloadOnly;
 
             if (downloadOnly) {
-                m_activeTransaction->setDownloadedBytes(
-                    m_activeTransaction->totalBytes()
-                );
-
-                // Henüz gerçek RPM işlemi yapılmadı.
-                // Transaction tekrar çalıştırılmaya hazır.
-                m_activeTransaction->setProgress(0);
-
-                m_activeTransaction->setState(
-                    PackageTransaction::State::Ready
-                );
-
+                m_downloadOnlyPhase = false;
+                if (m_cancelRequested) {
+                    m_activeTransaction->appendTechnicalLog(QStringLiteral(
+                        "İptal kaydedildi: indirme bitmiş olsa da RPM kurulumu BAŞLATILMADI."));
+                    cancelActiveFinished();
+                    return;
+                }
+                m_activeTransaction->appendTechnicalLog(QStringLiteral(
+                    "İndirme tamamlandı, şimdi RPM aşamasına geçiliyor."));
+                m_rpmPhaseStarted = true;
+                m_activeTransaction->setState(PackageTransaction::State::Running);
+                m_backend->executeResolvedTransaction(false);
                 return;
+
+
             }
 
             // An accepted cancel request is not evidence of cancellation;
@@ -243,7 +245,7 @@ PackageTransactionManager::PackageTransactionManager(
                 << m_activeTransaction->packageName()
                 << error;
 
-            if (m_cancelRequested) {
+            if (m_cancelRequested && m_downloadOnlyPhase && !m_rpmPhaseStarted) {
                 qInfo()
                     << "TRANSACTION MANAGER CANCELLED:"
                     << m_activeTransaction->packageName();
@@ -911,6 +913,16 @@ bool PackageTransactionManager::outcomeUncertain() const
     return m_outcomeUncertain;
 }
 
+bool PackageTransactionManager::canCancelActive() const
+{
+    if (!m_activeTransaction || m_outcomeUncertain || m_cancelRequested)
+        return false;
+    const auto state = m_activeTransaction->state();
+    return state == PackageTransaction::State::Resolving
+        || state == PackageTransaction::State::Ready
+        || (state == PackageTransaction::State::Downloading && m_downloadOnlyPhase);
+}
+
 QObject *PackageTransactionManager::enqueueInstall(
     const QString &packageName,
     const QString &repositoryId
@@ -1051,6 +1063,8 @@ void PackageTransactionManager::startNext()
     resetDownloadSpeedTracking();
     m_cancelRequested = false;
     m_resetInProgress = false;
+    m_downloadOnlyPhase = false;
+    m_rpmPhaseStarted = false;
 
     emit queuedCountChanged();
     emit activeTransactionChanged();
@@ -1144,11 +1158,14 @@ void PackageTransactionManager::executeActive()
         PackageTransaction::State::Downloading
     );
 
-    m_activeTransaction->appendTechnicalLog(QStringLiteral("DNF5 işlemi yürütülüyor."));
+    m_activeTransaction->appendTechnicalLog(QStringLiteral(
+        "İndirme aşaması başlatıldı. İptal isteğinde RPM kurulumu başlatılmaz."));
     persistPendingExecution();
     if (m_outcomeUncertain)
         return;
-    m_backend->executeResolvedTransaction(false);
+    m_downloadOnlyPhase = true;
+    m_rpmPhaseStarted = false;
+    m_backend->executeResolvedTransaction(true);
 }
 
 
@@ -1196,10 +1213,12 @@ void PackageTransactionManager::cancelTransaction(QObject *transactionObject)
     if (state != PackageTransaction::State::Downloading)
         return;
 
+    if (!m_downloadOnlyPhase || m_rpmPhaseStarted)
+        return;
     m_cancelRequested = true;
     transaction->setCancelRequested(true);
-    transaction->appendTechnicalLog(QStringLiteral("DNF5 indirme iptali istendi."));
-    m_backend->cancelTransaction();
+    transaction->appendTechnicalLog(QStringLiteral(
+        "İptal kaydedildi. İndirme hemen durmayabilir; RPM aşamasına geçilmeyecek."));
 }
 
 
@@ -1280,6 +1299,7 @@ void PackageTransactionManager::cancelActiveFinished()
         return;
     }
 
+    clearPendingExecution();
     m_activeTransaction->appendTechnicalLog(QStringLiteral("İşlem iptal edildi."));
     m_activeTransaction->setState(
         PackageTransaction::State::Cancelled
@@ -1309,6 +1329,8 @@ void PackageTransactionManager::releaseActiveAndStartNext()
 {
     m_resetInProgress = false;
     m_cancelRequested = false;
+    m_downloadOnlyPhase = false;
+    m_rpmPhaseStarted = false;
 
     m_downloadedById.clear();
     m_downloadTotalById.clear();
