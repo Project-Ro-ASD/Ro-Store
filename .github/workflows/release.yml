@@ -51,10 +51,10 @@ jobs:
         shell: bash
         run: |
           set -euo pipefail
-          # DNF5 interprets \\n but leaves \\t literal; pass actual tab bytes.
-          FORMAT=
-          printf '%s\n' "$OUTPUT" | head -n 5
-          printf '%s\n' "$OUTPUT" | grep -Eq '^firefox[[:space:]]'
+          dnf5 -q repoquery --available --latest-limit=1 \
+            --arch=${{ matrix.arch }},noarch \
+            '--queryformat=%{name}|%{version}|%{arch}|%{repoid}|%{summary}\n' \
+            firefox | grep -E '^firefox\|'
 
       - name: Verify release tag
         if: startsWith(github.ref, 'refs/tags/v')
