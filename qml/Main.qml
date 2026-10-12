@@ -346,7 +346,11 @@ ApplicationWindow {
 
     StackView {
         id: stackView
-        anchors.fill: parent
+        anchors.top: transactionSafetyNotice.visible
+                     ? transactionSafetyNotice.bottom : parent.top
+        anchors.left: parent.left
+        anchors.right: parent.right
+        anchors.bottom: parent.bottom
 
         initialItem: HomePage {
             catalog: catalogModel
