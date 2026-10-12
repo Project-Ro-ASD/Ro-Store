@@ -728,6 +728,7 @@ void PackageTransactionManager::recheckRecovery()
         setRecoveryDetails(QStringLiteral("Kurtarma kaydında paket bilgisi eksik. Yeni işlem engellendi."));
         return;
     }
+    m_recoveryVerified = false;
     m_recheckBusy = true;
     auto *process = new QProcess(this);
     process->setProgram(QStringLiteral("rpm"));
@@ -751,7 +752,7 @@ void PackageTransactionManager::recheckRecovery()
             history->setProgram(QStringLiteral("dnf5"));
             history->setArguments({QStringLiteral("history"), QStringLiteral("list")});
             connect(history, &QProcess::finished, this,
-                [this, history, message](int code, QProcess::ExitStatus result) {
+                [this, history, message, installed](int code, QProcess::ExitStatus result) {
                     const QString output = QString::fromLocal8Bit(history->readAllStandardOutput());
                     if (result != QProcess::NormalExit || code != 0) {
                         setRecoveryDetails(message + QStringLiteral("\nDNF5 geçmişi okunamadı. Kilit korunuyor."));
@@ -773,20 +774,35 @@ void PackageTransactionManager::recheckRecovery()
                     details->setProgram(QStringLiteral("dnf5"));
                     details->setArguments({QStringLiteral("history"), QStringLiteral("info"), id});
                     connect(details, &QProcess::finished, this,
-                        [this, details, message, id](int exit, QProcess::ExitStatus state) {
+                        [this, details, message, id, installed](int exit, QProcess::ExitStatus state) {
                             const QString text = QString::fromLocal8Bit(details->readAllStandardOutput());
+                            const QRegularExpression beginPattern(QStringLiteral("Begin time\\s*:\\s*(\\d{4}-\\d{2}-\\d{2} \\d{2}:\\d{2}:\\d{2})"));
+                            const auto startMatch = beginPattern.match(text);
+                            const QDateTime recordedStart = QDateTime::fromString(
+                                startMatch.captured(1), QStringLiteral("yyyy-MM-dd HH:mm:ss"));
+                            const QDateTime expectedStart = QDateTime::fromString(
+                                m_pendingStartedAt, Qt::ISODate).toLocalTime();
+                            const bool matchingDate = recordedStart.isValid()
+                                && expectedStart.isValid()
+                                && recordedStart >= expectedStart.addSecs(-20);
+                            const bool correctInstalledState = m_pendingOperation == QStringLiteral("1")
+                                ? !installed : installed;
                             const bool completed = state == QProcess::NormalExit && exit == 0
                                 && text.contains(QRegularExpression(QStringLiteral("Status\\s*:\\s*Ok"), QRegularExpression::CaseInsensitiveOption))
-                                && text.contains(QStringLiteral("Comment"))
                                 && text.contains(QStringLiteral("Ro-Store"))
-                                && text.contains(m_pendingPackage, Qt::CaseInsensitive);
+                                && text.contains(m_pendingPackage, Qt::CaseInsensitive)
+                                && matchingDate
+                                && correctInstalledState;
+                            m_recoveryVerified = completed;
                             // This is supporting evidence only. An older entry with
                             // the same package name is not necessarily our transaction.
                             setRecoveryDetails(message + QStringLiteral("\nEn son DNF işlemi #%1: %2\\n")
                                 .arg(id, completed ? QStringLiteral("Ro-Store kaydı bulundu.")
                                                    : QStringLiteral("Eşleşen başarı kaydı doğrulanamadı."))
                                 + text.left(4000)
-                                + QStringLiteral("\nKilit otomatik kaldırılmaz. İnceleme sürüyor."));
+                                + (completed
+                                   ? QStringLiteral("\nDoğrulama geçti. Yeni paket işlemlerinin kilidini kaldırmak için açık onayın gerekiyor.")
+                                   : QStringLiteral("\nDoğrulama tamamlanmadı; güvenlik kilidi korunuyor.")));
                             details->deleteLater();
                         });
                     details->start();
@@ -798,9 +814,23 @@ void PackageTransactionManager::recheckRecovery()
 
 void PackageTransactionManager::acknowledgeRecovery()
 {
-    // An explicit acknowledgement is intentionally not enough to release
-    // an uncertain DNF5 mutation; the remote daemon may still be active.
-    recheckRecovery();
+    // Never release a running/ambiguous in-process DNF session.
+    // Only a recovered history entry with matching time, package, successful
+    // outcome and installed state can be acknowledged by the user.
+    if (m_activeTransaction || !m_recoveryVerified || !m_outcomeUncertain)
+        return;
+    if (!QFile::remove(journalPath())) {
+        setRecoveryDetails(QStringLiteral("Doğrulanmış güvenlik kaydı temizlenemedi."));
+        return;
+    }
+    m_pendingPackage.clear();
+    m_pendingOperation.clear();
+    m_pendingStartedAt.clear();
+    m_outcomeUncertain = false;
+    m_recoveryVerified = false;
+    emit outcomeUncertainChanged();
+    setRecoveryDetails(QString());
+    // Intentionally never restore or replay old queued operations.
 }
 
 PackageTransactionModel *
