@@ -173,6 +173,9 @@ Item {
 
         if (trackedTransaction.errorMessage.length > 0)
             lines.push("Hata: " + trackedTransaction.errorMessage)
+        lines.push("")
+        lines.push("=== DNF5 İşlem Ayrıntıları ===")
+        lines.push(trackedTransaction.technicalLog)
 
         return lines.join("\n")
     }
@@ -186,7 +189,7 @@ Item {
 
         page.trackedTransaction =
             packageTransactionManager.enqueueInstall(
-                page.packageName
+                page.packageName, page.packageRepository === "ro-asd" ? "ro-asd-beta" : page.packageRepository
             )
     }
 
@@ -199,7 +202,7 @@ Item {
 
         page.trackedTransaction =
             packageTransactionManager.enqueueUpgrade(
-                page.packageName
+                page.packageName, page.packageRepository === "ro-asd" ? "ro-asd-beta" : page.packageRepository
             )
     }
 
@@ -287,7 +290,7 @@ Item {
                     : "İşlem başarısız."
 
                 page.lastActionSuccess = false
-                page.logsExpanded = false
+                page.logsExpanded = true
 
                 packageStatus.checkInstalled(
                     page.packageName,
@@ -860,7 +863,7 @@ Item {
                     }
 
                     Text {
-                        visible: !page.narrow && parent.width >= 640
+                        visible: false
                         anchors.right: parent.right
                         anchors.rightMargin: metrics.spaceLarge
                         y: 14
@@ -876,6 +879,19 @@ Item {
                         width: parent.width - 32
                         height: 1
                         color: themePalette.dark
+                    }
+
+                    ThemedActionButton {
+                        text: "Günlüğü Kopyala"
+                        anchors.right: parent.right
+                        anchors.rightMargin: 12
+                        y: 6
+                        width: 154
+                        height: 32
+                        onClicked: {
+                            if (page.trackedTransaction)
+                                page.trackedTransaction.copyTechnicalLog(page.transactionTechnicalText)
+                        }
                     }
 
                     ScrollView {
