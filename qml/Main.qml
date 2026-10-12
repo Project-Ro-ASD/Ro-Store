@@ -301,6 +301,16 @@ ApplicationWindow {
                 Layout.fillWidth: true
                 onClicked: transactionManager.recheckRecovery()
             }
+            ThemedActionButton {
+                visible: transactionManager.recoveryVerified
+                text: "Doğrulamayı onayla ve kilidi kaldır"
+                Layout.fillWidth: true
+                onClicked: {
+                    transactionManager.acknowledgeRecovery()
+                    if (!transactionManager.outcomeUncertain)
+                        recoveryInfoDialog.close()
+                }
+            }
         }
     }
 
