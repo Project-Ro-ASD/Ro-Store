@@ -15,7 +15,7 @@ struct FedoraPackage
     QString summary;
 };
 
-class FedoraPackageModel final : public QAbstractListModel
+class FedoraPackageModel : public QAbstractListModel
 {
     Q_OBJECT
     Q_PROPERTY(bool loading READ loading NOTIFY loadingChanged)
