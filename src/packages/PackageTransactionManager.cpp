@@ -3,6 +3,15 @@
 
 #include <QDebug>
 #include <QLocale>
+#include <QStandardPaths>
+#include <QDir>
+#include <QSaveFile>
+#include <QFile>
+#include <QJsonDocument>
+#include <QJsonObject>
+#include <QDateTime>
+#include <QProcess>
+#include <QTimer>
 
 namespace {
 QString readableSize(qulonglong bytes)
@@ -40,6 +49,10 @@ PackageTransactionManager::PackageTransactionManager(
       m_model(new PackageTransactionModel(this)),
       m_backend(new Dnf5Backend(this))
 {
+    if (QFile::exists(journalPath())) {
+        activateRecoveryHold(QStringLiteral("Önceki Ro-Store işlemi kesin sonuç alınmadan sonlandı. Yeni paket işlemleri güvenlik amacıyla engellendi."));
+        QTimer::singleShot(0, this, &PackageTransactionManager::recheckRecovery);
+    }
     connect(
         m_backend,
         &Dnf5Backend::transactionResolved,
@@ -244,8 +257,7 @@ PackageTransactionManager::PackageTransactionManager(
             this, [this](const QString &error) {
         if (!m_activeTransaction || m_outcomeUncertain)
             return;
-        m_outcomeUncertain = true;
-        emit outcomeUncertainChanged();
+        activateRecoveryHold(error);
         const QString warning = QStringLiteral(
             "DNF5 yanıtı alınamadı. İşlem arka planda devam etmiş olabilir. "
             "Yeni işlemler güvenlik nedeniyle durduruldu. "
@@ -621,6 +633,128 @@ PackageTransactionManager::PackageTransactionManager(
 
 }
 
+
+QString PackageTransactionManager::journalPath() const
+{
+    const QString directory = QStandardPaths::writableLocation(QStandardPaths::AppLocalDataLocation);
+    return directory + QStringLiteral("/pending-dnf5-transaction.json");
+}
+
+void PackageTransactionManager::setRecoveryDetails(const QString &details)
+{
+    if (m_recoveryDetails == details)
+        return;
+    m_recoveryDetails = details;
+    emit recoveryDetailsChanged();
+}
+
+QString PackageTransactionManager::recoveryDetails() const
+{
+    return m_recoveryDetails;
+}
+
+void PackageTransactionManager::activateRecoveryHold(const QString &reason)
+{
+    if (!m_outcomeUncertain) {
+        m_outcomeUncertain = true;
+        emit outcomeUncertainChanged();
+    }
+    setRecoveryDetails(reason);
+}
+
+void PackageTransactionManager::persistPendingExecution()
+{
+    if (!m_activeTransaction)
+        return;
+    const QFileInfo destination(journalPath());
+    if (!QDir().mkpath(destination.absolutePath())) {
+        activateRecoveryHold(QStringLiteral("DNF5 güvenlik günlüğü için dizin oluşturulamadı; paket işlemi başlatılmadı."));
+        return;
+    }
+    QSaveFile file(journalPath());
+    if (!file.open(QIODevice::WriteOnly)) {
+        activateRecoveryHold(QStringLiteral("DNF5 güvenlik günlüğü yazılamadı; paket işlemi başlatılmadı."));
+        return;
+    }
+    m_pendingPackage = m_activeTransaction->packageName();
+    m_pendingOperation = QString::number(static_cast<int>(m_activeTransaction->operation()));
+    m_pendingStartedAt = QDateTime::currentDateTimeUtc().toString(Qt::ISODate);
+    const QJsonObject data {
+        {QStringLiteral("package"), m_pendingPackage},
+        {QStringLiteral("operation"), m_pendingOperation},
+        {QStringLiteral("started_at"), m_pendingStartedAt},
+        {QStringLiteral("state"), QStringLiteral("dispatched_or_pending")}
+    };
+    const QByteArray bytes = QJsonDocument(data).toJson(QJsonDocument::Indented);
+    if (file.write(bytes) != bytes.size() || !file.commit()) {
+        activateRecoveryHold(QStringLiteral("Güvenlik günlüğü diske yazılamadı; işlem başlatılmadı."));
+    }
+}
+
+void PackageTransactionManager::clearPendingExecution()
+{
+    if (!QFile::exists(journalPath()))
+        return;
+    if (!QFile::remove(journalPath())) {
+        activateRecoveryHold(QStringLiteral("Tamamlanan işleme ait güvenlik kaydı temizlenemedi."));
+    } else {
+        m_pendingPackage.clear();
+        m_pendingOperation.clear();
+        m_pendingStartedAt.clear();
+    }
+}
+
+void PackageTransactionManager::recheckRecovery()
+{
+    if (m_recheckBusy || !m_outcomeUncertain)
+        return;
+    QFile file(journalPath());
+    if (!file.open(QIODevice::ReadOnly)) {
+        setRecoveryDetails(QStringLiteral("Kurtarma kaydı okunamadı. Yeni işlem engellendi."));
+        return;
+    }
+    const QJsonDocument data = QJsonDocument::fromJson(file.readAll());
+    if (!data.isObject()) {
+        setRecoveryDetails(QStringLiteral("Kurtarma kaydı geçersiz. Yeni işlem engellendi."));
+        return;
+    }
+    const QJsonObject obj = data.object();
+    m_pendingPackage = obj.value(QStringLiteral("package")).toString();
+    m_pendingOperation = obj.value(QStringLiteral("operation")).toString();
+    m_pendingStartedAt = obj.value(QStringLiteral("started_at")).toString();
+    if (m_pendingPackage.isEmpty()) {
+        setRecoveryDetails(QStringLiteral("Kurtarma kaydında paket bilgisi eksik. Yeni işlem engellendi."));
+        return;
+    }
+    m_recheckBusy = true;
+    auto *process = new QProcess(this);
+    process->setProgram(QStringLiteral("rpm"));
+    process->setArguments({QStringLiteral("-q"), QStringLiteral("--"), m_pendingPackage});
+    connect(process, &QProcess::finished, this,
+        [this, process](int exitCode, QProcess::ExitStatus status) {
+            m_recheckBusy = false;
+            const bool installed = status == QProcess::NormalExit && exitCode == 0;
+            const QString rpmResult = installed ? QStringLiteral("Kurulu") : QStringLiteral("Kurulu görünmüyor");
+            const QString message = QStringLiteral(
+                "Önceki paket: %1 | İşlem kodu: %2 | Başlangıç (UTC): %3\\n"
+                "RPM durumu: %4. Bu kontrol tek başına DNF5 işleminin tamamlandığını "
+                "veya artık çalışmadığını kanıtlamaz.\\n"
+                "İşlem geçmişini ve dnf5daemon-server durumunu kontrol edip "
+                "önceki işlemin bittiğinden emin olmadan kilidi kaldırmayın.")
+                .arg(m_pendingPackage, m_pendingOperation, m_pendingStartedAt, rpmResult);
+            setRecoveryDetails(message);
+            process->deleteLater();
+        });
+    process->start();
+}
+
+void PackageTransactionManager::acknowledgeRecovery()
+{
+    // An explicit acknowledgement is intentionally not enough to release
+    // an uncertain DNF5 mutation; the remote daemon may still be active.
+    recheckRecovery();
+}
+
 PackageTransactionModel *
 PackageTransactionManager::model() const
 {
@@ -882,6 +1016,9 @@ void PackageTransactionManager::executeActive()
     );
 
     m_activeTransaction->appendTechnicalLog(QStringLiteral("DNF5 işlemi yürütülüyor."));
+    persistPendingExecution();
+    if (m_outcomeUncertain)
+        return;
     m_backend->executeResolvedTransaction(false);
 }
 
@@ -1069,6 +1206,7 @@ void PackageTransactionManager::finishActive()
     m_activeTransaction->setCancelRequested(false);
     m_activeTransaction->setProgress(100);
 
+    clearPendingExecution();
     m_activeTransaction->appendTechnicalLog(QStringLiteral("Paket işlemi başarıyla tamamlandı."));
     m_activeTransaction->setState(
         PackageTransaction::State::Finished
