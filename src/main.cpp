@@ -1,9 +1,10 @@
-#include <QGuiApplication>
+#include <QApplication>
 #include <QQmlApplicationEngine>
 #include <QtQml>
 #include <QDBusMetaType>
 #include <QMap>
 
+#include "TrayController.h"
 #include "CatalogModel.h"
 #include "FedoraPackageModel.h"
 #include "PackageStatus.h"
@@ -20,7 +21,13 @@ int main(int argc, char *argv[])
 {
     qDBusRegisterMetaType<QMap<QString, QString>>();
 
-    QGuiApplication app(argc, argv);
+    QApplication app(argc, argv);
+    app.setQuitOnLastWindowClosed(false);
+
+    TrayController trayController;
+    qmlRegisterSingletonInstance(
+        "RoStore", 1, 0, "TrayController", &trayController
+    );
 
     SystemFontMonitor systemFontMonitor;
     qmlRegisterSingletonInstance(
