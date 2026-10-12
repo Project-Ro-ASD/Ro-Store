@@ -168,9 +168,13 @@ ApplicationWindow {
                 Layout.fillWidth: true
                 wrapMode: Text.WordWrap
                 text: root.pendingConfirmation
-                      ? "Toplam tahmini indirme: "
-                        + root.formatSize(root.pendingConfirmation.totalBytes)
-                        + ". Ek bağımlılıkları ve kaldırılacak paketleri inceleyin."
+                      ? (root.pendingConfirmation.totalBytes > 0
+                          ? "Tahmini indirme: " + root.formatSize(root.pendingConfirmation.totalBytes)
+                            + " (DNF5 indirme başlangıcında kesinleşebilir). "
+                          : "Tahmini indirme boyutu henüz bilinmiyor; DNF5 paket indirmeye "
+                            + "başladığında gerçek boyut gösterilecek. ")
+                        + "Ek bağımlılıkları ve kaldırılacak paketleri inceleyin."
+                      : ""
                       : ""
             }
             ScrollView {
