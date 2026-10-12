@@ -12,6 +12,7 @@
 #include <QJsonObject>
 #include <QDateTime>
 #include <QProcess>
+#include <QProcessEnvironment>
 #include <QTimer>
 #include <QRegularExpression>
 
@@ -772,6 +773,11 @@ void PackageTransactionManager::recheckRecovery()
             // and never silently reenqueues a recovered mutation.
             auto *history = new QProcess(this);
             history->setProgram(QStringLiteral("dnf5"));
+            // Compare wall-clock timestamps in one unambiguous timezone.
+            // The durable Ro-Store journal records ISO 8601 UTC.
+            QProcessEnvironment historyEnvironment = QProcessEnvironment::systemEnvironment();
+            historyEnvironment.insert(QStringLiteral("TZ"), QStringLiteral("UTC"));
+            history->setProcessEnvironment(historyEnvironment);
             history->setArguments({QStringLiteral("history"), QStringLiteral("list")});
             connect(history, &QProcess::finished, this,
                 [this, history, message, installed, rpmQueryValid](int code, QProcess::ExitStatus result) {
@@ -784,7 +790,7 @@ void PackageTransactionManager::recheckRecovery()
                     // Do not inspect only the newest history row: it can
                     // belong to another package or a much older transaction.
                     const QDateTime expectedStart = QDateTime::fromString(
-                        m_pendingStartedAt, Qt::ISODate).toLocalTime();
+                        m_pendingStartedAt, Qt::ISODate).toUTC();
                     const QRegularExpression entryPattern(
                         QStringLiteral("^\\s*(\\d+)\\s+dnf5daemon-server\\s+"
                                        "(\\d{4}-\\d{2}-\\d{2} \\d{2}:\\d{2}:\\d{2})"),
@@ -793,8 +799,9 @@ void PackageTransactionManager::recheckRecovery()
                     QString id;
                     while (iterator.hasNext()) {
                         const auto entry = iterator.next();
-                        const QDateTime candidate = QDateTime::fromString(
+                        QDateTime candidate = QDateTime::fromString(
                             entry.captured(2), QStringLiteral("yyyy-MM-dd HH:mm:ss"));
+                        candidate.setTimeSpec(Qt::UTC);
                         if (candidate.isValid() && expectedStart.isValid()
                             && candidate >= expectedStart.addSecs(-20)) {
                             id = entry.captured(1);
@@ -811,16 +818,20 @@ void PackageTransactionManager::recheckRecovery()
                     history->deleteLater();
                     auto *details = new QProcess(this);
                     details->setProgram(QStringLiteral("dnf5"));
+                    QProcessEnvironment detailsEnvironment = QProcessEnvironment::systemEnvironment();
+                    detailsEnvironment.insert(QStringLiteral("TZ"), QStringLiteral("UTC"));
+                    details->setProcessEnvironment(detailsEnvironment);
                     details->setArguments({QStringLiteral("history"), QStringLiteral("info"), id});
                     connect(details, &QProcess::finished, this,
                         [this, details, message, id, installed, rpmQueryValid](int exit, QProcess::ExitStatus state) {
                             const QString text = QString::fromLocal8Bit(details->readAllStandardOutput());
                             const QRegularExpression beginPattern(QStringLiteral("Begin time\\s*:\\s*(\\d{4}-\\d{2}-\\d{2} \\d{2}:\\d{2}:\\d{2})"));
                             const auto startMatch = beginPattern.match(text);
-                            const QDateTime recordedStart = QDateTime::fromString(
+                            QDateTime recordedStart = QDateTime::fromString(
                                 startMatch.captured(1), QStringLiteral("yyyy-MM-dd HH:mm:ss"));
+                            recordedStart.setTimeSpec(Qt::UTC);
                             const QDateTime expectedStart = QDateTime::fromString(
-                                m_pendingStartedAt, Qt::ISODate).toLocalTime();
+                                m_pendingStartedAt, Qt::ISODate).toUTC();
                             const bool matchingDate = recordedStart.isValid()
                                 && expectedStart.isValid()
                                 && recordedStart >= expectedStart.addSecs(-20);
@@ -835,7 +846,7 @@ void PackageTransactionManager::recheckRecovery()
                             m_recoveryVerified = completed;
                             // This is supporting evidence only. An older entry with
                             // the same package name is not necessarily our transaction.
-                            setRecoveryDetails(message + QStringLiteral("\nEn son DNF işlemi #%1: %2\\n")
+                            setRecoveryDetails(message + QStringLiteral("\nEşleşen DNF işlemi #%1: %2\n")
                                 .arg(id, completed ? QStringLiteral("Ro-Store kaydı bulundu.")
                                                    : QStringLiteral("Eşleşen başarı kaydı doğrulanamadı."))
                                 + text.left(4000)
