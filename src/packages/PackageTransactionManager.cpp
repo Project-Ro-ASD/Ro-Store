@@ -603,6 +603,25 @@ PackageTransactionManager::PackageTransactionManager(
         }
     );
 
+    connect(m_backend, &Dnf5Backend::transactionCancelOutcomeUnknown,
+            this, [this](const QString &error) {
+        if (!m_activeTransaction || m_outcomeUncertain)
+            return;
+        m_activeTransaction->appendTechnicalLog(
+            QStringLiteral("İptal isteğinin sonucu belirsiz; DNF5 işlemi devam edebilir: ") + error);
+        activateRecoveryHold(QStringLiteral(
+            "DNF5 iptal isteğine kesin yanıt alınamadı. İndirme veya RPM işlemi devam edebilir. "
+            "Yeni paket işlemleri güvenlik nedeniyle engellendi. ") + error);
+        m_activeTransaction->markOutcomeUnknown(m_recoveryDetails);
+        for (PackageTransaction *queued : m_queue) {
+            queued->appendTechnicalLog(QStringLiteral("Önceki işlem belirsiz: isteğiniz DNF5'e gönderilmedi."));
+            queued->setState(PackageTransaction::State::Cancelled);
+        }
+        m_queue.clear();
+        emit queuedCountChanged();
+        emit activeTransactionChanged();
+    });
+
     connect(
         m_backend,
         &Dnf5Backend::transactionCancelFinished,
@@ -618,7 +637,8 @@ PackageTransactionManager::PackageTransactionManager(
             if (!success) {
                 m_cancelRequested = false;
                 m_activeTransaction->setCancelRequested(false);
-                m_activeTransaction->appendTechnicalLog(QStringLiteral("DNF5 iptal isteğini reddetti: ") + error);
+                m_activeTransaction->appendTechnicalLog(QStringLiteral(
+                    "DNF5 iptal isteğini reddetti. Mevcut işlem takip ediliyor: ") + error);
 
                 qWarning()
                     << "TRANSACTION MANAGER CANCEL REJECTED:"
