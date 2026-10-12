@@ -2375,7 +2375,7 @@ void Dnf5Backend::ensureSessionAsync(std::function<void(bool)> callback)
                         .arg(reply.error().message(),
                              reply.error().type() == QDBusError::NoReply
                                  ? QStringLiteral(
-                                     "\\nDNF5 servisi 120 saniye içinde cevap vermedi. "
+                                     "\nDNF5 servisi 120 saniye içinde cevap vermedi. "
                                      "Başka bir DNF işlemi, servis kilitlenmesi veya "
                                      "depo meta verisi yüklemesi olabilir. "
                                      "Servis günlüklerini ve etkin depoları kontrol edin.")
