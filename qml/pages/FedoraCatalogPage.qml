@@ -47,7 +47,8 @@ Item {
         }
 
         Label {
-            text: "Etkin RPM depolarındaki paketleri ara. AppStream görselleri v0.5 ile eklenecek."
+            text: "Etkin RPM depolarında paket ara. AppStream görselleri v0.5 ile eklenecek. "
+                  + "Kaynak bilgisi gösterim amaçlıdır; kurulumda DNF5 etkin depoların kendi önceliklerini kullanır."
             Layout.fillWidth: true
             wrapMode: Text.WordWrap
             color: palette.windowText
