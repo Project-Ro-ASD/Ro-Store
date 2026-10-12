@@ -441,15 +441,16 @@ Item {
 
                     y: page.narrow ? 174 : 126
 
-                    // DNF5 daemon yalnız paket indirme aşamasında
-                    // güvenli iptale izin veriyor.
                     enabled: activeCard.tx
-                             && activeCard.tx.state
-                                === PackageTransaction.Downloading
+                             && !activeCard.tx.cancelRequested
+                             && (activeCard.tx.state === PackageTransaction.Queued
+                                 || activeCard.tx.state === PackageTransaction.Resolving
+                                 || activeCard.tx.state === PackageTransaction.Ready
+                                 || activeCard.tx.state === PackageTransaction.Downloading)
 
                     onClicked: {
-                        if (page.packageTransactionManager)
-                            page.packageTransactionManager.cancelActive()
+                        if (page.packageTransactionManager && activeCard.tx)
+                            page.packageTransactionManager.cancelTransaction(activeCard.tx)
                     }
                 }
             }
