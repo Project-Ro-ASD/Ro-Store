@@ -132,7 +132,7 @@ Item {
                 required property string repository
                 required property string summary
 
-                width: packagesView.width - (packagesView.ScrollBar.vertical && packagesView.ScrollBar.vertical.visible ? 14 : 0)
+                width: packagesView.width - 14
                 height: Math.max(104, rowContent.implicitHeight + metrics.spaceMedium * 2)
                 radius: metrics.radiusPanel
                 color: palette.base
