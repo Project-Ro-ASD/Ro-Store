@@ -2,8 +2,16 @@
 #include "backends/Dnf5Backend.h"
 
 #include <QDebug>
+#include <QLocale>
 
 namespace {
+QString readableSize(qulonglong bytes)
+{
+    const double mib = static_cast<double>(bytes) / (1024.0 * 1024.0);
+    if (mib < 1024.0)
+        return QLocale::c().toString(mib, 'f', 2) + QStringLiteral(" MB");
+    return QLocale::c().toString(mib / 1024.0, 'f', 2) + QStringLiteral(" GB");
+}
 
 Dnf5Backend::TransactionOperation toBackendOperation(
     PackageTransaction::Operation operation
@@ -57,8 +65,8 @@ PackageTransactionManager::PackageTransactionManager(
                 return;
             }
 
-            m_activeTransaction->appendTechnicalLog(QStringLiteral("Çözümleme başarılı: %1 işlem, %2 bayt, sonuç kodu %3.")
-                .arg(resolvedItems.size()).arg(totalDownloadBytes).arg(result));
+            m_activeTransaction->appendTechnicalLog(QStringLiteral("Çözümleme başarılı: %1 işlem, %2, sonuç kodu %3.")
+                .arg(resolvedItems.size()).arg(readableSize(totalDownloadBytes)).arg(result));
             for (const QVariant &itemValue : resolvedItems) {
                 const QVariantMap item = itemValue.toMap();
                 const QVariantMap pkg = item.value(QStringLiteral("object")).toMap();
@@ -281,6 +289,8 @@ PackageTransactionManager::PackageTransactionManager(
             m_activeTransaction->setState(
                 PackageTransaction::State::Downloading
             );
+            m_activeTransaction->appendTechnicalLog(QStringLiteral("İndirme başladı: %1 (%2)")
+                .arg(description, readableSize(safeTotal)));
 
             qInfo()
                 << "TRANSACTION PACKAGE DOWNLOAD START:"
