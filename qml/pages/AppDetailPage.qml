@@ -364,7 +364,8 @@ Item {
             height: Math.max(36, implicitHeight)
             anchors.left: parent.left
             anchors.verticalCenter: parent.verticalCenter
-            enabled: !page.transactionRunning
+            // Transactions are owned by the window-wide manager, not this
+            // page: navigating back does not cancel or destroy them.
             onClicked: page.backRequested()
         }
 
