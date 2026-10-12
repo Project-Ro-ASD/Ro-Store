@@ -57,6 +57,17 @@ PackageTransactionManager::PackageTransactionManager(
                 return;
             }
 
+            m_activeTransaction->appendTechnicalLog(QStringLiteral("Çözümleme başarılı: %1 işlem, %2 bayt, sonuç kodu %3.")
+                .arg(resolvedItems.size()).arg(totalDownloadBytes).arg(result));
+            for (const QVariant &itemValue : resolvedItems) {
+                const QVariantMap item = itemValue.toMap();
+                const QVariantMap pkg = item.value(QStringLiteral("object")).toMap();
+                m_activeTransaction->appendTechnicalLog(QStringLiteral("RPM: %1 %2 %3 [%4]")
+                    .arg(item.value(QStringLiteral("action")).toString(),
+                         pkg.value(QStringLiteral("name")).toString(),
+                         pkg.value(QStringLiteral("version")).toString(),
+                         pkg.value(QStringLiteral("repo_id")).toString()));
+            }
             m_activeTransaction->setResolvedItems(
                 resolvedItems
             );
@@ -126,6 +137,7 @@ PackageTransactionManager::PackageTransactionManager(
                 << packageName
                 << error;
 
+            m_activeTransaction->appendTechnicalLog(QStringLiteral("ÇÖZÜMLEME HATASI: ") + error);
             failActive(error);
         }
     );
@@ -210,6 +222,7 @@ PackageTransactionManager::PackageTransactionManager(
                 return;
             }
 
+            m_activeTransaction->appendTechnicalLog(QStringLiteral("ÇALIŞTIRMA HATASI: ") + error);
             failActive(error);
         }
     );
@@ -587,12 +600,14 @@ bool PackageTransactionManager::busy() const
 }
 
 QObject *PackageTransactionManager::enqueueInstall(
-    const QString &packageName
+    const QString &packageName,
+    const QString &repositoryId
 )
 {
     return enqueue(
         packageName,
-        PackageTransaction::Operation::Install
+        PackageTransaction::Operation::Install,
+        repositoryId
     );
 }
 
@@ -602,24 +617,28 @@ QObject *PackageTransactionManager::enqueueRemove(
 {
     return enqueue(
         packageName,
-        PackageTransaction::Operation::Remove
+        PackageTransaction::Operation::Remove,
+        QString()
     );
 }
 
 QObject *PackageTransactionManager::enqueueUpgrade(
-    const QString &packageName
+    const QString &packageName,
+    const QString &repositoryId
 )
 {
     return enqueue(
         packageName,
-        PackageTransaction::Operation::Upgrade
+        PackageTransaction::Operation::Upgrade,
+        repositoryId
     );
 }
 
 PackageTransaction *
 PackageTransactionManager::enqueue(
     const QString &packageName,
-    PackageTransaction::Operation operation
+    PackageTransaction::Operation operation,
+    const QString &repositoryId
 )
 {
     const QString cleanName = packageName.trimmed();
@@ -644,9 +663,13 @@ PackageTransactionManager::enqueue(
         new PackageTransaction(
             cleanName,
             operation,
+            repositoryId,
             this
         );
 
+    transaction->appendTechnicalLog(QStringLiteral("Paket: %1 | Kaynak: %2 | İşlem: %3")
+        .arg(cleanName, repositoryId.isEmpty() ? QStringLiteral("sistem") : repositoryId,
+             QString::number(static_cast<int>(operation))));
     m_model->appendTransaction(transaction);
 
     m_queue.enqueue(transaction);
@@ -740,11 +763,11 @@ void PackageTransactionManager::resolveActive()
         << "TRANSACTION MANAGER RESOLVING:"
         << m_activeTransaction->packageName();
 
+    m_activeTransaction->appendTechnicalLog(QStringLiteral("DNF5 bağımlılık çözümlemesi başlatıldı."));
     m_backend->resolveTransaction(
         m_activeTransaction->packageName(),
-        toBackendOperation(
-            m_activeTransaction->operation()
-        )
+        toBackendOperation(m_activeTransaction->operation()),
+        m_activeTransaction->repositoryId()
     );
 }
 
@@ -808,6 +831,7 @@ void PackageTransactionManager::executeActive()
         PackageTransaction::State::Downloading
     );
 
+    m_activeTransaction->appendTechnicalLog(QStringLiteral("DNF5 işlemi yürütülüyor."));
     m_backend->executeResolvedTransaction(false);
 }
 
@@ -974,6 +998,7 @@ void PackageTransactionManager::finishActive()
 
     m_activeTransaction->setProgress(100);
 
+    m_activeTransaction->appendTechnicalLog(QStringLiteral("Paket işlemi başarıyla tamamlandı."));
     m_activeTransaction->setState(
         PackageTransaction::State::Finished
     );
@@ -991,6 +1016,7 @@ void PackageTransactionManager::failActive(
         return;
     }
 
+    m_activeTransaction->appendTechnicalLog(QStringLiteral("İşlem başarısız: ") + errorMessage);
     m_activeTransaction->fail(errorMessage);
 
     resetAndReleaseActive();
