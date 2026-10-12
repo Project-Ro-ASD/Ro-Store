@@ -35,6 +35,7 @@ class PackageTransactionManager : public QObject
 
     Q_PROPERTY(bool outcomeUncertain READ outcomeUncertain NOTIFY outcomeUncertainChanged)
     Q_PROPERTY(QString recoveryDetails READ recoveryDetails NOTIFY recoveryDetailsChanged)
+    Q_PROPERTY(bool recoveryVerified READ recoveryVerified NOTIFY recoveryDetailsChanged)
 
     Q_PROPERTY(
         bool busy
@@ -55,6 +56,7 @@ public:
     bool busy() const;
     bool outcomeUncertain() const;
     QString recoveryDetails() const;
+    bool recoveryVerified() const { return m_recoveryVerified; }
     Q_INVOKABLE void recheckRecovery();
     Q_INVOKABLE void acknowledgeRecovery();
 
