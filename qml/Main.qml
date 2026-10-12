@@ -26,15 +26,14 @@ ApplicationWindow {
         if (root.exitingFromTray)
             return
         close.accepted = false
-        if (TrayController.available) {
+        if (transactionManager.busy) {
+            exitConfirmation.open()
+        } else if (TrayController.available) {
             root.hide()
             TrayController.notifyBackground()
-        } else if (!transactionManager.busy) {
-            Qt.quit()
         } else {
-            root.show()
-            root.raise()
-            root.requestActivate()
+            root.exitingFromTray = true
+            Qt.quit()
         }
     }
 
@@ -46,13 +45,59 @@ ApplicationWindow {
             root.requestActivate()
         }
         function onQuitRequested() {
-            if (!transactionManager.busy) {
+            if (transactionManager.busy)
+                exitConfirmation.open()
+            else {
                 root.exitingFromTray = true
                 Qt.quit()
             }
         }
     }
     color: themePalette.window
+
+    Dialog {
+        id: exitConfirmation
+        parent: Overlay.overlay
+        anchors.centerIn: parent
+        modal: true
+        title: "Devam eden işleminiz var"
+        standardButtons: Dialog.NoButton
+        width: Math.min(440, root.width - 32)
+        Column {
+            width: parent.width
+            spacing: 16
+            Label {
+                width: parent.width
+                wrapMode: Text.WordWrap
+                text: "Paket kurulumu veya kaldırma işlemi devam ediyor. Uygulamadan tamamen çıkarsanız işlem kesilebilir. Emin misiniz?"
+            }
+            Row {
+                spacing: 8
+                ThemedActionButton {
+                    text: "Arka planda sürdür"
+                    onClicked: {
+                        exitConfirmation.close()
+                        if (TrayController.available) {
+                            root.hide()
+                            TrayController.notifyBackground()
+                        }
+                    }
+                }
+                ThemedActionButton {
+                    text: "Vazgeç"
+                    onClicked: exitConfirmation.close()
+                }
+                ThemedActionButton {
+                    text: "Yine de çık"
+                    onClicked: {
+                        exitConfirmation.close()
+                        root.exitingFromTray = true
+                        Qt.quit()
+                    }
+                }
+            }
+        }
+    }
 
     CatalogModel {
         id: catalogModel
@@ -150,6 +195,19 @@ ApplicationWindow {
 
         DownloadsPage {
             packageTransactionManager: transactionManager
+            onPackageRequested: function(name, repository) {
+                var fedoraRepo = repository && repository !== "ro-asd-beta"
+                stackView.push(detailPageComponent, {
+                    appName: name,
+                    packageName: name,
+                    packageRepository: fedoraRepo ? repository : "ro-asd",
+                    categoryText: fedoraRepo ? "Fedora RPM" : "Ro-ASD",
+                    summaryText: "",
+                    descriptionText: "",
+                    versionText: "",
+                    iconUrl: ""
+                })
+            }
 
             onBackRequested: {
                 stackView.pop()
