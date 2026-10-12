@@ -1,6 +1,7 @@
 #include "FedoraPackageModel.h"
 
 #include <QProcess>
+#include <QRegularExpression>
 #include <QSysInfo>
 #include <QTimer>
 #include <QSet>
