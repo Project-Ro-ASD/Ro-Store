@@ -39,6 +39,19 @@ QString PackageTransaction::technicalLog() const
     return m_technicalLog;
 }
 
+bool PackageTransaction::cancelRequested() const
+{
+    return m_cancelRequested;
+}
+
+void PackageTransaction::setCancelRequested(bool requested)
+{
+    if (m_cancelRequested == requested)
+        return;
+    m_cancelRequested = requested;
+    emit cancelRequestedChanged();
+}
+
 void PackageTransaction::appendTechnicalLog(const QString &message)
 {
     // Keep the diagnostic history bound to the transaction so it survives
