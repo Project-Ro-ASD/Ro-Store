@@ -754,16 +754,16 @@ void PackageTransactionManager::recheckRecovery()
                 [this, history, message](int code, QProcess::ExitStatus result) {
                     const QString output = QString::fromLocal8Bit(history->readAllStandardOutput());
                     if (result != QProcess::NormalExit || code != 0) {
-                        setRecoveryDetails(message + QStringLiteral("\\nDNF5 geçmişi okunamadı. Kilit korunuyor."));
+                        setRecoveryDetails(message + QStringLiteral("\nDNF5 geçmişi okunamadı. Kilit korunuyor."));
                         history->deleteLater();
                         return;
                     }
                     const QRegularExpression entryPattern(
-                        QStringLiteral("^\\\\s*(\\\\d+)\\\\s+dnf5daemon-server.*$"),
+                        QStringLiteral("^\\s*(\\d+)\\s+dnf5daemon-server.*$"),
                         QRegularExpression::MultilineOption);
                     const auto entry = entryPattern.match(output);
                     if (!entry.hasMatch()) {
-                        setRecoveryDetails(message + QStringLiteral("\\nDNF5 geçmişinde eşleştirilebilecek işlem bulunamadı. Kilit korunuyor."));
+                        setRecoveryDetails(message + QStringLiteral("\nDNF5 geçmişinde eşleştirilebilecek işlem bulunamadı. Kilit korunuyor."));
                         history->deleteLater();
                         return;
                     }
@@ -776,17 +776,17 @@ void PackageTransactionManager::recheckRecovery()
                         [this, details, message, id](int exit, QProcess::ExitStatus state) {
                             const QString text = QString::fromLocal8Bit(details->readAllStandardOutput());
                             const bool completed = state == QProcess::NormalExit && exit == 0
-                                && text.contains(QRegularExpression(QStringLiteral("Status\\\\s*:\\s*Ok"), QRegularExpression::CaseInsensitiveOption))
+                                && text.contains(QRegularExpression(QStringLiteral("Status\\s*:\\s*Ok"), QRegularExpression::CaseInsensitiveOption))
                                 && text.contains(QStringLiteral("Comment"))
                                 && text.contains(QStringLiteral("Ro-Store"))
                                 && text.contains(m_pendingPackage, Qt::CaseInsensitive);
                             // This is supporting evidence only. An older entry with
                             // the same package name is not necessarily our transaction.
-                            setRecoveryDetails(message + QStringLiteral("\\nEn son DNF işlemi #%1: %2\\n")
+                            setRecoveryDetails(message + QStringLiteral("\nEn son DNF işlemi #%1: %2\\n")
                                 .arg(id, completed ? QStringLiteral("Ro-Store kaydı bulundu.")
                                                    : QStringLiteral("Eşleşen başarı kaydı doğrulanamadı."))
                                 + text.left(4000)
-                                + QStringLiteral("\\nKilit otomatik kaldırılmaz. İnceleme sürüyor."));
+                                + QStringLiteral("\nKilit otomatik kaldırılmaz. İnceleme sürüyor."));
                             details->deleteLater();
                         });
                     details->start();
