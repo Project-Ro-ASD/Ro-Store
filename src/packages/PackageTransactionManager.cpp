@@ -240,6 +240,32 @@ PackageTransactionManager::PackageTransactionManager(
         }
     );
 
+    connect(m_backend, &Dnf5Backend::transactionExecutionOutcomeUnknown,
+            this, [this](const QString &error) {
+        if (!m_activeTransaction || m_outcomeUncertain)
+            return;
+        m_outcomeUncertain = true;
+        emit outcomeUncertainChanged();
+        const QString warning = QStringLiteral(
+            "DNF5 yanıtı alınamadı. İşlem arka planda devam etmiş olabilir. "
+            "Yeni işlemler güvenlik nedeniyle durduruldu. "
+            "DNF5 servis durumunu ve RPM sonucunu kontrol edin.\n") + error;
+        m_activeTransaction->appendTechnicalLog(QStringLiteral("SONUÇ BELİRSİZ: ") + warning);
+        m_activeTransaction->markOutcomeUnknown(warning);
+        m_activeTransaction->setCancelRequested(false);
+        for (PackageTransaction *queued : m_queue) {
+            queued->appendTechnicalLog(QStringLiteral(
+                "Önceki DNF5 işleminin sonucu belirsiz olduğundan bu istek çalıştırılmadı."));
+            queued->markOutcomeUnknown(QStringLiteral(
+                "Güvenlik nedeniyle gönderilmedi. Önceki işlemin sonucu doğrulanmalı."));
+        }
+        m_queue.clear();
+        emit queuedCountChanged();
+        // Deliberately do NOT reset/close the daemon session here:
+        // it may still be running the original transaction.
+        emit activeTransactionChanged();
+    });
+
     connect(
         m_backend,
         &Dnf5Backend::downloadStarted,
@@ -617,6 +643,11 @@ bool PackageTransactionManager::busy() const
     return m_activeTransaction != nullptr;
 }
 
+bool PackageTransactionManager::outcomeUncertain() const
+{
+    return m_outcomeUncertain;
+}
+
 QObject *PackageTransactionManager::enqueueInstall(
     const QString &packageName,
     const QString &repositoryId
@@ -661,7 +692,8 @@ PackageTransactionManager::enqueue(
 {
     const QString cleanName = packageName.trimmed();
 
-    if (cleanName.isEmpty()) {
+    if (cleanName.isEmpty() || m_outcomeUncertain) {
+        qWarning() << "TRANSACTION BLOCKED: unresolved previous DNF5 outcome";
         return nullptr;
     }
 
@@ -744,7 +776,7 @@ QObject *PackageTransactionManager::pendingTransaction(
 
 void PackageTransactionManager::startNext()
 {
-    if (m_activeTransaction ||
+    if (m_activeTransaction || m_outcomeUncertain ||
         m_queue.isEmpty()) {
         return;
     }
@@ -857,7 +889,7 @@ void PackageTransactionManager::executeActive()
 
 void PackageTransactionManager::cancelActive()
 {
-    if (!m_activeTransaction)
+    if (!m_activeTransaction || m_outcomeUncertain)
         return;
     cancelTransaction(m_activeTransaction);
 }
