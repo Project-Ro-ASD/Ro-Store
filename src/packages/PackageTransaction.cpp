@@ -116,6 +116,7 @@ bool PackageTransaction::isFinished() const
 {
     return m_state == State::Finished ||
            m_state == State::Failed ||
+           m_state == State::OutcomeUnknown ||
            m_state == State::Cancelled;
 }
 
@@ -199,4 +200,10 @@ void PackageTransaction::fail(const QString &message)
 {
     setErrorMessage(message);
     setState(State::Failed);
+}
+
+void PackageTransaction::markOutcomeUnknown(const QString &message)
+{
+    setErrorMessage(message);
+    setState(State::OutcomeUnknown);
 }
