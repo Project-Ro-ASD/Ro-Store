@@ -1358,6 +1358,13 @@ void PackageTransactionManager::finishActive()
     m_activeTransaction->setProgress(100);
 
     clearPendingExecution();
+    // A definitive reply to do_transaction outweighs an earlier
+    // unanswered cancellation request, provided the journal was removed.
+    if (m_outcomeUncertain && !QFile::exists(journalPath())) {
+        m_outcomeUncertain = false;
+        emit outcomeUncertainChanged();
+        setRecoveryDetails(QString());
+    }
     m_activeTransaction->appendTechnicalLog(QStringLiteral("Paket işlemi başarıyla tamamlandı."));
     m_activeTransaction->setState(
         PackageTransaction::State::Finished
