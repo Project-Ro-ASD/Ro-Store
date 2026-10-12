@@ -11,6 +11,7 @@ class PackageTransaction : public QObject
     Q_PROPERTY(QString packageName READ packageName CONSTANT)
     Q_PROPERTY(QString repositoryId READ repositoryId CONSTANT)
     Q_PROPERTY(QString technicalLog READ technicalLog NOTIFY technicalLogChanged)
+    Q_PROPERTY(bool cancelRequested READ cancelRequested NOTIFY cancelRequestedChanged)
     Q_PROPERTY(Operation operation READ operation CONSTANT)
     Q_PROPERTY(State state READ state NOTIFY stateChanged)
     Q_PROPERTY(int progress READ progress NOTIFY progressChanged)
@@ -52,6 +53,8 @@ public:
     QString repositoryId() const;
     QString technicalLog() const;
     void appendTechnicalLog(const QString &message);
+    bool cancelRequested() const;
+    void setCancelRequested(bool requested);
     Q_INVOKABLE void copyTechnicalLog(const QString &text) const;
     Operation operation() const;
     State state() const;
@@ -89,12 +92,14 @@ signals:
     void downloadSpeedBytesPerSecondChanged();
     void errorMessageChanged();
     void technicalLogChanged();
+    void cancelRequestedChanged();
     void resolvedItemsChanged();
 
 private:
     QString m_packageName;
     QString m_repositoryId;
     QString m_technicalLog;
+    bool m_cancelRequested = false;
     Operation m_operation;
 
     State m_state = State::Queued;
