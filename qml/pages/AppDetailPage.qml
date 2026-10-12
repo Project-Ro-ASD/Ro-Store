@@ -137,6 +137,8 @@ Item {
     property string transactionPhaseText: {
         if (trackedTransaction === null)
             return ""
+        if (trackedTransaction.cancelRequested)
+            return "İptal kaydedildi — RPM başlatılmayacak"
 
         switch (trackedTransaction.state) {
         case PackageTransaction.Queued:
