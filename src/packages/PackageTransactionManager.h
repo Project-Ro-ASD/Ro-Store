@@ -34,6 +34,7 @@ class PackageTransactionManager : public QObject
     )
 
     Q_PROPERTY(bool outcomeUncertain READ outcomeUncertain NOTIFY outcomeUncertainChanged)
+    Q_PROPERTY(QString recoveryDetails READ recoveryDetails NOTIFY recoveryDetailsChanged)
 
     Q_PROPERTY(
         bool busy
@@ -53,6 +54,9 @@ public:
     int queuedCount() const;
     bool busy() const;
     bool outcomeUncertain() const;
+    QString recoveryDetails() const;
+    Q_INVOKABLE void recheckRecovery();
+    Q_INVOKABLE void acknowledgeRecovery();
 
     Q_INVOKABLE QObject *enqueueInstall(
         const QString &packageName,
@@ -84,6 +88,7 @@ signals:
     void activeTransactionChanged();
     void queuedCountChanged();
     void outcomeUncertainChanged();
+    void recoveryDetailsChanged();
 
     void transactionEnqueued(
         PackageTransaction *transaction
@@ -113,6 +118,11 @@ private:
     ) const;
 
     void startNext();
+    void persistPendingExecution();
+    void clearPendingExecution();
+    void setRecoveryDetails(const QString &details);
+    void activateRecoveryHold(const QString &reason);
+    QString journalPath() const;
     void resolveActive();
 
     void updateDownloadSpeed(qulonglong downloadedBytes);
@@ -139,4 +149,9 @@ private:
     bool m_cancelRequested = false;
     bool m_resetInProgress = false;
     bool m_outcomeUncertain = false;
+    QString m_recoveryDetails;
+    QString m_pendingPackage;
+    QString m_pendingOperation;
+    QString m_pendingStartedAt;
+    bool m_recheckBusy = false;
 };
