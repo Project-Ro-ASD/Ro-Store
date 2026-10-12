@@ -362,6 +362,8 @@ Item {
         ThemedIconButton {
             id: backButton
             text: "Geri"
+            enabled: true
+            opacity: 1.0
             themedIconName: "go-previous"
             icon.width: 16
             icon.height: 16
