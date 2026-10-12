@@ -268,6 +268,42 @@ ApplicationWindow {
         }
     }
 
+    Dialog {
+        id: recoveryInfoDialog
+        parent: Overlay.overlay
+        anchors.centerIn: parent
+        modal: true
+        title: "DNF5 güvenlik kontrolü"
+        standardButtons: Dialog.Close
+        width: Math.min(root.width - 24, 610)
+        height: Math.min(root.height - 24, 450)
+        ColumnLayout {
+            anchors.fill: parent
+            Label {
+                text: "Önceki paket işleminin sonucu kesinleşmedi. Yeni işlemler engellendi."
+                Layout.fillWidth: true
+                wrapMode: Text.WordWrap
+            }
+            ScrollView {
+                Layout.fillWidth: true
+                Layout.fillHeight: true
+                TextEdit {
+                    width: parent.width
+                    text: transactionManager.recoveryDetails
+                    color: themePalette.text
+                    wrapMode: TextEdit.Wrap
+                    readOnly: true
+                    selectByMouse: true
+                }
+            }
+            ThemedActionButton {
+                text: "RPM ve DNF geçmişini tekrar kontrol et"
+                Layout.fillWidth: true
+                onClicked: transactionManager.recheckRecovery()
+            }
+        }
+    }
+
     Rectangle {
         id: transactionSafetyNotice
         visible: transactionManager.outcomeUncertain
@@ -287,6 +323,11 @@ ApplicationWindow {
                   "Önce Yüklemeler ekranındaki teknik günlüğü ve sistem paket durumunu kontrol edin."
             color: themePalette.text
             wrapMode: Text.WordWrap
+        }
+        MouseArea {
+            anchors.fill: parent
+            cursorShape: Qt.PointingHandCursor
+            onClicked: recoveryInfoDialog.open()
         }
     }
 
