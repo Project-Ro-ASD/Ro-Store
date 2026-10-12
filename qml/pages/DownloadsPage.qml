@@ -67,6 +67,8 @@ Item {
             return "Tamamlandı"
         case PackageTransaction.Failed:
             return "Başarısız"
+        case PackageTransaction.OutcomeUnknown:
+            return "Sonuç belirsiz"
         case PackageTransaction.Cancelled:
             return "İptal edildi"
         }
@@ -633,6 +635,7 @@ Item {
                         && (
                             tx.state === PackageTransaction.Finished
                             || tx.state === PackageTransaction.Failed
+                            || tx.state === PackageTransaction.OutcomeUnknown
                             || tx.state === PackageTransaction.Cancelled
                         )
 
@@ -693,6 +696,8 @@ Item {
 
                             if (parent.tx.state === PackageTransaction.Failed)
                                 return "Başarısız"
+                            if (parent.tx.state === PackageTransaction.OutcomeUnknown)
+                                return "Sonuç belirsiz"
 
                             if (parent.tx.state === PackageTransaction.Cancelled)
                                 return "İptal edildi"
@@ -708,6 +713,8 @@ Item {
                                 return page.mutedAccent
 
                             if (parent.tx.state === PackageTransaction.Failed)
+                                return themePalette.text
+                            if (parent.tx.state === PackageTransaction.OutcomeUnknown)
                                 return themePalette.text
 
                             if (parent.tx.state === PackageTransaction.Cancelled)
