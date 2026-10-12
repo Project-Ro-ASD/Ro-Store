@@ -92,6 +92,10 @@ ApplicationWindow {
                 stackView.push(downloadsPageComponent)
             }
 
+            onFedoraCatalogRequested: {
+                stackView.push(fedoraCatalogComponent)
+            }
+
             onAppSelected: function(title, summary, description, category, version, packageName, iconUrl) {
                 stackView.push(detailPageComponent, {
                     appName: title,
@@ -114,6 +118,27 @@ ApplicationWindow {
 
             onBackRequested: {
                 stackView.pop()
+            }
+        }
+    }
+
+    Component {
+        id: fedoraCatalogComponent
+        FedoraCatalogPage {
+            packageTransactionManager: transactionManager
+            onBackRequested: stackView.pop()
+            onDownloadsRequested: stackView.push(downloadsPageComponent)
+            onPackageSelected: function(name, summary, version, repository) {
+                stackView.push(detailPageComponent, {
+                    appName: name,
+                    summaryText: summary,
+                    descriptionText: summary,
+                    categoryText: "Fedora RPM",
+                    versionText: version,
+                    packageName: name,
+                    packageRepository: repository,
+                    iconUrl: ""
+                })
             }
         }
     }
