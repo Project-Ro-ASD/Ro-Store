@@ -48,8 +48,6 @@ void TrayController::setBusy(bool busy)
     if (m_busy == busy)
         return;
     m_busy = busy;
-    if (m_quitAction)
-        m_quitAction->setEnabled(!busy);
     if (m_tray)
         m_tray->setToolTip(busy ? QStringLiteral("Ro-Store — paket işlemi sürüyor")
                                 : QStringLiteral("Ro-Store"));
