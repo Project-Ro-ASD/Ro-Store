@@ -47,8 +47,7 @@ Item {
         }
 
         Label {
-            text: "Etkin RPM depolarında paket ara. AppStream görselleri v0.5 ile eklenecek. "
-                  + "Kaynak bilgisi gösterim amaçlıdır; kurulumda DNF5 etkin depoların kendi önceliklerini kullanır."
+            text: "Fedora'nın etkin RPM depolarında uygulama ve paket ara."
             Layout.fillWidth: true
             wrapMode: Text.WordWrap
             color: palette.windowText
@@ -68,12 +67,16 @@ Item {
             ThemedActionButton {
                 text: "Ara"
                 accented: true
+                Layout.minimumWidth: Math.max(94, metrics.fontPx(80))
+                Layout.preferredHeight: Math.max(40, metrics.fontPx(40))
                 enabled: !fedoraPackages.loading
                 onClicked: fedoraPackages.search(searchField.text)
             }
             ThemedIconButton {
                 text: "Yenile"
                 themedIconName: "view-refresh"
+                Layout.minimumWidth: Math.max(116, metrics.fontPx(110))
+                Layout.preferredHeight: Math.max(40, metrics.fontPx(40))
                 enabled: !fedoraPackages.loading
                 onClicked: fedoraPackages.refresh()
             }
@@ -127,6 +130,7 @@ Item {
             ScrollBar.vertical: ScrollBar { policy: ScrollBar.AsNeeded }
 
             delegate: Rectangle {
+                id: packageCard
                 required property string packageName
                 required property string version
                 required property string architecture
@@ -137,8 +141,28 @@ Item {
                 height: Math.max(104, rowContent.implicitHeight + metrics.spaceMedium * 2)
                 radius: metrics.radiusPanel
                 color: palette.base
-                border.color: palette.mid
-                border.width: 1
+                border.color: packageCard.activeFocus ? palette.highlight : palette.mid
+                border.width: packageCard.activeFocus ? 2 : 1
+                activeFocusOnTab: true
+
+                function openDetails() {
+                    page.packageSelected(packageName, summary, version, repository)
+                }
+
+                Keys.onReturnPressed: function(event) {
+                    packageCard.openDetails()
+                    event.accepted = true
+                }
+                Keys.onEnterPressed: function(event) {
+                    packageCard.openDetails()
+                    event.accepted = true
+                }
+
+                MouseArea {
+                    anchors.fill: parent
+                    cursorShape: Qt.PointingHandCursor
+                    onClicked: packageCard.openDetails()
+                }
 
                 ColumnLayout {
                     id: rowContent
@@ -158,7 +182,9 @@ Item {
                         }
                         ThemedActionButton {
                             text: "Detaylar"
-                            onClicked: page.packageSelected(packageName, summary, version, repository)
+                            Layout.minimumWidth: Math.max(118, metrics.fontPx(105))
+                            Layout.preferredHeight: Math.max(38, metrics.fontPx(38))
+                            onClicked: packageCard.openDetails()
                         }
                     }
                     Label {
