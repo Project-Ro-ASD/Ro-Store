@@ -208,10 +208,15 @@ PackageTransactionManager::PackageTransactionManager(
                 << downloadOnly;
 
             if (downloadOnly) {
+                // The public download-only test must never implicitly install.
+                if (!m_downloadOnlyPhase) {
+                    m_activeTransaction->setState(PackageTransaction::State::Ready);
+                    return;
+                }
                 m_downloadOnlyPhase = false;
-                if (m_cancelRequested) {
+                if (m_cancelRequested || m_outcomeUncertain) {
                     m_activeTransaction->appendTechnicalLog(QStringLiteral(
-                        "İptal kaydedildi: indirme bitmiş olsa da RPM kurulumu BAŞLATILMADI."));
+                        "İptal veya belirsiz sonuç: RPM kurulumu BAŞLATILMADI."));
                     cancelActiveFinished();
                     return;
                 }
