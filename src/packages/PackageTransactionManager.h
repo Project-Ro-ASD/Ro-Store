@@ -33,6 +33,8 @@ class PackageTransactionManager : public QObject
         NOTIFY queuedCountChanged
     )
 
+    Q_PROPERTY(bool outcomeUncertain READ outcomeUncertain NOTIFY outcomeUncertainChanged)
+
     Q_PROPERTY(
         bool busy
         READ busy
@@ -50,6 +52,7 @@ public:
 
     int queuedCount() const;
     bool busy() const;
+    bool outcomeUncertain() const;
 
     Q_INVOKABLE QObject *enqueueInstall(
         const QString &packageName,
@@ -80,6 +83,7 @@ public:
 signals:
     void activeTransactionChanged();
     void queuedCountChanged();
+    void outcomeUncertainChanged();
 
     void transactionEnqueued(
         PackageTransaction *transaction
@@ -134,4 +138,5 @@ private:
 
     bool m_cancelRequested = false;
     bool m_resetInProgress = false;
+    bool m_outcomeUncertain = false;
 };
