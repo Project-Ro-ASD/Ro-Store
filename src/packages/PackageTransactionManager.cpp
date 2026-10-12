@@ -1304,6 +1304,9 @@ void PackageTransactionManager::failActive(
         return;
     }
 
+    // A confirmed local/pre-dispatch failure cannot leave an RPM mutation running.
+    // Remote do_transaction reply errors take OutcomeUnknown instead.
+    clearPendingExecution();
     m_activeTransaction->appendTechnicalLog(QStringLiteral("İşlem başarısız: ") + errorMessage);
     m_activeTransaction->fail(errorMessage);
 
