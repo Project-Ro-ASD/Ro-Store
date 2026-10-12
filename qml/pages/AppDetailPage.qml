@@ -51,12 +51,9 @@ Item {
         && trackedTransaction.state !== PackageTransaction.Cancelled
 
     property bool canCancelTransaction: page.transactionRunning
-        && !page.packageTransactionManager.outcomeUncertain
-        && !page.trackedTransaction.cancelRequested
-        && (page.trackedTransaction.state === PackageTransaction.Queued
-            || page.trackedTransaction.state === PackageTransaction.Resolving
-            || page.trackedTransaction.state === PackageTransaction.Ready
-            || page.trackedTransaction.state === PackageTransaction.Downloading)
+        && page.packageTransactionManager !== null
+        && page.packageTransactionManager.canCancelActive
+        && page.trackedTransaction === page.packageTransactionManager.activeTransaction
 
     function formatBytes(bytes) {
         var size = Number(bytes)
@@ -1068,7 +1065,7 @@ Item {
             ThemedActionButton {
                 id: cancelButtonWide
                 text: page.trackedTransaction && page.trackedTransaction.cancelRequested
-                      ? "İptal bekleniyor"
+                      ? "İptal kaydedildi"
                       : page.canCancelTransaction ? "İptal Et" : "İptal edilemez"
                 visible: page.transactionRunning
                 enabled: page.canCancelTransaction
@@ -1202,7 +1199,7 @@ Item {
 
             ThemedActionButton {
                 text: page.trackedTransaction && page.trackedTransaction.cancelRequested
-                      ? "İptal bekleniyor"
+                      ? "İptal kaydedildi"
                       : page.canCancelTransaction ? "İptal Et" : "İptal edilemez"
                 visible: page.transactionRunning
                 enabled: page.canCancelTransaction
