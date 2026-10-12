@@ -781,16 +781,33 @@ void PackageTransactionManager::recheckRecovery()
                         history->deleteLater();
                         return;
                     }
+                    // Do not inspect only the newest history row: it can
+                    // belong to another package or a much older transaction.
+                    const QDateTime expectedStart = QDateTime::fromString(
+                        m_pendingStartedAt, Qt::ISODate).toLocalTime();
                     const QRegularExpression entryPattern(
-                        QStringLiteral("^\\s*(\\d+)\\s+dnf5daemon-server.*$"),
+                        QStringLiteral("^\\s*(\\d+)\\s+dnf5daemon-server\\s+"
+                                       "(\\d{4}-\\d{2}-\\d{2} \\d{2}:\\d{2}:\\d{2})"),
                         QRegularExpression::MultilineOption);
-                    const auto entry = entryPattern.match(output);
-                    if (!entry.hasMatch()) {
-                        setRecoveryDetails(message + QStringLiteral("\nDNF5 geçmişinde eşleştirilebilecek işlem bulunamadı. Kilit korunuyor."));
+                    auto iterator = entryPattern.globalMatch(output);
+                    QString id;
+                    while (iterator.hasNext()) {
+                        const auto entry = iterator.next();
+                        const QDateTime candidate = QDateTime::fromString(
+                            entry.captured(2), QStringLiteral("yyyy-MM-dd HH:mm:ss"));
+                        if (candidate.isValid() && expectedStart.isValid()
+                            && candidate >= expectedStart.addSecs(-20)) {
+                            id = entry.captured(1);
+                            break;
+                        }
+                    }
+                    if (id.isEmpty()) {
+                        setRecoveryDetails(message + QStringLiteral(
+                            "\nİşlem başlangıcından sonraya ait DNF5 geçmiş kaydı bulunamadı. "
+                            "Eski işlemler eşleştirilmeyecek; kilit korunuyor."));
                         history->deleteLater();
                         return;
                     }
-                    const QString id = entry.captured(1);
                     history->deleteLater();
                     auto *details = new QProcess(this);
                     details->setProgram(QStringLiteral("dnf5"));
