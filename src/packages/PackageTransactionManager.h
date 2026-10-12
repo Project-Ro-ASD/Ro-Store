@@ -52,7 +52,8 @@ public:
     bool busy() const;
 
     Q_INVOKABLE QObject *enqueueInstall(
-        const QString &packageName
+        const QString &packageName,
+        const QString &repositoryId = QStringLiteral("ro-asd-beta")
     );
 
     Q_INVOKABLE QObject *enqueueRemove(
@@ -60,7 +61,8 @@ public:
     );
 
     Q_INVOKABLE QObject *enqueueUpgrade(
-        const QString &packageName
+        const QString &packageName,
+        const QString &repositoryId = QStringLiteral("ro-asd-beta")
     );
 
     Q_INVOKABLE void testDownloadOnlyActive();
@@ -97,7 +99,8 @@ signals:
 private:
     PackageTransaction *enqueue(
         const QString &packageName,
-        PackageTransaction::Operation operation
+        PackageTransaction::Operation operation,
+        const QString &repositoryId
     );
 
     PackageTransaction *findPendingTransaction(
