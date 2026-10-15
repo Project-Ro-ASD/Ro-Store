@@ -62,7 +62,7 @@ Item {
             TextField {
                 id: searchField
                 Layout.fillWidth: true
-                placeholderText: "Paket adı (ör. firefox, gimp, kate)"
+                placeholderText: "Paket veya uygulama adı (ör. firefox, Görüntü Düzenleyici)"
                 font.family: metrics.systemFont.family
                 onAccepted: fedoraPackages.search(text)
             }
