@@ -178,7 +178,9 @@ set(CPACK_RPM_PACKAGE_AUTOREQ ON)
 set(CPACK_RPM_PACKAGE_AUTOPROV ON)
 
 # Ro-Store package transactions use the DNF5 daemon over D-Bus.
-set(CPACK_RPM_PACKAGE_REQUIRES "dnf5daemon-server, dnf5daemon-server-polkit, polkit, kf6-kirigami")
+# The cancellable download worker invokes /usr/bin/dnf5 download.
+# Fedora provides that subcommand directly in dnf5, not dnf5-plugins.
+set(CPACK_RPM_PACKAGE_REQUIRES "dnf5, dnf5-command(download), dnf5daemon-server, dnf5daemon-server-polkit, polkit, kf6-kirigami")
 
 set(CPACK_RPM_FILE_NAME "RPM-DEFAULT")
 
