@@ -762,6 +762,15 @@ Item {
                                             asynchronous: true
                                         }
 
+                                        // TapHandler keeps horizontal flick gestures on the
+                                        // parent Flickable, unlike a full-card MouseArea.
+                                        TapHandler {
+                                            onTapped: screenshotPreview.open(index)
+                                        }
+                                        HoverHandler {
+                                            cursorShape: Qt.PointingHandCursor
+                                        }
+
                                         Text {
                                             anchors.centerIn: parent
                                             visible: screenshotImage.status !== Image.Ready
@@ -1355,11 +1364,168 @@ Item {
 
     // Give the window-level Escape handler a modal-first route.
     function dismissOnEscape() {
+        if (screenshotPreview.visible) {
+            screenshotPreview.close()
+            return true
+        }
         if (removeConfirmDialog.visible) {
             removeConfirmDialog.close()
             return true
         }
         return false
+    }
+
+    // APPSTREAM EKRAN GÖRÜNTÜSÜ ÖNİZLEME
+    // The overlay belongs to the detail page (not the scrolling content),
+    // so it cannot be clipped by either Flickable.
+    FocusScope {
+        id: screenshotPreview
+        anchors.fill: parent
+        visible: false
+        focus: visible
+        z: 9998
+        property int currentIndex: 0
+
+        function open(index) {
+            if (!page.screenshotUrls || index < 0
+                    || index >= page.screenshotUrls.length)
+                return
+            currentIndex = index
+            visible = true
+            forceActiveFocus(Qt.PopupFocusReason)
+        }
+
+        function close() { visible = false }
+        function previous() {
+            if (currentIndex > 0)
+                currentIndex--
+        }
+        function next() {
+            if (page.screenshotUrls
+                    && currentIndex + 1 < page.screenshotUrls.length)
+                currentIndex++
+        }
+
+        Keys.onLeftPressed: function(event) {
+            screenshotPreview.previous()
+            event.accepted = true
+        }
+        Keys.onRightPressed: function(event) {
+            screenshotPreview.next()
+            event.accepted = true
+        }
+        Keys.onEscapePressed: function(event) {
+            screenshotPreview.close()
+            event.accepted = true
+        }
+
+        Rectangle {
+            anchors.fill: parent
+            color: Qt.rgba(0, 0, 0, 0.75)
+
+            MouseArea {
+                anchors.fill: parent
+                onClicked: screenshotPreview.close()
+            }
+        }
+
+        Rectangle {
+            width: Math.max(0, Math.min(1100, screenshotPreview.width - 32))
+            height: Math.max(0, Math.min(760, screenshotPreview.height - 32))
+            anchors.centerIn: parent
+            radius: metrics.radiusPanel
+            color: themePalette.base
+            border.color: themePalette.mid
+            border.width: 1
+            clip: true
+
+            // Block clicks on the large image from closing the preview.
+            MouseArea {
+                anchors.fill: parent
+                onClicked: function(mouse) { mouse.accepted = true }
+            }
+
+            ColumnLayout {
+                anchors.fill: parent
+                anchors.margins: metrics.spaceMedium
+                spacing: metrics.spaceMedium
+
+                RowLayout {
+                    Layout.fillWidth: true
+                    spacing: metrics.spaceMedium
+
+                    Label {
+                        text: "Ekran görüntüsü "
+                              + (screenshotPreview.currentIndex + 1)
+                              + " / " + (page.screenshotUrls
+                                         ? page.screenshotUrls.length : 0)
+                        color: themePalette.text
+                        font.family: metrics.systemFont.family
+                        font.pixelSize: metrics.fontBodyLarge
+                        font.bold: true
+                        Layout.fillWidth: true
+                        elide: Text.ElideRight
+                    }
+                    ThemedActionButton {
+                        text: "Kapat ✕"
+                        onClicked: screenshotPreview.close()
+                    }
+                }
+
+                Item {
+                    Layout.fillWidth: true
+                    Layout.fillHeight: true
+                    Layout.minimumHeight: 80
+
+                    Image {
+                        id: enlargedScreenshot
+                        anchors.fill: parent
+                        source: screenshotPreview.visible && page.screenshotUrls
+                                && screenshotPreview.currentIndex < page.screenshotUrls.length
+                                ? page.screenshotUrls[screenshotPreview.currentIndex] : ""
+                        fillMode: Image.PreserveAspectFit
+                        asynchronous: true
+                        sourceSize.width: 1280
+                        sourceSize.height: 960
+                    }
+                    Label {
+                        anchors.centerIn: parent
+                        visible: enlargedScreenshot.status !== Image.Ready
+                        text: enlargedScreenshot.status === Image.Error
+                              ? "Görüntü yüklenemedi"
+                              : "Görüntü yükleniyor..."
+                        color: themePalette.text
+                        font.family: metrics.systemFont.family
+                        font.pixelSize: metrics.fontBody
+                    }
+                }
+
+                RowLayout {
+                    Layout.fillWidth: true
+
+                    ThemedActionButton {
+                        text: "← Önceki"
+                        enabled: screenshotPreview.currentIndex > 0
+                        onClicked: screenshotPreview.previous()
+                    }
+                    Item { Layout.fillWidth: true }
+                    Label {
+                        text: "← → tuşlarıyla gezinebilirsin"
+                        visible: screenshotPreview.width > 570
+                        color: page.secondaryText
+                        font.family: metrics.systemFont.family
+                        font.pixelSize: metrics.fontSmall
+                    }
+                    Item { Layout.fillWidth: true }
+                    ThemedActionButton {
+                        text: "Sonraki →"
+                        enabled: page.screenshotUrls
+                                 && screenshotPreview.currentIndex + 1 < page.screenshotUrls.length
+                        onClicked: screenshotPreview.next()
+                    }
+                }
+            }
+        }
     }
 
     // KALDIRMA ONAY PENCERESİ
