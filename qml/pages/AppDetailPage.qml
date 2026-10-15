@@ -774,7 +774,12 @@ Item {
                                         // TapHandler keeps horizontal flick gestures on the
                                         // parent Flickable, unlike a full-card MouseArea.
                                         TapHandler {
-                                            onTapped: screenshotPreview.open(index)
+                                            onTapped: {
+                                                if (screenshotImage.status === Image.Error)
+                                                    Qt.openUrlExternally(modelData)
+                                                else
+                                                    screenshotPreview.open(index)
+                                            }
                                         }
                                         HoverHandler {
                                             cursorShape: Qt.PointingHandCursor
@@ -782,9 +787,13 @@ Item {
 
                                         Text {
                                             anchors.centerIn: parent
+                                            width: parent.width - 20
+                                            horizontalAlignment: Text.AlignHCenter
+                                            wrapMode: Text.WordWrap
                                             visible: screenshotImage.status !== Image.Ready
                                             text: screenshotImage.status === Image.Error
-                                                  ? "Görüntü yüklenemedi" : "Görüntü yükleniyor..."
+                                                  ? "Görüntü uygulamada açılamadı.\\nTarayıcıda açmak için tıklayın."
+                                                  : "Görüntü yükleniyor..."
                                             color: themePalette.text
                                             font.family: metrics.systemFont.family
                                             font.pixelSize: metrics.fontSmall
@@ -1476,6 +1485,15 @@ Item {
                         elide: Text.ElideRight
                     }
                     ThemedActionButton {
+                        text: "Tarayıcıda aç"
+                        visible: enlargedScreenshot.status === Image.Error
+                                 && screenshotPreview.visible
+                                 && page.screenshotUrls
+                                 && screenshotPreview.currentIndex < page.screenshotUrls.length
+                        onClicked: Qt.openUrlExternally(
+                            page.screenshotUrls[screenshotPreview.currentIndex])
+                    }
+                    ThemedActionButton {
                         text: "Kapat ✕"
                         onClicked: screenshotPreview.close()
                     }
@@ -1501,8 +1519,10 @@ Item {
                         anchors.centerIn: parent
                         visible: enlargedScreenshot.status !== Image.Ready
                         text: enlargedScreenshot.status === Image.Error
-                              ? "Görüntü yüklenemedi"
+                              ? "Görüntü uygulama içinde yüklenemedi.\\nTarayıcıda açabilirsiniz."
                               : "Görüntü yükleniyor..."
+                        horizontalAlignment: Text.AlignHCenter
+                        wrapMode: Text.WordWrap
                         color: themePalette.text
                         font.family: metrics.systemFont.family
                         font.pixelSize: metrics.fontBody
