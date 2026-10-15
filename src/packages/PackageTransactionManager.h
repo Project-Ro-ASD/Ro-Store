@@ -8,6 +8,10 @@
 
 #include "PackageTransaction.h"
 #include "PackageTransactionModel.h"
+#include <QProcess>
+#include <QTimer>
+#include <QTemporaryDir>
+#include <memory>
 
 class Dnf5Backend;
 
@@ -33,6 +37,11 @@ class PackageTransactionManager : public QObject
         NOTIFY queuedCountChanged
     )
 
+    Q_PROPERTY(bool outcomeUncertain READ outcomeUncertain NOTIFY outcomeUncertainChanged)
+    Q_PROPERTY(bool canCancelActive READ canCancelActive NOTIFY activeTransactionChanged)
+    Q_PROPERTY(QString recoveryDetails READ recoveryDetails NOTIFY recoveryDetailsChanged)
+    Q_PROPERTY(bool recoveryVerified READ recoveryVerified NOTIFY recoveryDetailsChanged)
+
     Q_PROPERTY(
         bool busy
         READ busy
@@ -50,9 +59,16 @@ public:
 
     int queuedCount() const;
     bool busy() const;
+    bool outcomeUncertain() const;
+    bool canCancelActive() const;
+    QString recoveryDetails() const;
+    bool recoveryVerified() const { return m_recoveryVerified; }
+    Q_INVOKABLE void recheckRecovery();
+    Q_INVOKABLE void acknowledgeRecovery();
 
     Q_INVOKABLE QObject *enqueueInstall(
-        const QString &packageName
+        const QString &packageName,
+        const QString &repositoryId = QStringLiteral("ro-asd-beta")
     );
 
     Q_INVOKABLE QObject *enqueueRemove(
@@ -60,12 +76,14 @@ public:
     );
 
     Q_INVOKABLE QObject *enqueueUpgrade(
-        const QString &packageName
+        const QString &packageName,
+        const QString &repositoryId = QStringLiteral("ro-asd-beta")
     );
 
     Q_INVOKABLE void testDownloadOnlyActive();
     Q_INVOKABLE void executeActive();
     Q_INVOKABLE void cancelActive();
+    Q_INVOKABLE void cancelTransaction(QObject *transaction);
 
     Q_INVOKABLE QObject *pendingTransaction(
         const QString &packageName
@@ -77,6 +95,8 @@ public:
 signals:
     void activeTransactionChanged();
     void queuedCountChanged();
+    void outcomeUncertainChanged();
+    void recoveryDetailsChanged();
 
     void transactionEnqueued(
         PackageTransaction *transaction
@@ -97,7 +117,8 @@ signals:
 private:
     PackageTransaction *enqueue(
         const QString &packageName,
-        PackageTransaction::Operation operation
+        PackageTransaction::Operation operation,
+        const QString &repositoryId
     );
 
     PackageTransaction *findPendingTransaction(
@@ -105,7 +126,16 @@ private:
     ) const;
 
     void startNext();
+    void persistPendingExecution();
+    void clearPendingExecution();
+    void setRecoveryDetails(const QString &details);
+    void activateRecoveryHold(const QString &reason);
+    QString journalPath() const;
     void resolveActive();
+    void startControlledDownload();
+    void finishControlledDownload(int exitCode, QProcess::ExitStatus status);
+    void refreshControlledDownloadProgress();
+    void cleanupControlledDownload();
 
     void updateDownloadSpeed(qulonglong downloadedBytes);
     void resetDownloadSpeedTracking();
@@ -130,4 +160,18 @@ private:
 
     bool m_cancelRequested = false;
     bool m_resetInProgress = false;
+    bool m_downloadOnlyPhase = false;
+    QProcess *m_controlledDownload = nullptr;
+    QTimer *m_downloadProgressTimer = nullptr;
+    std::unique_ptr<QTemporaryDir> m_downloadDirectory;
+    QVariantList m_approvedPlan;
+    bool m_controlledProcessKilled = false;
+    bool m_rpmPhaseStarted = false;
+    bool m_outcomeUncertain = false;
+    QString m_recoveryDetails;
+    QString m_pendingPackage;
+    QString m_pendingOperation;
+    QString m_pendingStartedAt;
+    bool m_recheckBusy = false;
+    bool m_recoveryVerified = false;
 };

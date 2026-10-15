@@ -36,16 +36,41 @@ Item {
     property string versionText: ""
     property string packageName: ""
     property string iconUrl: ""
+    property string packageRepository: "ro-asd"
 
     property var packageTransactionManager: null
     property var repositorySourceManager: null
     property var trackedTransaction: null
+    property var initialTransaction: null
 
     property bool transactionRunning:
         trackedTransaction !== null
         && trackedTransaction.state !== PackageTransaction.Finished
         && trackedTransaction.state !== PackageTransaction.Failed
+        && trackedTransaction.state !== PackageTransaction.OutcomeUnknown
         && trackedTransaction.state !== PackageTransaction.Cancelled
+
+    // Queued transactions can be removed immediately; active transactions
+    // can only be cancelled during the backend's safe pre-RPM phases.
+    property bool canCancelTransaction: page.transactionRunning
+        && page.packageTransactionManager !== null
+        && page.trackedTransaction !== null
+        && !page.trackedTransaction.cancelRequested
+        && (
+            page.trackedTransaction.state === PackageTransaction.Queued
+            || (
+                page.trackedTransaction === page.packageTransactionManager.activeTransaction
+                && page.packageTransactionManager.canCancelActive
+            )
+        )
+
+    function formatBytes(bytes) {
+        var size = Number(bytes)
+        if (!isFinite(size) || size <= 0) return "0 MB"
+        if (size < 1024 * 1024) return (size / 1024).toFixed(1) + " KB"
+        if (size < 1024 * 1024 * 1024) return (size / (1024 * 1024)).toFixed(2) + " MB"
+        return (size / (1024 * 1024 * 1024)).toFixed(2) + " GB"
+    }
 
     property int transactionProgress:
         trackedTransaction !== null
@@ -59,7 +84,8 @@ Item {
         || packageStatus.updateAvailable
 
     property bool repositoryBlocked:
-        repositoryRequired
+        packageRepository === "ro-asd"
+        && repositoryRequired
         && (
             repositorySourceManager === null
             || !repositorySourceManager.roAsdReady
@@ -120,6 +146,11 @@ Item {
     property string transactionPhaseText: {
         if (trackedTransaction === null)
             return ""
+        if (trackedTransaction.state === PackageTransaction.Cancelled)
+            return "İptal edildi"
+
+        if (trackedTransaction.cancelRequested)
+            return "İptal kaydedildi — RPM başlatılmayacak"
 
         switch (trackedTransaction.state) {
         case PackageTransaction.Queued:
@@ -142,6 +173,8 @@ Item {
             return "Tamamlandı"
         case PackageTransaction.Failed:
             return "Başarısız"
+        case PackageTransaction.OutcomeUnknown:
+            return "Sonuç belirsiz"
         case PackageTransaction.Cancelled:
             return "İptal edildi"
         }
@@ -162,21 +195,23 @@ Item {
         if (trackedTransaction.totalBytes > 0) {
             lines.push(
                 "İndirilen: "
-                + trackedTransaction.downloadedBytes
+                + page.formatBytes(trackedTransaction.downloadedBytes)
                 + " / "
-                + trackedTransaction.totalBytes
-                + " bayt"
+                + page.formatBytes(trackedTransaction.totalBytes)
             )
         }
 
         if (trackedTransaction.errorMessage.length > 0)
             lines.push("Hata: " + trackedTransaction.errorMessage)
+        lines.push("")
+        lines.push("=== DNF5 İşlem Ayrıntıları ===")
+        lines.push(trackedTransaction.technicalLog)
 
         return lines.join("\n")
     }
 
     function startInstallTransaction() {
-        if (!packageTransactionManager || transactionRunning)
+        if (!packageTransactionManager || packageTransactionManager.outcomeUncertain || transactionRunning)
             return
 
         page.logsExpanded = false
@@ -184,12 +219,12 @@ Item {
 
         page.trackedTransaction =
             packageTransactionManager.enqueueInstall(
-                page.packageName
+                page.packageName, page.packageRepository === "ro-asd" ? "ro-asd-beta" : page.packageRepository
             )
     }
 
     function startUpgradeTransaction() {
-        if (!packageTransactionManager || transactionRunning)
+        if (!packageTransactionManager || packageTransactionManager.outcomeUncertain || transactionRunning)
             return
 
         page.logsExpanded = false
@@ -197,12 +232,12 @@ Item {
 
         page.trackedTransaction =
             packageTransactionManager.enqueueUpgrade(
-                page.packageName
+                page.packageName, page.packageRepository === "ro-asd" ? "ro-asd-beta" : page.packageRepository
             )
     }
 
     function startRemoveTransaction() {
-        if (!packageTransactionManager || transactionRunning)
+        if (!packageTransactionManager || packageTransactionManager.outcomeUncertain || transactionRunning)
             return
 
         page.logsExpanded = false
@@ -278,6 +313,10 @@ Item {
                     page.versionText
                 )
 
+            } else if (page.trackedTransaction.state === PackageTransaction.OutcomeUnknown) {
+                page.lastActionMessage = page.trackedTransaction.errorMessage
+                page.lastActionSuccess = false
+                page.logsExpanded = true
             } else if (page.trackedTransaction.state === PackageTransaction.Failed) {
                 page.lastActionMessage =
                     page.trackedTransaction.errorMessage.length > 0
@@ -285,7 +324,7 @@ Item {
                     : "İşlem başarısız."
 
                 page.lastActionSuccess = false
-                page.logsExpanded = false
+                page.logsExpanded = true
 
                 packageStatus.checkInstalled(
                     page.packageName,
@@ -315,8 +354,7 @@ Item {
                     page.packageName
                 )
 
-            if (pending)
-                page.trackedTransaction = pending
+            page.trackedTransaction = page.initialTransaction || pending
         }
 
         packageStatus.checkInstalled(
@@ -338,6 +376,8 @@ Item {
         ThemedIconButton {
             id: backButton
             text: "Geri"
+            enabled: true
+            opacity: 1.0
             themedIconName: "go-previous"
             icon.width: 16
             icon.height: 16
@@ -345,7 +385,8 @@ Item {
             height: Math.max(36, implicitHeight)
             anchors.left: parent.left
             anchors.verticalCenter: parent.verticalCenter
-            enabled: !page.transactionRunning
+            // Transactions are owned by the window-wide manager, not this
+            // page: navigating back does not cancel or destroy them.
             onClicked: page.backRequested()
         }
 
@@ -698,7 +739,7 @@ Item {
 
                     Text {
                         width: parent.width
-                        text: "Kaynak: Ro-Repo"
+                        text: "Kaynak: " + (page.packageRepository === "ro-asd" ? "Ro-Repo" : page.packageRepository)
                         color: page.secondaryText
                         font.family: metrics.systemFont.family
                         font.pixelSize: metrics.fontBody
@@ -858,7 +899,7 @@ Item {
                     }
 
                     Text {
-                        visible: !page.narrow && parent.width >= 640
+                        visible: false
                         anchors.right: parent.right
                         anchors.rightMargin: metrics.spaceLarge
                         y: 14
@@ -874,6 +915,19 @@ Item {
                         width: parent.width - 32
                         height: 1
                         color: themePalette.dark
+                    }
+
+                    ThemedActionButton {
+                        text: "Günlüğü Kopyala"
+                        anchors.right: parent.right
+                        anchors.rightMargin: 12
+                        y: 6
+                        width: 154
+                        height: 32
+                        onClicked: {
+                            if (page.trackedTransaction)
+                                page.trackedTransaction.copyTechnicalLog(page.transactionTechnicalText)
+                        }
                     }
 
                     ScrollView {
@@ -915,11 +969,17 @@ Item {
         x: page.sideMargin
         y: parent.height - height - 20
         width: page.contentWidth
+        // Running transactions use a separate status row and action row.
+        // No absolute horizontal positioning can collide with the progress bar.
         height: page.narrow
                 ? Math.max(page.transactionRunning ? 132 : 104,
                            (page.transactionRunning ? 82 : 54)
                            + Math.max(38, metrics.fontPx(38)) + 12)
-                : Math.max(62, metrics.fontPx(38) + metrics.spaceNormal * 2)
+                : page.transactionRunning
+                  ? Math.max(108, metrics.fontPx(38)
+                                   + metrics.spaceLarge * 2
+                                   + metrics.spaceMedium * 2)
+                  : Math.max(62, metrics.fontPx(38) + metrics.spaceNormal * 2)
 
         radius: metrics.radiusInner
         color: themePalette.base
@@ -934,6 +994,7 @@ Item {
 
             ThemedActionButton {
                 text: "Durumu Yenile"
+                visible: !page.transactionRunning
                 width: 130
                 height: 38
                 anchors.left: parent.left
@@ -944,9 +1005,13 @@ Item {
             }
 
             Text {
-                x: 155
-                width: parent.width - (page.transactionRunning ? 665 : 455)
-                anchors.verticalCenter: parent.verticalCenter
+                x: page.transactionRunning ? metrics.spaceMedium : 155
+                y: page.transactionRunning
+                   ? metrics.spaceNormal
+                   : Math.max(0, (parent.height - height) / 2)
+                width: page.transactionRunning
+                       ? Math.max(0, parent.width - metrics.spaceMedium * 2)
+                       : Math.max(0, parent.width - 455)
                 text: page.displayStatusText
                 color: page.displayStatusColor
                 font.family: metrics.systemFont.family
@@ -956,11 +1021,12 @@ Item {
 
             Rectangle {
                 visible: page.transactionRunning
-                width: 185
                 height: 30
-                anchors.right: parent.right
-                anchors.rightMargin: 282
-                anchors.verticalCenter: parent.verticalCenter
+                anchors.left: parent.left
+                anchors.leftMargin: metrics.spaceMedium
+                anchors.right: cancelButtonWide.left
+                anchors.rightMargin: metrics.spaceMedium
+                anchors.verticalCenter: cancelButtonWide.verticalCenter
 
                 radius: metrics.radiusControl
                 color: themePalette.button
@@ -1013,6 +1079,23 @@ Item {
             }
 
             ThemedActionButton {
+                id: cancelButtonWide
+                text: page.trackedTransaction && page.trackedTransaction.cancelRequested
+                      ? "İptal kaydedildi"
+                      : page.canCancelTransaction ? "İptal Et" : "İptal edilemez"
+                visible: page.transactionRunning
+                enabled: page.canCancelTransaction
+                width: Math.max(148, implicitWidth + metrics.spaceMedium * 2)
+                height: Math.max(38, metrics.fontPx(38))
+                anchors.right: parent.right
+                anchors.rightMargin: metrics.spaceMedium
+                anchors.bottom: parent.bottom
+                anchors.bottomMargin: metrics.spaceNormal
+                onClicked: page.packageTransactionManager.cancelTransaction(page.trackedTransaction)
+            }
+
+            ThemedActionButton {
+                visible: !page.transactionRunning
                 // Install/update actions are prominent, removal stays outlined.
                 accented: page.repositoryBlocked
                           || !packageStatus.installed
@@ -1131,7 +1214,21 @@ Item {
             }
 
             ThemedActionButton {
+                text: page.trackedTransaction && page.trackedTransaction.cancelRequested
+                      ? "İptal kaydedildi"
+                      : page.canCancelTransaction ? "İptal Et" : "İptal edilemez"
+                visible: page.transactionRunning
+                enabled: page.canCancelTransaction
+                x: 12
+                y: 82
+                width: Math.max(0, parent.width - 24)
+                height: Math.max(38, metrics.fontPx(38))
+                onClicked: page.packageTransactionManager.cancelTransaction(page.trackedTransaction)
+            }
+
+            ThemedActionButton {
                 text: "Durumu Yenile"
+                visible: !page.transactionRunning
                 x: packageStatus.installed && !page.transactionRunning ? 12 + ((parent.width - 48) / 3) + 12 : 12
                 y: page.transactionRunning ? 82 : 54
                 width: packageStatus.installed && !page.transactionRunning ? (parent.width - 48) / 3 : (parent.width - 36) / 2
@@ -1141,6 +1238,7 @@ Item {
             }
 
             ThemedActionButton {
+                visible: !page.transactionRunning
                 // Install/update actions are prominent, removal stays outlined.
                 accented: page.repositoryBlocked
                           || !packageStatus.installed

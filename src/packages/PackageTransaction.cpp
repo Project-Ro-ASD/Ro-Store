@@ -1,14 +1,19 @@
 #include "PackageTransaction.h"
 
 #include <QtGlobal>
+#include <QDateTime>
+#include <QClipboard>
+#include <QGuiApplication>
 
 PackageTransaction::PackageTransaction(
     const QString &packageName,
     Operation operation,
+    const QString &repositoryId,
     QObject *parent
 )
     : QObject(parent),
       m_packageName(packageName),
+      m_repositoryId(repositoryId),
       m_operation(operation)
 {
 }
@@ -16,6 +21,50 @@ PackageTransaction::PackageTransaction(
 QString PackageTransaction::packageName() const
 {
     return m_packageName;
+}
+
+void PackageTransaction::copyTechnicalLog(const QString &text) const
+{
+    if (QGuiApplication::clipboard())
+        QGuiApplication::clipboard()->setText(text);
+}
+
+QString PackageTransaction::repositoryId() const
+{
+    return m_repositoryId;
+}
+
+QString PackageTransaction::technicalLog() const
+{
+    return m_technicalLog;
+}
+
+bool PackageTransaction::cancelRequested() const
+{
+    return m_cancelRequested;
+}
+
+void PackageTransaction::setCancelRequested(bool requested)
+{
+    if (m_cancelRequested == requested)
+        return;
+    m_cancelRequested = requested;
+    emit cancelRequestedChanged();
+}
+
+void PackageTransaction::appendTechnicalLog(const QString &message)
+{
+    // Keep the diagnostic history bound to the transaction so it survives
+    // manager session recycling and can be copied from QML after failure.
+    const QString line = QStringLiteral("[%1] %2\n")
+        .arg(QDateTime::currentDateTime().toString(Qt::ISODateWithMs), message);
+    m_technicalLog += line;
+    constexpr qsizetype maxSize = 96 * 1024;
+    if (m_technicalLog.size() > maxSize) {
+        m_technicalLog = QStringLiteral("[Earlier entries truncated]\n")
+                         + m_technicalLog.right(maxSize - 200);
+    }
+    emit technicalLogChanged();
 }
 
 PackageTransaction::Operation PackageTransaction::operation() const
@@ -67,6 +116,7 @@ bool PackageTransaction::isFinished() const
 {
     return m_state == State::Finished ||
            m_state == State::Failed ||
+           m_state == State::OutcomeUnknown ||
            m_state == State::Cancelled;
 }
 
@@ -150,4 +200,10 @@ void PackageTransaction::fail(const QString &message)
 {
     setErrorMessage(message);
     setState(State::Failed);
+}
+
+void PackageTransaction::markOutcomeUnknown(const QString &message)
+{
+    setErrorMessage(message);
+    setState(State::OutcomeUnknown);
 }

@@ -1029,7 +1029,8 @@ void Dnf5Backend::queryPackageState(const QString &packageName)
 
 void Dnf5Backend::resolveTransaction(
     const QString &packageName,
-    TransactionOperation operation
+    TransactionOperation operation,
+    const QString &repositoryId
 )
 {
     const QString cleanName = packageName.trimmed();
@@ -1067,7 +1068,7 @@ void Dnf5Backend::resolveTransaction(
     }
 
     ensureSessionAsync(
-        [this, cleanName, operation](bool success) {
+        [this, cleanName, operation, repositoryId](bool success) {
             if (!success) {
                 emit transactionResolveFailed(
                     operation,
@@ -1110,12 +1111,11 @@ void Dnf5Backend::resolveTransaction(
             case TransactionOperation::Install:
                 method = QStringLiteral("install");
 
-                operationOptions.insert(
-                    QStringLiteral("repo_ids"),
-                    QStringList {
-                        QStringLiteral("ro-asd-beta")
-                    }
-                );
+                if (!repositoryId.isEmpty())
+                    operationOptions.insert(
+                        QStringLiteral("repo_ids"),
+                        QStringList { repositoryId }
+                    );
                 break;
 
             case TransactionOperation::Remove:
@@ -1125,12 +1125,11 @@ void Dnf5Backend::resolveTransaction(
             case TransactionOperation::Upgrade:
                 method = QStringLiteral("upgrade");
 
-                operationOptions.insert(
-                    QStringLiteral("repo_ids"),
-                    QStringList {
-                        QStringLiteral("ro-asd-beta")
-                    }
-                );
+                if (!repositoryId.isEmpty())
+                    operationOptions.insert(
+                        QStringLiteral("repo_ids"),
+                        QStringList { repositoryId }
+                    );
                 break;
             }
 
@@ -1391,10 +1390,13 @@ void Dnf5Backend::resolveTransaction(
                                         QStringLiteral("install_size")
                                     );
 
-                                const QVariant packageSize =
-                                    object.value(
-                                        QStringLiteral("package_size")
-                                    );
+                                // DNF5 transaction objects can omit package_size.
+                                // Their download_size is the RPM transfer size when
+                                // provided; zero is unknown, not a zero-byte download.
+                                QVariant packageSize = object.value(
+                                    QStringLiteral("download_size"));
+                                if (!packageSize.isValid() || packageSize.toULongLong() == 0)
+                                    packageSize = object.value(QStringLiteral("package_size"));
 
                                 if (packageSize.isValid() &&
                                     item.value(
@@ -1439,11 +1441,22 @@ void Dnf5Backend::resolveTransaction(
                                 << result;
 
                             if (result >= 2) {
+                                // Query the actual solver diagnostics before the
+                                // transaction manager resets the DNF5 session.
+                                QDBusInterface problems(
+                                    QString::fromLatin1(DNF5_SERVICE),
+                                    m_sessionPath,
+                                    QStringLiteral("org.rpm.dnf.v0.Goal"),
+                                    QDBusConnection::systemBus());
+                                const QDBusReply<QStringList> details =
+                                    problems.call(QStringLiteral("get_transaction_problems_string"));
+                                const QString explanation = details.isValid()
+                                    ? details.value().join(QStringLiteral("\n"))
+                                    : QStringLiteral("Ayrıntılı çözümleme bilgisi alınamadı: %1")
+                                        .arg(details.error().message());
                                 const QString error =
-                                    QStringLiteral(
-                                        "DNF5 transaction çözümlenemedi "
-                                        "(result=%1)."
-                                    ).arg(result);
+                                    QStringLiteral("DNF5 transaction çözümlenemedi (result=%1).\n%2")
+                                        .arg(result).arg(explanation);
 
                                 setLastError(error);
 
@@ -1485,6 +1498,138 @@ void Dnf5Backend::resolveTransaction(
 }
 
 
+
+
+void Dnf5Backend::prepareLocalRpmTransaction(
+    const QStringList &localRpmPaths,
+    const QVariantList &approvedItems
+)
+{
+    if (!sessionOpen() || m_busy || localRpmPaths.isEmpty()) {
+        emit localRpmTransactionPreparationFailed(QStringLiteral(
+            "Yerel RPM doğrulama için hazır bir DNF5 oturumu ve RPM dosyaları gerekli."));
+        return;
+    }
+    const QString sessionPath = m_sessionPath;
+    const QString service = QString::fromLatin1(DNF5_SERVICE);
+    const QDBusConnection bus = QDBusConnection::systemBus();
+
+    // The currently resolved goal contains a remote repository operation.
+    // Reset it so that the RPM mutation can only reference staged local files.
+    QDBusInterface goal(service, sessionPath, QStringLiteral("org.rpm.dnf.v0.Goal"), bus);
+    if (!goal.isValid()) {
+        emit localRpmTransactionPreparationFailed(goal.lastError().message());
+        return;
+    }
+    setBusy(true);
+    auto *resetWatcher = new QDBusPendingCallWatcher(
+        goal.asyncCall(QStringLiteral("reset")), this);
+    connect(resetWatcher, &QDBusPendingCallWatcher::finished, this,
+        [this, resetWatcher, localRpmPaths, approvedItems, service, sessionPath, bus]() {
+        QDBusPendingReply<> reset = *resetWatcher;
+        resetWatcher->deleteLater();
+        if (reset.isError() || sessionPath != m_sessionPath) {
+            setBusy(false);
+            emit localRpmTransactionPreparationFailed(QStringLiteral(
+                "DNF5 planı sıfırlanamadı: %1").arg(reset.error().message()));
+            return;
+        }
+        QDBusInterface rpm(service, sessionPath, QString::fromLatin1(DNF5_RPM_INTERFACE), bus);
+        if (!rpm.isValid()) {
+            setBusy(false);
+            emit localRpmTransactionPreparationFailed(rpm.lastError().message());
+            return;
+        }
+        // No repository query is requested here: DNF5 imports the local RPMs
+        // as cmdline packages. Any newly introduced remote dependency below
+        // is rejected before do_transaction is ever called.
+        auto *markWatcher = new QDBusPendingCallWatcher(
+            rpm.asyncCall(QStringLiteral("install"), localRpmPaths, QVariantMap{}), this);
+        connect(markWatcher, &QDBusPendingCallWatcher::finished, this,
+            [this, markWatcher, approvedItems, service, sessionPath, bus]() {
+            QDBusPendingReply<> mark = *markWatcher;
+            markWatcher->deleteLater();
+            if (mark.isError() || sessionPath != m_sessionPath) {
+                setBusy(false);
+                emit localRpmTransactionPreparationFailed(QStringLiteral(
+                    "Yerel RPM işaretleme başarısız: %1").arg(mark.error().message()));
+                return;
+            }
+            QDBusInterface goal(service, sessionPath, QStringLiteral("org.rpm.dnf.v0.Goal"), bus);
+            auto *resolveWatcher = new QDBusPendingCallWatcher(
+                goal.asyncCall(QStringLiteral("resolve"),
+                               QVariantMap{{QStringLiteral("interactive"), false}}), this);
+            connect(resolveWatcher, &QDBusPendingCallWatcher::finished, this,
+                [this, resolveWatcher, approvedItems, sessionPath]() {
+                QDBusPendingReply<> resolved = *resolveWatcher;
+                resolveWatcher->deleteLater();
+                setBusy(false);
+                if (resolved.isError() || sessionPath != m_sessionPath) {
+                    emit localRpmTransactionPreparationFailed(QStringLiteral(
+                        "Yerel RPM bağımlılık çözümlemesi başarısız: %1")
+                        .arg(resolved.error().message()));
+                    return;
+                }
+                const QDBusMessage message = resolveWatcher->reply();
+                if (message.arguments().size() < 2 || message.arguments().at(1).toUInt() >= 2) {
+                    emit localRpmTransactionPreparationFailed(QStringLiteral(
+                        "Yerel RPM bağımlılık planı çözümlenemedi."));
+                    return;
+                }
+                const QList<QVariantMap> localItems =
+                    readTransactionItemArray(message.arguments().at(0));
+
+                auto planSignature = [](const QVariantMap &entry) {
+                    const QVariantMap pkg = entry.value(QStringLiteral("object")).toMap();
+                    return QStringLiteral("%1|%2|%3|%4|%5|%6")
+                        .arg(entry.value(QStringLiteral("action")).toString(),
+                             pkg.value(QStringLiteral("name")).toString(),
+                             pkg.value(QStringLiteral("epoch")).toString(),
+                             pkg.value(QStringLiteral("version")).toString(),
+                             pkg.value(QStringLiteral("release")).toString(),
+                             pkg.value(QStringLiteral("arch")).toString());
+                };
+                QStringList approved;
+                QStringList local;
+                for (const QVariant &item : approvedItems) {
+                    const QVariantMap map = item.toMap();
+                    if (map.value(QStringLiteral("objectType")).toString()
+                        == QStringLiteral("Package"))
+                        approved << planSignature(map);
+                }
+                for (const QVariantMap &item : localItems) {
+                    if (item.value(QStringLiteral("objectType")).toString()
+                        == QStringLiteral("Package"))
+                        local << planSignature(item);
+                    // A remote RPM in the freshly resolved transaction means
+                    // another network download would occur. Fail closed.
+                    const QVariantMap pkg = item.value(QStringLiteral("object")).toMap();
+                    const QString action = item.value(QStringLiteral("action")).toString();
+                    if (action != QStringLiteral("Remove")
+                        && action != QStringLiteral("Replaced")
+                        && pkg.value(QStringLiteral("repo_id")).toString()
+                            != QStringLiteral("@commandline")
+                        && pkg.value(QStringLiteral("repo_id")).toString()
+                            != QStringLiteral("@System")) {
+                        emit localRpmTransactionPreparationFailed(QStringLiteral(
+                            "Onaylanmamış uzak bağımlılık belirlendi: %1").arg(
+                                pkg.value(QStringLiteral("name")).toString()));
+                        return;
+                    }
+                }
+                approved.sort();
+                local.sort();
+                if (approved.isEmpty() || approved != local) {
+                    emit localRpmTransactionPreparationFailed(QStringLiteral(
+                        "İndirilen dosyaların RPM planı başlangıçta onaylanan "
+                        "paket/değişiklik listesiyle uyuşmuyor; işlem durduruldu."));
+                    return;
+                }
+                emit localRpmTransactionPrepared();
+            });
+        });
+    });
+}
 
 void Dnf5Backend::executeResolvedTransaction(
     bool downloadOnly
@@ -1552,6 +1697,11 @@ void Dnf5Backend::executeResolvedTransaction(
         QStringLiteral("Ro-Store")
     );
 
+    // do_transaction can legitimately spend minutes downloading RPMs.
+    // The default 25-second D-Bus reply timeout must not misreport success
+    // or failure while the remote daemon continues mutating the system.
+    goal.setTimeout(60 * 60 * 1000);
+
     setBusy(true);
     setLastError(QString());
 
@@ -1601,9 +1751,10 @@ void Dnf5Backend::executeResolvedTransaction(
                     << "DNF5 DO TRANSACTION ERROR:"
                     << error;
 
-                emit transactionExecutionFailed(
-                    error
-                );
+                // This method was already dispatched. Even for a D-Bus
+                // error other than NoReply, we cannot safely prove whether
+                // the daemon started or completed the mutation.
+                emit transactionExecutionOutcomeUnknown(error);
 
                 watcher->deleteLater();
                 return;
@@ -1797,6 +1948,10 @@ void Dnf5Backend::cancelTransaction()
         return;
     }
 
+    // Cancellation may wait while the daemon holds its transaction lock.
+    // A missing reply never proves that the RPM operation stopped.
+    goal.setTimeout(120000);
+
     qInfo()
         << "DNF5 CANCEL REQUEST";
 
@@ -1831,10 +1986,7 @@ void Dnf5Backend::cancelTransaction()
                     << "DNF5 CANCEL ERROR:"
                     << error;
 
-                emit transactionCancelFinished(
-                    false,
-                    error
-                );
+                emit transactionCancelOutcomeUnknown(error);
 
                 watcher->deleteLater();
                 return;
@@ -2321,6 +2473,12 @@ void Dnf5Backend::ensureSessionAsync(std::function<void(bool)> callback)
         return;
     }
 
+    // Loading metadata for multiple enabled Fedora repositories can take
+    // longer than Qt D-Bus's 25-second default, especially on first launch.
+    // This is only session creation; do not silently retry package mutations.
+    constexpr int sessionOpenTimeoutMs = 120000;
+    manager.setTimeout(sessionOpenTimeoutMs);
+
     QVariantMap options;
 
     QMap<QString, QString> config;
@@ -2355,8 +2513,15 @@ void Dnf5Backend::ensureSessionAsync(std::function<void(bool)> callback)
 
             if (reply.isError()) {
                 setLastError(
-                    QStringLiteral("DNF5 oturumu açılamadı: %1")
-                        .arg(reply.error().message())
+                    QStringLiteral("DNF5 oturumu açılamadı: %1%2")
+                        .arg(reply.error().message(),
+                             reply.error().type() == QDBusError::NoReply
+                                 ? QStringLiteral(
+                                     "\nDNF5 servisi 120 saniye içinde cevap vermedi. "
+                                     "Başka bir DNF işlemi, servis kilitlenmesi veya "
+                                     "depo meta verisi yüklemesi olabilir. "
+                                     "Servis günlüklerini ve etkin depoları kontrol edin.")
+                                 : QString())
                 );
 
                 qWarning()

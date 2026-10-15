@@ -1,7 +1,7 @@
 cmake_minimum_required(VERSION 3.21)
 
 project(RoStore
-    VERSION 0.3.1
+    VERSION 0.4.0
     DESCRIPTION "Ro-ASD application store"
     HOMEPAGE_URL "https://github.com/Project-Ro-ASD/Ro-Store"
     LANGUAGES CXX
@@ -22,7 +22,7 @@ endif()
 set(CMAKE_CXX_STANDARD 20)
 set(CMAKE_CXX_STANDARD_REQUIRED ON)
 
-find_package(Qt6 REQUIRED COMPONENTS Core Quick Network DBus)
+find_package(Qt6 REQUIRED COMPONENTS Core Quick Network DBus Widgets)
 
 qt_standard_project_setup()
 
@@ -31,8 +31,12 @@ qt_policy(SET QTP0004 NEW)
 
 qt_add_executable(ro-store
     src/main.cpp
+    src/TrayController.h
+    src/TrayController.cpp
     src/CatalogModel.h
     src/CatalogModel.cpp
+    src/FedoraPackageModel.h
+    src/FedoraPackageModel.cpp
     src/PackageStatus.h
     src/PackageStatus.cpp
     src/packages/PackageTransaction.h
@@ -85,6 +89,7 @@ qt_add_qml_module(ro-store
         qml/pages/HomePage.qml
         qml/pages/AppDetailPage.qml
         qml/pages/DownloadsPage.qml
+        qml/pages/FedoraCatalogPage.qml
         qml/components/AppCard.qml
         qml/components/ThemeMetrics.qml
         qml/components/ThemedActionButton.qml
@@ -98,6 +103,7 @@ target_link_libraries(ro-store
         Qt6::Quick
         Qt6::Network
         Qt6::DBus
+        Qt6::Widgets
 )
 
 target_include_directories(ro-store
@@ -172,7 +178,9 @@ set(CPACK_RPM_PACKAGE_AUTOREQ ON)
 set(CPACK_RPM_PACKAGE_AUTOPROV ON)
 
 # Ro-Store package transactions use the DNF5 daemon over D-Bus.
-set(CPACK_RPM_PACKAGE_REQUIRES "dnf5daemon-server, dnf5daemon-server-polkit, polkit, kf6-kirigami")
+# The cancellable download worker invokes /usr/bin/dnf5 download.
+# Fedora provides that subcommand directly in dnf5, not dnf5-plugins.
+set(CPACK_RPM_PACKAGE_REQUIRES "dnf5, dnf5-command(download), dnf5daemon-server, dnf5daemon-server-polkit, polkit, kf6-kirigami")
 
 set(CPACK_RPM_FILE_NAME "RPM-DEFAULT")
 

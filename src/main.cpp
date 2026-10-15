@@ -1,10 +1,12 @@
-#include <QGuiApplication>
+#include <QApplication>
 #include <QQmlApplicationEngine>
 #include <QtQml>
 #include <QDBusMetaType>
 #include <QMap>
 
+#include "TrayController.h"
 #include "CatalogModel.h"
+#include "FedoraPackageModel.h"
 #include "PackageStatus.h"
 #include "AppLauncher.h"
 #include "SystemFontMonitor.h"
@@ -19,7 +21,13 @@ int main(int argc, char *argv[])
 {
     qDBusRegisterMetaType<QMap<QString, QString>>();
 
-    QGuiApplication app(argc, argv);
+    QApplication app(argc, argv);
+    app.setQuitOnLastWindowClosed(false);
+
+    TrayController trayController;
+    qmlRegisterSingletonInstance(
+        "RoStore", 1, 0, "TrayController", &trayController
+    );
 
     SystemFontMonitor systemFontMonitor;
     qmlRegisterSingletonInstance(
@@ -32,6 +40,7 @@ int main(int argc, char *argv[])
     );
 
     qmlRegisterType<CatalogModel>("RoStore", 1, 0, "CatalogModel");
+    qmlRegisterType<FedoraPackageModel>("RoStore", 1, 0, "FedoraPackageModel");
     qmlRegisterType<PackageStatus>("RoStore", 1, 0, "PackageStatus");
     qmlRegisterType<AppLauncher>("RoStore", 1, 0, "AppLauncher");
     qmlRegisterType<SourceManager>("RoStore", 1, 0, "SourceManager");
@@ -61,6 +70,12 @@ int main(int argc, char *argv[])
     );
 
     QQmlApplicationEngine engine;
+    // Explicit QA-only UI preview: never creates a DNF5 transaction or
+    // touches the persistent recovery journal.
+    engine.setInitialProperties({
+        {QStringLiteral("qaSafetyBannerPreview"),
+         app.arguments().contains(QStringLiteral("--qa-safety-banner"))}
+    });
 
     QObject::connect(
         &engine,

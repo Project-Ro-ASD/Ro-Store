@@ -49,11 +49,18 @@ public:
 
     Q_INVOKABLE void resolveTransaction(
         const QString &packageName,
-        TransactionOperation operation
+        TransactionOperation operation,
+        const QString &repositoryId
     );
 
     void executeResolvedTransaction(
         bool downloadOnly = false
+    );
+    // Replace the approved remote goal with local RPM files. A second
+    // resolve is checked against the original plan before execution.
+    void prepareLocalRpmTransaction(
+        const QStringList &localRpmPaths,
+        const QVariantList &approvedItems
     );
 
     void resetTransaction();
@@ -96,14 +103,23 @@ signals:
         QString error
     );
 
+    void localRpmTransactionPrepared();
+    void localRpmTransactionPreparationFailed(QString error);
+
     void transactionExecutionStarted(bool downloadOnly);
 
     void transactionExecutionFinished(bool downloadOnly);
 
     void transactionExecutionFailed(QString error);
 
+    // A failed D-Bus response after dispatch does not prove the daemon stopped.
+    // The transaction must remain on safety hold, never be marked Failed.
+    void transactionExecutionOutcomeUnknown(QString error);
+
     void transactionResetFinished();
     void transactionResetFailed(QString error);
+
+    void transactionCancelOutcomeUnknown(QString error);
 
     void transactionCancelFinished(
         bool success,

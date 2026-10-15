@@ -33,6 +33,10 @@ Item {
     property int contentWidth: Math.max(0, width - sideMargin * 2)
 
     signal backRequested()
+    signal packageRequested(var transaction)
+    function openTransaction(tx) {
+        if (tx) page.packageRequested(tx)
+    }
 
     function operationText(operation) {
         switch (operation) {
@@ -63,6 +67,8 @@ Item {
             return "Tamamlandı"
         case PackageTransaction.Failed:
             return "Başarısız"
+        case PackageTransaction.OutcomeUnknown:
+            return "Sonuç belirsiz"
         case PackageTransaction.Cancelled:
             return "İptal edildi"
         }
@@ -261,6 +267,14 @@ Item {
             // AKTİF İŞLEM
             Rectangle {
                 id: activeCard
+                activeFocusOnTab: true
+                Keys.onReturnPressed: page.openTransaction(tx)
+                Keys.onEnterPressed: page.openTransaction(tx)
+                MouseArea {
+                    anchors.fill: parent
+                    cursorShape: Qt.PointingHandCursor
+                    onClicked: page.openTransaction(activeCard.tx)
+                }
 
                 property var tx: page.packageTransactionManager
                                  ? page.packageTransactionManager.activeTransaction
@@ -441,15 +455,14 @@ Item {
 
                     y: page.narrow ? 174 : 126
 
-                    // DNF5 daemon yalnız paket indirme aşamasında
-                    // güvenli iptale izin veriyor.
-                    enabled: activeCard.tx
-                             && activeCard.tx.state
-                                === PackageTransaction.Downloading
+                    enabled: activeCard.tx && page.packageTransactionManager
+                             && (activeCard.tx.state === PackageTransaction.Queued
+                                 || (activeCard.tx === page.packageTransactionManager.activeTransaction
+                                     && page.packageTransactionManager.canCancelActive))
 
                     onClicked: {
-                        if (page.packageTransactionManager)
-                            page.packageTransactionManager.cancelActive()
+                        if (page.packageTransactionManager && activeCard.tx)
+                            page.packageTransactionManager.cancelTransaction(activeCard.tx)
                     }
                 }
             }
@@ -513,6 +526,18 @@ Item {
                        : null
 
                 delegate: Rectangle {
+                    id: queuedCard
+                    activeFocusOnTab: true
+                    Keys.onReturnPressed: page.openTransaction(tx)
+                    Keys.onEnterPressed: page.openTransaction(tx)
+                    MouseArea {
+                        x: 0
+                        y: 0
+                        width: Math.max(0, parent.width - 148)
+                        height: parent.height
+                        cursorShape: Qt.PointingHandCursor
+                        onClicked: page.openTransaction(queuedCard.tx)
+                    }
                     property var tx: page.packageTransactionManager
                                      ? page.packageTransactionManager.model.get(index)
                                      : null
@@ -532,7 +557,7 @@ Item {
                     Text {
                         x: 18
                         y: 16
-                        width: parent.width - 36
+                        width: Math.max(0, parent.width - 170)
 
                         text: parent.tx ? parent.tx.packageName : ""
                         color: themePalette.text
@@ -545,7 +570,7 @@ Item {
                     Text {
                         x: 18
                         y: 46
-                        width: parent.width - 36
+                        width: Math.max(0, parent.width - 170)
 
                         text: parent.tx
                               ? page.operationText(parent.tx.operation)
@@ -555,6 +580,23 @@ Item {
                         color: page.secondaryText
                         font.family: metrics.systemFont.family
                         font.pixelSize: metrics.fontSmall
+                    }
+
+                    KeyboardActionButton {
+                        text: "İptal Et"
+                        x: Math.max(0, parent.width - width - 18)
+                        y: (parent.height - height) / 2
+                        width: 110
+                        height: 36
+                        z: 1
+                        enabled: queuedCard.tx !== null
+                                 && queuedCard.tx.state === PackageTransaction.Queued
+                                 && !queuedCard.tx.cancelRequested
+                                 && page.packageTransactionManager !== null
+                        onClicked: {
+                            if (page.packageTransactionManager && queuedCard.tx)
+                                page.packageTransactionManager.cancelTransaction(queuedCard.tx)
+                        }
                     }
                 }
             }
@@ -593,6 +635,15 @@ Item {
                        : null
 
                 delegate: Rectangle {
+                    id: historyCard
+                    activeFocusOnTab: true
+                    Keys.onReturnPressed: page.openTransaction(tx)
+                    Keys.onEnterPressed: page.openTransaction(tx)
+                    MouseArea {
+                        anchors.fill: parent
+                        cursorShape: Qt.PointingHandCursor
+                        onClicked: page.openTransaction(historyCard.tx)
+                    }
                     property var tx: page.packageTransactionManager
                                      ? page.packageTransactionManager.model.get(index)
                                      : null
@@ -602,6 +653,7 @@ Item {
                         && (
                             tx.state === PackageTransaction.Finished
                             || tx.state === PackageTransaction.Failed
+                            || tx.state === PackageTransaction.OutcomeUnknown
                             || tx.state === PackageTransaction.Cancelled
                         )
 
@@ -662,6 +714,8 @@ Item {
 
                             if (parent.tx.state === PackageTransaction.Failed)
                                 return "Başarısız"
+                            if (parent.tx.state === PackageTransaction.OutcomeUnknown)
+                                return "Sonuç belirsiz"
 
                             if (parent.tx.state === PackageTransaction.Cancelled)
                                 return "İptal edildi"
@@ -677,6 +731,8 @@ Item {
                                 return page.mutedAccent
 
                             if (parent.tx.state === PackageTransaction.Failed)
+                                return themePalette.text
+                            if (parent.tx.state === PackageTransaction.OutcomeUnknown)
                                 return themePalette.text
 
                             if (parent.tx.state === PackageTransaction.Cancelled)
