@@ -8,6 +8,10 @@
 
 #include "PackageTransaction.h"
 #include "PackageTransactionModel.h"
+#include <QProcess>
+#include <QTimer>
+#include <QTemporaryDir>
+#include <memory>
 
 class Dnf5Backend;
 
@@ -128,6 +132,10 @@ private:
     void activateRecoveryHold(const QString &reason);
     QString journalPath() const;
     void resolveActive();
+    void startControlledDownload();
+    void finishControlledDownload(int exitCode, QProcess::ExitStatus status);
+    void refreshControlledDownloadProgress();
+    void cleanupControlledDownload();
 
     void updateDownloadSpeed(qulonglong downloadedBytes);
     void resetDownloadSpeedTracking();
@@ -153,6 +161,11 @@ private:
     bool m_cancelRequested = false;
     bool m_resetInProgress = false;
     bool m_downloadOnlyPhase = false;
+    QProcess *m_controlledDownload = nullptr;
+    QTimer *m_downloadProgressTimer = nullptr;
+    std::unique_ptr<QTemporaryDir> m_downloadDirectory;
+    QVariantList m_approvedPlan;
+    bool m_controlledProcessKilled = false;
     bool m_rpmPhaseStarted = false;
     bool m_outcomeUncertain = false;
     QString m_recoveryDetails;
