@@ -10,41 +10,46 @@
 
 ## Türkçe
 
-## v0.4.0 Fedora RPM katalog testi
+## v0.5.0 — AppStream ile Fedora uygulama keşfi
 
-Ro-Store v0.4.0, mevcut Ro-ASD JSON kataloğunu korur ve ana sayfadan açılan
-**Fedora RPM kataloğu** ekranını ekler. Fedora'nın sistemde etkin DNF5 depolarını
-`dnf5 repoquery` aracılığıyla asenkron sorgular; başlangıçta örnek uygulama
-isimlerini, aramada eşleşen RPM adlarını gösterir. Sonuçlar depo filtreli,
-48'lik sayfalar halinde görüntülenir. Sorgu en fazla 3.000 sonuçla sınırlandırılır.
+Ro-Store v0.5.0, Ro-ASD uygulama kataloğunu koruyarak Fedora RPM kataloğunu
+AppStream uygulama metadatasıyla zenginleştirir. Uygulama adı, açıklama,
+kategori, simge ve varsa ekran görüntüleri gösterilir. Ekran görüntüleri
+büyütülebilir, yatay kaydırılabilir; görsel sunucusu uygulama içinden erişimi
+engellerse bağlantı varsayılan tarayıcıda açılabilir.
 
-Test sırası:
+Katalog yalnızca örnek paketlere bağlı kalmaz: AppStream'deki masaüstü
+uygulamaları, etkin DNF5 depolarındaki gerçek RPM paketleriyle eşleştirilerek
+keşfedilir. RPM adına ek olarak uygulamanın görünen adı ve özet açıklamasıyla
+arama; kaynak ve kategori filtreleri; 48'lik sayfalama desteklenir. İşlem
+yürütme ve paket kimliği DNF5 üzerinden devam eder.
 
-1. Fedora 44 üzerinde uygulamayı başlatın; Ro-ASD ana sayfasının ve tema
-   değiştirme/klavye erişilebilirliği davranışlarının aynı kaldığını doğrulayın.
-2. **Fedora RPM kataloğunu keşfet** düğmesini seçin. Etkin depolardaki
-   paketlerin listelendiğini kontrol edin.
-3. `firefox`, `kate`, `gimp` araması yapın. İlgili kaynak adını seçin,
-   sonuçları filtreleyin ve "Daha fazla göster" düğmesini deneyin.
-4. Bir paketin detayına gidin; kaynak adı, sürüm, RPM kurulu durumu ve
-   **Geri/Esc** akışı doğru olmalı.
-5. 400×500, 800×600, KDE açık/koyu tema ve 125/150% ölçekte test edin.
-6. Depo bağlantısı kesilirse hata ve yeniden deneme durumunu doğrulayın.
-7. Kurulum/kaldırma testi yalnızca güvenli, izin verilen test paketiyle
-   yapılmalıdır; temel kontroller için paketi değiştirmek gerekmez.
+### v0.5.0 doğrulama
 
-Not: Bu sürüm RPM paket adlarına dayalı katalog araması sunar. AppStream
-uygulama metadatası, simgeler, ekran görüntüleri ve kapsamlı yazılım keşfi
-v0.5.0 kapsamındadır. Ro-ASD paketleri mevcut özel kataloglarında kalır.
+1. Fedora 44 üzerinde **Fedora RPM Kataloğu**'na girin. AppStream destekli
+   uygulamaların başlangıçta listelendiğini doğrulayın.
+2. `firefox`, `krita`, `lazpaint` ve uygulama görünen adlarıyla arama yapın.
+3. **Kaynak** ve **Kategori** filtrelerini ayrı ayrı ve birlikte deneyin;
+   **Tümü** seçimiyle sonuçların geri geldiğini doğrulayın.
+4. **Daha fazla göster** düğmesiyle sayfalama ve uygulama detaylarını kontrol edin.
+5. Simgeleri, açıklamaları, ekran görüntüsü önizlemesini ve yatay kaydırmayı
+   deneyin. Ulaşılamayan görseller için tarayıcıda açma seçeneğini test edin.
+6. 400×500 / 800×600 pencerelerde, açık/koyu KDE temalarında ve klavye ile
+   gezinmede kullanılabilirliği kontrol edin.
 
+**Kapsam:** AppStreamQt bulunamazsa önceki RPM katalog davranışına geri
+dönülür. Paket yükleme/kaldırma işlemleri DNF5 ile yapılır. Flatpak desteği
+bu sürümde yoktur. Ro-ASD uygulamaları kendi kataloğunda kalır.
 
 ### Ro-Store nedir?
 
 **Ro-Store**, Ro-ASD için geliştirilen, Qt 6/QML tabanlı bir Linux uygulama mağazasıdır. Ro-ASD deposundaki uygulamaları grafiksel arayüz üzerinden keşfetmeyi, kurmayı, kaldırmayı, güncellemeyi ve çalıştırmayı amaçlar. Paket işlemlerini **DNF5 daemon** ve **D-Bus** üzerinden gerçekleştirir.
 
-### v0.4.0 özellikleri
+### v0.5.0 özellikleri
 
 - Ro-ASD uygulama kataloğu, arama, kategori filtreleri ve uygulama detayları
+- Fedora AppStream uygulama keşfi; simge, açıklama, ekran görüntüleri ve önizleme
+- Uygulama adına göre arama, Fedora deposu ve AppStream kategori filtreleri
 - RPM uygulamalarını DNF5 üzerinden kurma, kaldırma ve güncelleme altyapısı
 - Kurulu uygulamaları çalıştırma
 - İşlem kuyruğu, indirme ilerlemesi, hız, tahmini kalan süre ve işlem geçmişi
@@ -55,7 +60,7 @@ v0.5.0 kapsamındadır. Ro-ASD paketleri mevcut özel kataloglarında kalır.
 - Küçük pencere ve ölçekleme uyumu, Tab / Shift+Tab / Enter / Esc klavye erişilebilirliği
 - Açık ve koyu temalarda okunabilir düğmeler, odak göstergeleri ve kontrastlı simge yüzeyleri
 
-> **Mevcut kapsam:** v0.4.0, Ro-ASD deposundaki RPM uygulamalarına odaklanır. Genel Fedora uygulama kataloğu ve Flatpak desteği henüz bu sürümün parçası değildir.
+> **Mevcut kapsam:** v0.5.0 Fedora RPM uygulama keşfini AppStream ile zenginleştirir. Flatpak desteği henüz bulunmaz.
 
 ### Sistem gereksinimleri
 
@@ -71,7 +76,7 @@ uname -m
 
 ### Ro-Store kurulumu
 
-1. [Ro-Store v0.4.0 sürüm sayfasını](https://github.com/Project-Ro-ASD/Ro-Store/releases/tag/v0.4.0) açın.
+1. [Ro-Store v0.5.0 sürüm sayfasını](https://github.com/Project-Ro-ASD/Ro-Store/releases/tag/v0.5.0) açın.
 2. Bilgisayarınızın mimarisine uygun RPM dosyasını indirin.
 3. Dosyayı **Home (ev dizini)** klasörüne koyduysanız aşağıdaki komutu kullanın.
 
@@ -79,14 +84,14 @@ uname -m
 
 ~~~bash
 cd ~
-sudo dnf5 install ./ro-store-0.4.0-1.fc44.x86_64.rpm
+sudo dnf5 install ./ro-store-0.5.0-1.fc44.x86_64.rpm
 ~~~
 
 **aarch64 (ARM64):**
 
 ~~~bash
 cd ~
-sudo dnf5 install ./ro-store-0.4.0-1.fc44.aarch64.rpm
+sudo dnf5 install ./ro-store-0.5.0-1.fc44.aarch64.rpm
 ~~~
 
 > RPM farklı bir klasördeyse komuttaki dosya yolunu değiştirin. Aynı kurulum komutu, daha eski bir Ro-Store sürümü kuruluysa yükseltmek için de kullanılabilir.
@@ -128,9 +133,11 @@ sudo dnf5 remove ro-store
 
 **Ro-Store** is a Qt 6/QML-based graphical application store for Ro-ASD. It provides an interface for discovering, installing, removing, updating, and launching applications available from the Ro-ASD repository. Package transactions use the **DNF5 daemon** over **D-Bus**.
 
-### Features in v0.4.0
+### Features in v0.5.0
 
 - Ro-ASD application catalog, search, category filters, and application details
+- AppStream-enriched Fedora RPM discovery with icons, descriptions, screenshots and previews
+- Search by application display name, repository and category filters, paginated discovery
 - RPM installation, removal, and update infrastructure through DNF5
 - Launching installed applications
 - Transaction queue, download progress, speed, estimated remaining time, and transaction history
@@ -141,7 +148,7 @@ sudo dnf5 remove ro-store
 - Responsive layouts and keyboard navigation with Tab / Shift+Tab / Enter / Escape
 - Accessible action buttons, focus indicators and icon backgrounds across light/dark themes
 
-> **Current scope:** v0.4.0 focuses on RPM applications provided by the Ro-ASD repository. A general Fedora application catalog and Flatpak support are not included yet.
+> **Current scope:** v0.5.0 discovers Fedora RPM desktop applications with optional AppStream enrichment while preserving the separate Ro-ASD catalog. Flatpak support is not included.
 
 ### System requirements
 
@@ -157,7 +164,7 @@ uname -m
 
 ### Install Ro-Store
 
-1. Open the [Ro-Store v0.4.0 release page](https://github.com/Project-Ro-ASD/Ro-Store/releases/tag/v0.4.0).
+1. Open the [Ro-Store v0.5.0 release page](https://github.com/Project-Ro-ASD/Ro-Store/releases/tag/v0.5.0).
 2. Download the RPM matching your system architecture.
 3. If the RPM is in your **Home directory**, run the corresponding command below.
 
@@ -165,14 +172,14 @@ uname -m
 
 ~~~bash
 cd ~
-sudo dnf5 install ./ro-store-0.4.0-1.fc44.x86_64.rpm
+sudo dnf5 install ./ro-store-0.5.0-1.fc44.x86_64.rpm
 ~~~
 
 **aarch64 (ARM64):**
 
 ~~~bash
 cd ~
-sudo dnf5 install ./ro-store-0.4.0-1.fc44.aarch64.rpm
+sudo dnf5 install ./ro-store-0.5.0-1.fc44.aarch64.rpm
 ~~~
 
 > Adjust the file path if you saved the RPM elsewhere. The same install command can also upgrade an older installed Ro-Store version.
