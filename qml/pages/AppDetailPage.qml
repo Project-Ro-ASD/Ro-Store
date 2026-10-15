@@ -730,13 +730,21 @@ Item {
                         }
 
                         Flickable {
+                            id: screenshotFlick
                             width: parent.width
-                            height: 188
+                            // Reserve a separate strip for the horizontal scrollbar.
+                            height: 204
                             clip: true
                             contentWidth: screenshotRow.width
                             contentHeight: height
                             flickableDirection: Flickable.HorizontalFlick
                             boundsBehavior: Flickable.StopAtBounds
+                            interactive: contentWidth > width
+
+                            ScrollBar.horizontal: ScrollBar {
+                                policy: screenshotFlick.contentWidth > screenshotFlick.width
+                                        ? ScrollBar.AlwaysOn : ScrollBar.AlwaysOff
+                            }
 
                             Row {
                                 id: screenshotRow
