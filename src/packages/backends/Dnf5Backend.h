@@ -56,6 +56,12 @@ public:
     void executeResolvedTransaction(
         bool downloadOnly = false
     );
+    // Replace the approved remote goal with local RPM files. A second
+    // resolve is checked against the original plan before execution.
+    void prepareLocalRpmTransaction(
+        const QStringList &localRpmPaths,
+        const QVariantList &approvedItems
+    );
 
     void resetTransaction();
     void cancelTransaction();
@@ -96,6 +102,9 @@ signals:
         QString packageName,
         QString error
     );
+
+    void localRpmTransactionPrepared();
+    void localRpmTransactionPreparationFailed(QString error);
 
     void transactionExecutionStarted(bool downloadOnly);
 
