@@ -16,6 +16,8 @@
 #include <QProcessEnvironment>
 #include <QTimer>
 #include <QRegularExpression>
+#include <QCoreApplication>
+#include <QDirIterator>
 
 namespace {
 QString readableSize(qulonglong bytes)
@@ -174,6 +176,21 @@ PackageTransactionManager::PackageTransactionManager(
             failActive(error);
         }
     );
+
+    connect(m_backend, &Dnf5Backend::localRpmTransactionPrepared, this, [this]() {
+        if (!m_activeTransaction || m_cancelRequested || m_outcomeUncertain)
+            return;
+        m_rpmPhaseStarted = true;
+        m_activeTransaction->setState(PackageTransaction::State::Running);
+        m_activeTransaction->appendTechnicalLog(QStringLiteral(
+            "Paketler yerel dosyalardan doğrulandı. RPM uygulanıyor (internet indirmesi kapalı)."));
+        m_backend->executeResolvedTransaction(false);
+    });
+    connect(m_backend, &Dnf5Backend::localRpmTransactionPreparationFailed,
+            this, [this](const QString &error) {
+        if (m_activeTransaction && !m_outcomeUncertain)
+            failActive(QStringLiteral("Yerel paket doğrulama başarısız: ") + error);
+    });
 
     connect(
         m_backend,
@@ -1108,6 +1125,147 @@ void PackageTransactionManager::resolveActive()
 }
 
 
+
+void PackageTransactionManager::cleanupControlledDownload()
+{
+    if (m_downloadProgressTimer)
+        m_downloadProgressTimer->stop();
+    if (m_controlledDownload) {
+        m_controlledDownload->disconnect(this);
+        if (m_controlledDownload->state() != QProcess::NotRunning)
+            m_controlledDownload->kill();
+        m_controlledDownload->deleteLater();
+        m_controlledDownload = nullptr;
+    }
+    m_downloadDirectory.reset();
+    m_approvedPlan.clear();
+    m_controlledProcessKilled = false;
+}
+
+void PackageTransactionManager::refreshControlledDownloadProgress()
+{
+    if (!m_activeTransaction || !m_downloadDirectory)
+        return;
+    qulonglong bytes = 0;
+    QDirIterator it(m_downloadDirectory->path(), {QStringLiteral("*.rpm"), QStringLiteral("*.part")},
+                    QDir::Files);
+    while (it.hasNext()) {
+        it.next();
+        bytes += static_cast<qulonglong>(it.fileInfo().size());
+    }
+    m_activeTransaction->setDownloadedBytes(bytes);
+    const auto total = m_activeTransaction->totalBytes();
+    if (total)
+        m_activeTransaction->setProgress(static_cast<int>(qMin<qulonglong>(99, bytes * 100 / total)));
+    updateDownloadSpeed(bytes);
+}
+
+void PackageTransactionManager::startControlledDownload()
+{
+    if (!m_activeTransaction || m_outcomeUncertain)
+        return;
+    const QString package = m_activeTransaction->packageName();
+    // Isolated, non-root RPM downloading. The resulting files are never
+    // passed directly to rpm; a new DNF5 solver run must validate them.
+    m_downloadDirectory = std::make_unique<QTemporaryDir>(
+        QDir(QStandardPaths::writableLocation(QStandardPaths::CacheLocation))
+            .filePath(QStringLiteral("ro-store-download-XXXXXX")));
+    if (!m_downloadDirectory->isValid()) {
+        failActive(QStringLiteral("Geçici indirme klasörü oluşturulamadı."));
+        return;
+    }
+    m_approvedPlan = m_activeTransaction->resolvedItems();
+    m_controlledProcessKilled = false;
+    m_controlledDownload = new QProcess(this);
+    QProcess *const process = m_controlledDownload;
+    QStringList args {
+        QStringLiteral("download"),
+        QStringLiteral("--resolve"),
+        QStringLiteral("--destdir"), m_downloadDirectory->path()
+    };
+    if (!m_activeTransaction->repositoryId().isEmpty()) {
+        args << QStringLiteral("--from-repo=%1").arg(m_activeTransaction->repositoryId());
+    }
+    args << package;
+    process->setProgram(QStringLiteral("/usr/bin/dnf5"));
+    process->setArguments(args);
+    process->setProcessChannelMode(QProcess::MergedChannels);
+    m_activeTransaction->appendTechnicalLog(QStringLiteral("Bağımsız DNF5 indirici: ") + args.join(' '));
+    connect(process, &QProcess::readyReadStandardOutput, this, [this, process]() {
+        if (!m_activeTransaction || process != m_controlledDownload)
+            return;
+        const QString log = QString::fromLocal8Bit(process->readAllStandardOutput());
+        if (!log.isEmpty())
+            m_activeTransaction->appendTechnicalLog(log.trimmed().left(1500));
+        refreshControlledDownloadProgress();
+    });
+    connect(process, &QProcess::finished, this,
+            [this, process](int code, QProcess::ExitStatus status) {
+        if (m_controlledDownload != process)
+            return;
+        refreshControlledDownloadProgress();
+        m_controlledDownload = nullptr;
+        process->deleteLater();
+        finishControlledDownload(code, status);
+    });
+    connect(process, &QProcess::errorOccurred, this, [this, process](QProcess::ProcessError error) {
+        if (process != m_controlledDownload || !m_activeTransaction)
+            return;
+        if (error == QProcess::FailedToStart)
+            failActive(QStringLiteral("dnf5 indirme aracı başlatılamadı: ") + process->errorString());
+    });
+    if (!m_downloadProgressTimer) {
+        m_downloadProgressTimer = new QTimer(this);
+        m_downloadProgressTimer->setInterval(300);
+        connect(m_downloadProgressTimer, &QTimer::timeout,
+                this, &PackageTransactionManager::refreshControlledDownloadProgress);
+    }
+    if (!QFileInfo::exists(QStringLiteral("/usr/bin/dnf5"))) {
+        failActive(QStringLiteral("/usr/bin/dnf5 bulunamadı."));
+        return;
+    }
+    process->start();
+    m_downloadProgressTimer->start();
+}
+
+void PackageTransactionManager::finishControlledDownload(int exitCode, QProcess::ExitStatus status)
+{
+    if (m_downloadProgressTimer)
+        m_downloadProgressTimer->stop();
+    if (!m_activeTransaction || m_outcomeUncertain)
+        return;
+    m_downloadOnlyPhase = false;
+    if (m_cancelRequested || m_controlledProcessKilled) {
+        m_activeTransaction->appendTechnicalLog(QStringLiteral(
+            "İndirme işlemi durduruldu; RPM kurulumuna geçilmeyecek."));
+        cancelActiveFinished();
+        return;
+    }
+    if (status != QProcess::NormalExit || exitCode != 0) {
+        failActive(QStringLiteral(
+            "İndirme başarısız (kod %1). dnf5 download komutunun mevcut olduğundan "
+            "ve paket depolarının erişilebilir olduğundan emin olun.").arg(exitCode));
+        return;
+    }
+    QStringList paths;
+    QDirIterator it(m_downloadDirectory->path(), {QStringLiteral("*.rpm")}, QDir::Files);
+    while (it.hasNext()) {
+        it.next();
+        paths << it.filePath();
+    }
+    if (paths.isEmpty()) {
+        failActive(QStringLiteral("İndirici hiç RPM dosyası üretmedi; kurulum başlatılmadı."));
+        return;
+    }
+    m_activeTransaction->appendTechnicalLog(QStringLiteral(
+        "İndirme tamamlandı (%1 RPM). Yerel paketler doğrulanıyor.").arg(paths.size()));
+    persistPendingExecution();
+    if (m_outcomeUncertain)
+        return;
+    m_backend->prepareLocalRpmTransaction(paths, m_approvedPlan);
+}
+
+
 void PackageTransactionManager::testDownloadOnlyActive()
 {
     if (!m_activeTransaction) {
@@ -1168,14 +1326,23 @@ void PackageTransactionManager::executeActive()
     );
 
     m_activeTransaction->appendTechnicalLog(QStringLiteral(
-        "İndirme aşaması başlatıldı. İptal isteğinde RPM kurulumu başlatılmaz."));
-    persistPendingExecution();
-    if (m_outcomeUncertain)
-        return;
+        "İndirme ayrı süreçte başlatılıyor. İptal, bu süreci anında durdurur."));
+    // Do not create the RPM-execution journal until downloaded packages
+    // have passed the second verified, offline-only dependency resolution.
     m_downloadOnlyPhase = true;
     m_rpmPhaseStarted = false;
     emit activeTransactionChanged();
-    m_backend->executeResolvedTransaction(true);
+    if (m_activeTransaction->operation() == PackageTransaction::Operation::Remove) {
+        m_downloadOnlyPhase = false;
+        persistPendingExecution();
+        if (m_outcomeUncertain)
+            return;
+        m_rpmPhaseStarted = true;
+        m_activeTransaction->setState(PackageTransaction::State::Running);
+        m_backend->executeResolvedTransaction(false);
+    } else {
+        startControlledDownload();
+    }
 }
 
 
@@ -1228,7 +1395,15 @@ void PackageTransactionManager::cancelTransaction(QObject *transactionObject)
     m_cancelRequested = true;
     transaction->setCancelRequested(true);
     transaction->appendTechnicalLog(QStringLiteral(
-        "İptal kaydedildi. İndirme hemen durmayabilir; RPM aşamasına geçilmeyecek."));
+        "İptal edildi: indirme sürecine hemen sonlandırma sinyali gönderiliyor."));
+    if (m_controlledDownload && m_controlledDownload->state() != QProcess::NotRunning) {
+        m_controlledProcessKilled = true;
+        m_controlledDownload->kill();
+        return;
+    }
+    // A race with an already completed download is safe: local RPM
+    // execution has not yet begun, so cancellation still wins.
+    cancelActiveFinished();
 }
 
 
@@ -1309,6 +1484,7 @@ void PackageTransactionManager::cancelActiveFinished()
         return;
     }
 
+    cleanupControlledDownload();
     clearPendingExecution();
     m_activeTransaction->appendTechnicalLog(QStringLiteral("İşlem iptal edildi."));
     m_activeTransaction->setState(
@@ -1346,6 +1522,7 @@ void PackageTransactionManager::releaseActiveAndStartNext()
     m_downloadTotalById.clear();
     resetDownloadSpeedTracking();
 
+    cleanupControlledDownload();
     m_activeTransaction = nullptr;
 
     emit activeTransactionChanged();
