@@ -38,7 +38,8 @@ public:
         DisplayNameRole,
         DisplaySummaryRole,
         AppCategoryRole,
-        HasAppStreamRole
+        HasAppStreamRole,
+        AppIconUrlRole
     };
 
     explicit FedoraPackageModel(QObject *parent = nullptr);
@@ -78,7 +79,12 @@ private:
     void setError(const QString &text);
     void startMetadataLoad();
     void notifyMetadataUpdated();
-    struct AppMetadata { QString title; QString summary; QString category; };
+    struct AppMetadata {
+        QString title;
+        QString summary;
+        QString category;
+        QString iconUrl;
+    };
 
     QVector<FedoraPackage> m_packages;
     QHash<QString, AppMetadata> m_metadataByPackage;
