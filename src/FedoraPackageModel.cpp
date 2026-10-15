@@ -174,28 +174,52 @@ void FedoraPackageModel::runQuery(const QString &name)
         QStringLiteral("--queryformat=%{name}\t%{version}\t%{arch}\t%{repoid}\t%{summary}\\n")
     };
 
+#ifdef RO_STORE_HAS_APPSTREAM
+    // Metadata can include Flatpak-only/virtual identifiers. Never pass
+    // arbitrary metadata strings as command-line package specifications.
+    static const QRegularExpression safePackage(
+        QStringLiteral("^[A-Za-z0-9][A-Za-z0-9_.+\\-]{0,127}$"));
+#endif
+
     if (name.isEmpty()) {
-        // A useful, quick-to-load starting selection. AppStream's full
-        // application metadata/catalog is a planned later milestone.
-        arguments.append({
-            QStringLiteral("firefox"), QStringLiteral("thunderbird"),
-            QStringLiteral("libreoffice-writer"), QStringLiteral("gimp"),
-            QStringLiteral("inkscape"), QStringLiteral("krita"),
-            QStringLiteral("blender"), QStringLiteral("kdenlive"),
-            QStringLiteral("audacity"), QStringLiteral("filezilla"),
-            QStringLiteral("htop"), QStringLiteral("kate"),
-            QStringLiteral("okular"), QStringLiteral("konsole"),
-            QStringLiteral("virt-manager"), QStringLiteral("keepassxc"),
-            QStringLiteral("obs-studio")
-        });
+#ifdef RO_STORE_HAS_APPSTREAM
+        // Browse desktop applications from AppStream, but resolve their RPM
+        // identities and enabled repositories exclusively through DNF5.
+        // Sorting also makes argument order deterministic across launches.
+        QStringList applicationNames;
+        applicationNames.reserve(m_metadataByPackage.size());
+        for (auto it = m_metadataByPackage.cbegin();
+             it != m_metadataByPackage.cend(); ++it) {
+            if (safePackage.match(it.key()).hasMatch())
+                applicationNames.append(it.key());
+        }
+        applicationNames.sort(Qt::CaseInsensitive);
+        if (!applicationNames.isEmpty()) {
+            arguments.append(applicationNames);
+            qInfo() << "APPSTREAM DISCOVERY QUERY:" << applicationNames.size()
+                    << "RPM package names";
+        }
+#endif
+        // Keep v0.4's small starter list if AppStream is missing, failed or
+        // has no usable RPM package names.
+        if (arguments.size() == 5) {
+            arguments.append({
+                QStringLiteral("firefox"), QStringLiteral("thunderbird"),
+                QStringLiteral("libreoffice-writer"), QStringLiteral("gimp"),
+                QStringLiteral("inkscape"), QStringLiteral("krita"),
+                QStringLiteral("blender"), QStringLiteral("kdenlive"),
+                QStringLiteral("audacity"), QStringLiteral("filezilla"),
+                QStringLiteral("htop"), QStringLiteral("kate"),
+                QStringLiteral("okular"), QStringLiteral("konsole"),
+                QStringLiteral("virt-manager"), QStringLiteral("keepassxc"),
+                QStringLiteral("obs-studio")
+            });
+        }
     } else {
-        // Preserve RPM-name search and additionally resolve AppStream display
-        // names/summaries to their actual RPM package names. All results still
-        // come from the enabled DNF5 repositories, not AppStream alone.
+        // Keep the existing RPM-name search and also resolve display titles
+        // and summaries back to real package names when AppStream is loaded.
         arguments.append(QStringLiteral("*") + name + QStringLiteral("*"));
 #ifdef RO_STORE_HAS_APPSTREAM
-        static const QRegularExpression safePackage(
-            QStringLiteral("^[A-Za-z0-9][A-Za-z0-9_.+\\-]{0,127}$"));
         for (auto it = m_metadataByPackage.cbegin();
              it != m_metadataByPackage.cend(); ++it) {
             const AppMetadata &metadata = it.value();
@@ -290,7 +314,17 @@ void FedoraPackageModel::parseOutput(const QByteArray &data)
         parsed.append(pkg);
     }
 
-    std::sort(parsed.begin(), parsed.end(), [](const FedoraPackage &a, const FedoraPackage &b) {
+    // Browse by human-readable application title. Explicit RPM searches
+    // retain the original package-name ordering.
+    std::sort(parsed.begin(), parsed.end(), [this](const FedoraPackage &a,
+                                                    const FedoraPackage &b) {
+        const QString aLabel = m_query.isEmpty() && m_metadataByPackage.contains(a.name)
+            ? m_metadataByPackage.value(a.name).title : a.name;
+        const QString bLabel = m_query.isEmpty() && m_metadataByPackage.contains(b.name)
+            ? m_metadataByPackage.value(b.name).title : b.name;
+        const int byLabel = QString::compare(aLabel, bLabel, Qt::CaseInsensitive);
+        if (byLabel != 0)
+            return byLabel < 0;
         const int byName = QString::compare(a.name, b.name, Qt::CaseInsensitive);
         if (byName != 0)
             return byName < 0;
@@ -502,9 +536,10 @@ void FedoraPackageModel::startMetadataLoad()
         qInfo() << "APPSTREAM DETAILS:" << descriptions << "descriptions,"
                 << screenshots << "packages with screenshots";
         notifyMetadataUpdated();
-        // A search started while AppStream was loading only checked RPM names.
-        // Repeat it once so matches on human-readable titles also appear.
-        if (!m_query.isEmpty())
+        // Refresh the initially shown sample list into the full desktop-app
+        // catalog; also repeat searches started before display-name metadata
+        // became available. QProcess retirement keeps cancelled queries safe.
+        if (!m_metadataByPackage.isEmpty())
             runQuery(m_query);
     });
     pool->loadAsync();
