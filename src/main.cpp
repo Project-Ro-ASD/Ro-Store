@@ -70,6 +70,12 @@ int main(int argc, char *argv[])
     );
 
     QQmlApplicationEngine engine;
+    // Explicit QA-only UI preview: never creates a DNF5 transaction or
+    // touches the persistent recovery journal.
+    engine.setInitialProperties({
+        {QStringLiteral("qaSafetyBannerPreview"),
+         app.arguments().contains(QStringLiteral("--qa-safety-banner"))}
+    });
 
     QObject::connect(
         &engine,
