@@ -9,7 +9,7 @@ Item {
     signal backRequested()
     signal downloadsRequested()
     signal packageSelected(string name, string summary, string version, string repository,
-                           string displayName)
+                           string displayName, string category, string iconUrl)
 
     property var packageTransactionManager: null
     readonly property bool narrow: width < Math.max(760, 760 * metrics.fontScale)
@@ -141,6 +141,7 @@ Item {
                 required property string displaySummary
                 required property string appCategory
                 required property bool hasAppStream
+                required property string appIconUrl
 
                 width: packagesView.width - 14
                 height: Math.max(104, rowContent.implicitHeight + metrics.spaceMedium * 2)
@@ -152,7 +153,7 @@ Item {
 
                 function openDetails() {
                     page.packageSelected(packageName, displaySummary, version, repository,
-                                         displayName)
+                                         displayName, appCategory, appIconUrl)
                 }
 
                 Keys.onReturnPressed: function(event) {
@@ -178,6 +179,40 @@ Item {
 
                     RowLayout {
                         Layout.fillWidth: true
+                        spacing: metrics.spaceMedium
+
+                        Rectangle {
+                            Layout.preferredWidth: 58
+                            Layout.preferredHeight: 58
+                            Layout.minimumWidth: 58
+                            Layout.minimumHeight: 58
+                            radius: metrics.radiusInner
+                            color: palette.alternateBase
+                            border.color: palette.mid
+                            clip: true
+
+                            Image {
+                                id: fedoraIcon
+                                anchors.centerIn: parent
+                                width: 44
+                                height: 44
+                                source: packageCard.appIconUrl
+                                fillMode: Image.PreserveAspectFit
+                                asynchronous: true
+                                sourceSize.width: 64
+                                sourceSize.height: 64
+                                visible: status === Image.Ready
+                            }
+                            Label {
+                                anchors.centerIn: parent
+                                visible: !fedoraIcon.visible
+                                text: packageCard.displayName.length
+                                      ? packageCard.displayName[0].toUpperCase() : "?"
+                                color: palette.text
+                                font.pixelSize: metrics.fontPx(26)
+                                font.bold: true
+                            }
+                        }
                         Label {
                             text: packageCard.displayName
                             color: palette.text
@@ -202,7 +237,8 @@ Item {
                     }
                     Label {
                         Layout.fillWidth: true
-                        text: (packageCard.hasAppStream ? "AppStream · " : "")
+                        text: (packageCard.appCategory.length > 0
+                               ? packageCard.appCategory + " · " : "")
                               + repository + " · " + architecture + " · " + version
                         color: palette.text
                         opacity: 0.75
