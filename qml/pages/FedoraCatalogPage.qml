@@ -49,7 +49,7 @@ Item {
         }
 
         Label {
-            text: "Fedora'nın etkin RPM depolarında uygulama ve paket ara."
+            text: "AppStream uygulamalarını keşfet veya Fedora depolarında paket ara."
             Layout.fillWidth: true
             wrapMode: Text.WordWrap
             color: palette.windowText
@@ -116,7 +116,7 @@ Item {
 
         Label {
             Layout.fillWidth: true
-            text: fedoraPackages.totalResults + " paket"
+            text: fedoraPackages.totalResults + (fedoraPackages.activeQuery.length === 0 ? " uygulama / paket" : " paket")
                   + (fedoraPackages.truncated ? " (ilk 3000 sonuç; aramayı daralt)" : "")
             color: palette.windowText
             font.pixelSize: metrics.fontSmall
