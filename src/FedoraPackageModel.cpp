@@ -360,11 +360,13 @@ QString appStreamIconSource(const AppStream::Component &component)
             continue;
 
         const QUrl url = icon.url();
+        // AppStreamQt 1.1.x exposes Icon::url(), not filename().
+        // A file:// URL or a plain absolute path may refer to a cached icon.
         QString filePath;
         if (url.isLocalFile())
             filePath = url.toLocalFile();
-        if (filePath.isEmpty())
-            filePath = icon.filename();
+        else if (url.scheme().isEmpty())
+            filePath = url.toString(QUrl::FullyDecoded);
         const QFileInfo file(filePath);
         if (file.isAbsolute() && file.isFile() && file.isReadable())
             return QUrl::fromLocalFile(file.absoluteFilePath()).toString();
