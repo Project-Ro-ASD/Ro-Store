@@ -136,6 +136,10 @@ Item {
                 required property string architecture
                 required property string repository
                 required property string summary
+                required property string displayName
+                required property string displaySummary
+                required property string appCategory
+                required property bool hasAppStream
 
                 width: packagesView.width - 14
                 height: Math.max(104, rowContent.implicitHeight + metrics.spaceMedium * 2)
@@ -146,7 +150,7 @@ Item {
                 activeFocusOnTab: true
 
                 function openDetails() {
-                    page.packageSelected(packageName, summary, version, repository)
+                    page.packageSelected(packageName, displaySummary, version, repository)
                 }
 
                 Keys.onReturnPressed: function(event) {
@@ -173,7 +177,7 @@ Item {
                     RowLayout {
                         Layout.fillWidth: true
                         Label {
-                            text: packageName
+                            text: packageCard.displayName
                             color: palette.text
                             font.pixelSize: metrics.fontTitle
                             font.bold: true
@@ -189,14 +193,15 @@ Item {
                     }
                     Label {
                         Layout.fillWidth: true
-                        text: summary
+                        text: packageCard.displaySummary
                         color: palette.text
                         elide: Text.ElideRight
                         font.pixelSize: metrics.fontBody
                     }
                     Label {
                         Layout.fillWidth: true
-                        text: repository + " · " + architecture + " · " + version
+                        text: (packageCard.hasAppStream ? "AppStream · " : "")
+                              + repository + " · " + architecture + " · " + version
                         color: palette.text
                         opacity: 0.75
                         elide: Text.ElideRight
