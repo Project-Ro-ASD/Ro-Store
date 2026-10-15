@@ -8,7 +8,9 @@ Item {
     id: page
     signal backRequested()
     signal downloadsRequested()
-    signal packageSelected(string name, string summary, string version, string repository)
+    signal packageSelected(string name, string summary, string version, string repository,
+                           string displayName, string category, string iconUrl,
+                           string description, var screenshots)
 
     property var packageTransactionManager: null
     readonly property bool narrow: width < Math.max(760, 760 * metrics.fontScale)
@@ -47,7 +49,7 @@ Item {
         }
 
         Label {
-            text: "Fedora'nın etkin RPM depolarında uygulama ve paket ara."
+            text: "AppStream uygulamalarını keşfet veya Fedora depolarında paket ara."
             Layout.fillWidth: true
             wrapMode: Text.WordWrap
             color: palette.windowText
@@ -60,7 +62,7 @@ Item {
             TextField {
                 id: searchField
                 Layout.fillWidth: true
-                placeholderText: "Paket adı (ör. firefox, gimp, kate)"
+                placeholderText: "Paket veya uygulama adı (ör. firefox, Görüntü Düzenleyici)"
                 font.family: metrics.systemFont.family
                 onAccepted: fedoraPackages.search(text)
             }
@@ -103,6 +105,27 @@ Item {
             }
         }
 
+        RowLayout {
+            Layout.fillWidth: true
+            Label {
+                text: "Kategori:"
+                color: palette.text
+                font.pixelSize: metrics.fontSmall
+            }
+            ComboBox {
+                id: categoryBox
+                Layout.fillWidth: true
+                model: fedoraPackages.categories
+                onActivated: fedoraPackages.categoryFilter = currentText
+                Connections {
+                    target: fedoraPackages
+                    function onCategoryFilterChanged() {
+                        categoryBox.currentIndex = Math.max(0, categoryBox.find(fedoraPackages.categoryFilter))
+                    }
+                }
+            }
+        }
+
         Label {
             Layout.fillWidth: true
             visible: fedoraPackages.loading || fedoraPackages.error.length > 0
@@ -114,7 +137,7 @@ Item {
 
         Label {
             Layout.fillWidth: true
-            text: fedoraPackages.totalResults + " paket"
+            text: fedoraPackages.totalResults + (fedoraPackages.activeQuery.length === 0 ? " uygulama / paket" : " paket")
                   + (fedoraPackages.truncated ? " (ilk 3000 sonuç; aramayı daralt)" : "")
             color: palette.windowText
             font.pixelSize: metrics.fontSmall
@@ -136,6 +159,13 @@ Item {
                 required property string architecture
                 required property string repository
                 required property string summary
+                required property string displayName
+                required property string displaySummary
+                required property string appCategory
+                required property bool hasAppStream
+                required property string appIconUrl
+                required property string appDescription
+                required property var appScreenshotUrls
 
                 width: packagesView.width - 14
                 height: Math.max(104, rowContent.implicitHeight + metrics.spaceMedium * 2)
@@ -146,7 +176,9 @@ Item {
                 activeFocusOnTab: true
 
                 function openDetails() {
-                    page.packageSelected(packageName, summary, version, repository)
+                    page.packageSelected(packageName, displaySummary, version, repository,
+                                         displayName, appCategory, appIconUrl,
+                                         appDescription, appScreenshotUrls)
                 }
 
                 Keys.onReturnPressed: function(event) {
@@ -172,8 +204,42 @@ Item {
 
                     RowLayout {
                         Layout.fillWidth: true
+                        spacing: metrics.spaceMedium
+
+                        Rectangle {
+                            Layout.preferredWidth: 58
+                            Layout.preferredHeight: 58
+                            Layout.minimumWidth: 58
+                            Layout.minimumHeight: 58
+                            radius: metrics.radiusInner
+                            color: palette.alternateBase
+                            border.color: palette.mid
+                            clip: true
+
+                            Image {
+                                id: fedoraIcon
+                                anchors.centerIn: parent
+                                width: 44
+                                height: 44
+                                source: packageCard.appIconUrl
+                                fillMode: Image.PreserveAspectFit
+                                asynchronous: true
+                                sourceSize.width: 64
+                                sourceSize.height: 64
+                                visible: status === Image.Ready
+                            }
+                            Label {
+                                anchors.centerIn: parent
+                                visible: !fedoraIcon.visible
+                                text: packageCard.displayName.length
+                                      ? packageCard.displayName[0].toUpperCase() : "?"
+                                color: palette.text
+                                font.pixelSize: metrics.fontPx(26)
+                                font.bold: true
+                            }
+                        }
                         Label {
-                            text: packageName
+                            text: packageCard.displayName
                             color: palette.text
                             font.pixelSize: metrics.fontTitle
                             font.bold: true
@@ -189,14 +255,16 @@ Item {
                     }
                     Label {
                         Layout.fillWidth: true
-                        text: summary
+                        text: packageCard.displaySummary
                         color: palette.text
                         elide: Text.ElideRight
                         font.pixelSize: metrics.fontBody
                     }
                     Label {
                         Layout.fillWidth: true
-                        text: repository + " · " + architecture + " · " + version
+                        text: (packageCard.appCategory.length > 0
+                               ? packageCard.appCategory + " · " : "")
+                              + repository + " · " + architecture + " · " + version
                         color: palette.text
                         opacity: 0.75
                         elide: Text.ElideRight

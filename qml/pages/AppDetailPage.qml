@@ -1,5 +1,6 @@
 import QtQuick
 import QtQuick.Controls
+import QtQuick.Layouts
 import org.kde.kirigami.platform as Platform
 import "../components"
 import RoStore 1.0
@@ -36,6 +37,7 @@ Item {
     property string versionText: ""
     property string packageName: ""
     property string iconUrl: ""
+    property var screenshotUrls: []
     property string packageRepository: "ro-asd"
 
     property var packageTransactionManager: null
@@ -713,6 +715,95 @@ Item {
                         wrapMode: Text.WordWrap
                     }
 
+                    Column {
+                        visible: page.screenshotUrls && page.screenshotUrls.length > 0
+                        width: parent.width
+                        spacing: metrics.spaceMedium
+
+                        Text {
+                            width: parent.width
+                            text: "Ekran görüntüleri"
+                            color: themePalette.text
+                            font.family: metrics.systemFont.family
+                            font.pixelSize: metrics.fontTitle
+                            font.bold: true
+                        }
+
+                        Flickable {
+                            id: screenshotFlick
+                            width: parent.width
+                            // Reserve a separate strip for the horizontal scrollbar.
+                            height: 204
+                            clip: true
+                            contentWidth: screenshotRow.width
+                            contentHeight: height
+                            flickableDirection: Flickable.HorizontalFlick
+                            boundsBehavior: Flickable.StopAtBounds
+                            interactive: contentWidth > width
+
+                            ScrollBar.horizontal: ScrollBar {
+                                policy: screenshotFlick.contentWidth > screenshotFlick.width
+                                        ? ScrollBar.AlwaysOn : ScrollBar.AlwaysOff
+                            }
+
+                            Row {
+                                id: screenshotRow
+                                spacing: metrics.spaceMedium
+
+                                Repeater {
+                                    model: page.screenshotUrls || []
+                                    delegate: Rectangle {
+                                        width: Math.min(300, Math.max(210, infoColumn.width - 4))
+                                        height: 184
+                                        radius: metrics.radiusInner
+                                        color: themePalette.alternateBase
+                                        border.color: themePalette.mid
+                                        border.width: 1
+                                        clip: true
+
+                                        Image {
+                                            id: screenshotImage
+                                            anchors.fill: parent
+                                            anchors.margins: 4
+                                            source: modelData
+                                            sourceSize.width: 640
+                                            fillMode: Image.PreserveAspectFit
+                                            asynchronous: true
+                                        }
+
+                                        // TapHandler keeps horizontal flick gestures on the
+                                        // parent Flickable, unlike a full-card MouseArea.
+                                        TapHandler {
+                                            onTapped: {
+                                                if (screenshotImage.status === Image.Error)
+                                                    Qt.openUrlExternally(modelData)
+                                                else
+                                                    screenshotPreview.open(index)
+                                            }
+                                        }
+                                        HoverHandler {
+                                            cursorShape: Qt.PointingHandCursor
+                                        }
+
+                                        Text {
+                                            anchors.centerIn: parent
+                                            width: parent.width - 20
+                                            horizontalAlignment: Text.AlignHCenter
+                                            wrapMode: Text.WordWrap
+                                            visible: screenshotImage.status !== Image.Ready
+                                            text: screenshotImage.status === Image.Error
+                                                  ? "Görüntü uygulamada açılamadı.\nTarayıcıda açmak için tıklayın."
+                                                  : "Görüntü yükleniyor..."
+                                            color: themePalette.text
+                                            font.family: metrics.systemFont.family
+                                            font.pixelSize: metrics.fontSmall
+                                        }
+                                    }
+                                }
+                            }
+                        }
+                    }
+
                     Rectangle {
                         width: parent.width
                         height: 1
@@ -1291,11 +1382,179 @@ Item {
 
     // Give the window-level Escape handler a modal-first route.
     function dismissOnEscape() {
+        if (screenshotPreview.visible) {
+            screenshotPreview.close()
+            return true
+        }
         if (removeConfirmDialog.visible) {
             removeConfirmDialog.close()
             return true
         }
         return false
+    }
+
+    // APPSTREAM EKRAN GÖRÜNTÜSÜ ÖNİZLEME
+    // The overlay belongs to the detail page (not the scrolling content),
+    // so it cannot be clipped by either Flickable.
+    FocusScope {
+        id: screenshotPreview
+        anchors.fill: parent
+        visible: false
+        focus: visible
+        z: 9998
+        property int currentIndex: 0
+
+        function open(index) {
+            if (!page.screenshotUrls || index < 0
+                    || index >= page.screenshotUrls.length)
+                return
+            currentIndex = index
+            visible = true
+            forceActiveFocus(Qt.PopupFocusReason)
+        }
+
+        function close() { visible = false }
+        function previous() {
+            if (currentIndex > 0)
+                currentIndex--
+        }
+        function next() {
+            if (page.screenshotUrls
+                    && currentIndex + 1 < page.screenshotUrls.length)
+                currentIndex++
+        }
+
+        Keys.onLeftPressed: function(event) {
+            screenshotPreview.previous()
+            event.accepted = true
+        }
+        Keys.onRightPressed: function(event) {
+            screenshotPreview.next()
+            event.accepted = true
+        }
+        Keys.onEscapePressed: function(event) {
+            screenshotPreview.close()
+            event.accepted = true
+        }
+
+        Rectangle {
+            anchors.fill: parent
+            color: Qt.rgba(0, 0, 0, 0.75)
+
+            MouseArea {
+                anchors.fill: parent
+                onClicked: screenshotPreview.close()
+            }
+        }
+
+        Rectangle {
+            width: Math.max(0, Math.min(1100, screenshotPreview.width - 32))
+            height: Math.max(0, Math.min(760, screenshotPreview.height - 32))
+            anchors.centerIn: parent
+            radius: metrics.radiusPanel
+            color: themePalette.base
+            border.color: themePalette.mid
+            border.width: 1
+            clip: true
+
+            // Block clicks on the large image from closing the preview.
+            MouseArea {
+                anchors.fill: parent
+                onClicked: function(mouse) { mouse.accepted = true }
+            }
+
+            ColumnLayout {
+                anchors.fill: parent
+                anchors.margins: metrics.spaceMedium
+                spacing: metrics.spaceMedium
+
+                RowLayout {
+                    Layout.fillWidth: true
+                    spacing: metrics.spaceMedium
+
+                    Label {
+                        text: "Ekran görüntüsü "
+                              + (screenshotPreview.currentIndex + 1)
+                              + " / " + (page.screenshotUrls
+                                         ? page.screenshotUrls.length : 0)
+                        color: themePalette.text
+                        font.family: metrics.systemFont.family
+                        font.pixelSize: metrics.fontBodyLarge
+                        font.bold: true
+                        Layout.fillWidth: true
+                        elide: Text.ElideRight
+                    }
+                    ThemedActionButton {
+                        text: "Tarayıcıda aç"
+                        visible: enlargedScreenshot.status === Image.Error
+                                 && screenshotPreview.visible
+                                 && page.screenshotUrls
+                                 && screenshotPreview.currentIndex < page.screenshotUrls.length
+                        onClicked: Qt.openUrlExternally(
+                            page.screenshotUrls[screenshotPreview.currentIndex])
+                    }
+                    ThemedActionButton {
+                        text: "Kapat ✕"
+                        onClicked: screenshotPreview.close()
+                    }
+                }
+
+                Item {
+                    Layout.fillWidth: true
+                    Layout.fillHeight: true
+                    Layout.minimumHeight: 80
+
+                    Image {
+                        id: enlargedScreenshot
+                        anchors.fill: parent
+                        source: screenshotPreview.visible && page.screenshotUrls
+                                && screenshotPreview.currentIndex < page.screenshotUrls.length
+                                ? page.screenshotUrls[screenshotPreview.currentIndex] : ""
+                        fillMode: Image.PreserveAspectFit
+                        asynchronous: true
+                        sourceSize.width: 1280
+                        sourceSize.height: 960
+                    }
+                    Label {
+                        anchors.centerIn: parent
+                        visible: enlargedScreenshot.status !== Image.Ready
+                        text: enlargedScreenshot.status === Image.Error
+                              ? "Görüntü uygulama içinde yüklenemedi.\nTarayıcıda açabilirsiniz."
+                              : "Görüntü yükleniyor..."
+                        horizontalAlignment: Text.AlignHCenter
+                        wrapMode: Text.WordWrap
+                        color: themePalette.text
+                        font.family: metrics.systemFont.family
+                        font.pixelSize: metrics.fontBody
+                    }
+                }
+
+                RowLayout {
+                    Layout.fillWidth: true
+
+                    ThemedActionButton {
+                        text: "← Önceki"
+                        enabled: screenshotPreview.currentIndex > 0
+                        onClicked: screenshotPreview.previous()
+                    }
+                    Item { Layout.fillWidth: true }
+                    Label {
+                        text: "← → tuşlarıyla gezinebilirsin"
+                        visible: screenshotPreview.width > 570
+                        color: page.secondaryText
+                        font.family: metrics.systemFont.family
+                        font.pixelSize: metrics.fontSmall
+                    }
+                    Item { Layout.fillWidth: true }
+                    ThemedActionButton {
+                        text: "Sonraki →"
+                        enabled: page.screenshotUrls
+                                 && screenshotPreview.currentIndex + 1 < page.screenshotUrls.length
+                        onClicked: screenshotPreview.next()
+                    }
+                }
+            }
+        }
     }
 
     // KALDIRMA ONAY PENCERESİ

@@ -5,7 +5,17 @@
 #include <QSysInfo>
 #include <QTimer>
 #include <QSet>
+#include <QFileInfo>
+#include <QTextDocument>
+#include <QUrl>
 #include <algorithm>
+#ifdef RO_STORE_HAS_APPSTREAM
+#include <AppStreamQt/pool.h>
+#include <AppStreamQt/component.h>
+#include <AppStreamQt/icon.h>
+#include <AppStreamQt/screenshot.h>
+#include <AppStreamQt/image.h>
+#endif
 
 namespace {
 // Keep a cancelled repoquery alive until the operating system reports exit.
@@ -27,6 +37,7 @@ void retireQuery(QProcess *process)
 FedoraPackageModel::FedoraPackageModel(QObject *parent)
     : QAbstractListModel(parent)
 {
+    startMetadataLoad();
 }
 
 FedoraPackageModel::~FedoraPackageModel()
@@ -59,6 +70,17 @@ QVariant FedoraPackageModel::data(const QModelIndex &index, int role) const
     case ArchitectureRole: return pkg.architecture;
     case RepositoryRole: return pkg.repository;
     case SummaryRole: return pkg.summary;
+    case DisplayNameRole: return m_metadataByPackage.contains(pkg.name)
+        ? m_metadataByPackage.value(pkg.name).title : pkg.name;
+    case DisplaySummaryRole: {
+        const auto metadata = m_metadataByPackage.value(pkg.name);
+        return metadata.summary.isEmpty() ? pkg.summary : metadata.summary;
+    }
+    case AppCategoryRole: return m_metadataByPackage.value(pkg.name).category;
+    case HasAppStreamRole: return m_metadataByPackage.contains(pkg.name);
+    case AppIconUrlRole: return m_metadataByPackage.value(pkg.name).iconUrl;
+    case AppDescriptionRole: return m_metadataByPackage.value(pkg.name).description;
+    case AppScreenshotUrlsRole: return m_metadataByPackage.value(pkg.name).screenshotUrls;
     default: return {};
     }
 }
@@ -70,7 +92,14 @@ QHash<int, QByteArray> FedoraPackageModel::roleNames() const
         { VersionRole, "version" },
         { ArchitectureRole, "architecture" },
         { RepositoryRole, "repository" },
-        { SummaryRole, "summary" }
+        { SummaryRole, "summary" },
+        { DisplayNameRole, "displayName" },
+        { DisplaySummaryRole, "displaySummary" },
+        { AppCategoryRole, "appCategory" },
+        { HasAppStreamRole, "hasAppStream" },
+        { AppIconUrlRole, "appIconUrl" },
+        { AppDescriptionRole, "appDescription" },
+        { AppScreenshotUrlsRole, "appScreenshotUrls" }
     };
 }
 
@@ -93,11 +122,13 @@ void FedoraPackageModel::setError(const QString &text)
 void FedoraPackageModel::search(const QString &name)
 {
     const QString query = name.trimmed();
-    // Repoquery receives each argument separately, never through a shell.
-    // Only literal RPM package-name characters are accepted; no glob injection.
-    static const QRegularExpression allowed(QStringLiteral("^[A-Za-z0-9_.+\\-]{2,64}$"));
+    // QProcess invokes DNF5 directly (no shell). Accept display names with
+    // spaces and Unicode letters, but reject DNF glob and option syntax.
+    static const QRegularExpression allowed(
+        QStringLiteral("^[\\p{L}\\p{N}_.+\\- ]{2,64}$"),
+        QRegularExpression::UseUnicodePropertiesOption);
     if (!query.isEmpty() && !allowed.match(query).hasMatch()) {
-        setError(QStringLiteral("En az 2 karakter içeren bir paket adı girin (harf, rakam, ., _, + veya -)."));
+        setError(QStringLiteral("En az 2 karakter içeren bir paket veya uygulama adı girin."));
         return;
     }
     runQuery(query);
@@ -143,22 +174,62 @@ void FedoraPackageModel::runQuery(const QString &name)
         QStringLiteral("--queryformat=%{name}\t%{version}\t%{arch}\t%{repoid}\t%{summary}\\n")
     };
 
+#ifdef RO_STORE_HAS_APPSTREAM
+    // Metadata can include Flatpak-only/virtual identifiers. Never pass
+    // arbitrary metadata strings as command-line package specifications.
+    static const QRegularExpression safePackage(
+        QStringLiteral("^[A-Za-z0-9][A-Za-z0-9_.+\\-]{0,127}$"));
+#endif
+
     if (name.isEmpty()) {
-        // A useful, quick-to-load starting selection. AppStream's full
-        // application metadata/catalog is a planned later milestone.
-        arguments.append({
-            QStringLiteral("firefox"), QStringLiteral("thunderbird"),
-            QStringLiteral("libreoffice-writer"), QStringLiteral("gimp"),
-            QStringLiteral("inkscape"), QStringLiteral("krita"),
-            QStringLiteral("blender"), QStringLiteral("kdenlive"),
-            QStringLiteral("audacity"), QStringLiteral("filezilla"),
-            QStringLiteral("htop"), QStringLiteral("kate"),
-            QStringLiteral("okular"), QStringLiteral("konsole"),
-            QStringLiteral("virt-manager"), QStringLiteral("keepassxc"),
-            QStringLiteral("obs-studio")
-        });
+#ifdef RO_STORE_HAS_APPSTREAM
+        // Browse desktop applications from AppStream, but resolve their RPM
+        // identities and enabled repositories exclusively through DNF5.
+        // Sorting also makes argument order deterministic across launches.
+        QStringList applicationNames;
+        applicationNames.reserve(m_metadataByPackage.size());
+        for (auto it = m_metadataByPackage.cbegin();
+             it != m_metadataByPackage.cend(); ++it) {
+            if (safePackage.match(it.key()).hasMatch())
+                applicationNames.append(it.key());
+        }
+        applicationNames.sort(Qt::CaseInsensitive);
+        if (!applicationNames.isEmpty()) {
+            arguments.append(applicationNames);
+            qInfo() << "APPSTREAM DISCOVERY QUERY:" << applicationNames.size()
+                    << "RPM package names";
+        }
+#endif
+        // Keep v0.4's small starter list if AppStream is missing, failed or
+        // has no usable RPM package names.
+        if (arguments.size() == 5) {
+            arguments.append({
+                QStringLiteral("firefox"), QStringLiteral("thunderbird"),
+                QStringLiteral("libreoffice-writer"), QStringLiteral("gimp"),
+                QStringLiteral("inkscape"), QStringLiteral("krita"),
+                QStringLiteral("blender"), QStringLiteral("kdenlive"),
+                QStringLiteral("audacity"), QStringLiteral("filezilla"),
+                QStringLiteral("htop"), QStringLiteral("kate"),
+                QStringLiteral("okular"), QStringLiteral("konsole"),
+                QStringLiteral("virt-manager"), QStringLiteral("keepassxc"),
+                QStringLiteral("obs-studio")
+            });
+        }
     } else {
+        // Keep the existing RPM-name search and also resolve display titles
+        // and summaries back to real package names when AppStream is loaded.
         arguments.append(QStringLiteral("*") + name + QStringLiteral("*"));
+#ifdef RO_STORE_HAS_APPSTREAM
+        for (auto it = m_metadataByPackage.cbegin();
+             it != m_metadataByPackage.cend(); ++it) {
+            const AppMetadata &metadata = it.value();
+            if ((metadata.title.contains(name, Qt::CaseInsensitive)
+                 || metadata.summary.contains(name, Qt::CaseInsensitive))
+                && safePackage.match(it.key()).hasMatch()) {
+                arguments.append(it.key());
+            }
+        }
+#endif
     }
 
     process->setArguments(arguments);
@@ -243,7 +314,17 @@ void FedoraPackageModel::parseOutput(const QByteArray &data)
         parsed.append(pkg);
     }
 
-    std::sort(parsed.begin(), parsed.end(), [](const FedoraPackage &a, const FedoraPackage &b) {
+    // Browse by human-readable application title. Explicit RPM searches
+    // retain the original package-name ordering.
+    std::sort(parsed.begin(), parsed.end(), [this](const FedoraPackage &a,
+                                                    const FedoraPackage &b) {
+        const QString aLabel = m_query.isEmpty() && m_metadataByPackage.contains(a.name)
+            ? m_metadataByPackage.value(a.name).title : a.name;
+        const QString bLabel = m_query.isEmpty() && m_metadataByPackage.contains(b.name)
+            ? m_metadataByPackage.value(b.name).title : b.name;
+        const int byLabel = QString::compare(aLabel, bLabel, Qt::CaseInsensitive);
+        if (byLabel != 0)
+            return byLabel < 0;
         const int byName = QString::compare(a.name, b.name, Qt::CaseInsensitive);
         if (byName != 0)
             return byName < 0;
@@ -286,9 +367,14 @@ void FedoraPackageModel::rebuildResults()
     beginResetModel();
     m_matching.clear();
     for (int i = 0; i < m_packages.size(); ++i) {
-        if (m_sourceFilter == QStringLiteral("Tümü")
-            || m_packages.at(i).repository == m_sourceFilter)
-            m_matching.append(i);
+        const FedoraPackage &pkg = m_packages.at(i);
+        if (m_sourceFilter != QStringLiteral("Tümü")
+            && pkg.repository != m_sourceFilter)
+            continue;
+        if (m_categoryFilter != QStringLiteral("Tümü")
+            && m_metadataByPackage.value(pkg.name).category != m_categoryFilter)
+            continue;
+        m_matching.append(i);
     }
     m_visibleCount = std::min(PageSize, int(m_matching.size()));
     endResetModel();
@@ -306,6 +392,15 @@ void FedoraPackageModel::setSourceFilter(const QString &source)
     rebuildResults();
 }
 
+void FedoraPackageModel::setCategoryFilter(const QString &category)
+{
+    if (m_categoryFilter == category || !m_categories.contains(category))
+        return;
+    m_categoryFilter = category;
+    emit categoryFilterChanged();
+    rebuildResults();
+}
+
 void FedoraPackageModel::loadMore()
 {
     if (!hasMore())
@@ -316,4 +411,168 @@ void FedoraPackageModel::loadMore()
     m_visibleCount += extra;
     endInsertRows();
     emit hasMoreChanged();
+}
+
+void FedoraPackageModel::notifyMetadataUpdated()
+{
+    if (m_visibleCount > 0)
+        emit dataChanged(index(0, 0), index(m_visibleCount - 1, 0),
+                         {DisplayNameRole, DisplaySummaryRole, AppCategoryRole,
+                          HasAppStreamRole, AppIconUrlRole, AppDescriptionRole,
+                          AppScreenshotUrlsRole});
+}
+
+#ifdef RO_STORE_HAS_APPSTREAM
+namespace {
+// Prefer locally installed/cached icon files. Remote AppStream icons are not
+// fetched implicitly: an unavailable image must fall back to the text avatar.
+// Render the upstream AppStream markup as plain text, so package descriptions
+// cannot inject links, HTML objects or unexpected markup into the QML view.
+QString appStreamPlainDescription(const AppStream::Component &component)
+{
+    QString result = component.description().trimmed();
+    if (result.contains(QLatin1Char('<'))) {
+        QTextDocument document;
+        document.setHtml(result);
+        result = document.toPlainText().trimmed();
+    }
+    return result.left(4000);
+}
+
+// Screenshots are optional external resources. Never load untrusted file://,
+// http:// or other schemes from metadata; Qt Quick may fetch HTTPS thumbnails.
+QStringList appStreamScreenshots(const AppStream::Component &component)
+{
+    QStringList urls;
+    for (const auto &screenshot : component.screenshotsAll()) {
+        if (screenshot.mediaKind() != AppStream::Screenshot::MediaKindImage)
+            continue;
+        QString chosen;
+        int bestScore = 1000000;
+        for (const auto &image : screenshot.images()) {
+            const QUrl url = image.url();
+            if (!url.isValid() || url.scheme() != QStringLiteral("https")
+                || url.host().isEmpty() || !url.userInfo().isEmpty())
+                continue;
+            // Prefer a 640px thumbnail rather than downloading a huge
+            // source image; use the source only if no thumbnail exists.
+            const int width = int(image.width());
+            const int distance = width > 640 ? width - 640 : 640 - width;
+            const int score = distance + (image.kind() == AppStream::Image::KindSource ? 10000 : 0);
+            if (score < bestScore) {
+                bestScore = score;
+                chosen = url.toString(QUrl::FullyEncoded);
+            }
+        }
+        if (!chosen.isEmpty() && !urls.contains(chosen))
+            urls.append(chosen);
+        if (urls.size() >= 3)
+            break;
+    }
+    return urls;
+}
+
+QString appStreamIconSource(const AppStream::Component &component)
+{
+    const auto icons = component.icons();
+    for (const auto &icon : icons) {
+        if (icon.kind() != AppStream::Icon::KindCached
+            && icon.kind() != AppStream::Icon::KindLocal)
+            continue;
+
+        const QUrl url = icon.url();
+        // AppStreamQt 1.1.x exposes Icon::url(), not filename().
+        // A file:// URL or a plain absolute path may refer to a cached icon.
+        QString filePath;
+        if (url.isLocalFile())
+            filePath = url.toLocalFile();
+        else if (url.scheme().isEmpty())
+            filePath = url.toString(QUrl::FullyDecoded);
+        const QFileInfo file(filePath);
+        if (file.isAbsolute() && file.isFile() && file.isReadable())
+            return QUrl::fromLocalFile(file.absoluteFilePath()).toString();
+    }
+    for (const auto &icon : icons) {
+        if (icon.kind() != AppStream::Icon::KindStock)
+            continue;
+        const QString name = icon.name().trimmed();
+        static const QRegularExpression safeName(QStringLiteral("^[A-Za-z0-9._-]{1,128}$"));
+        if (safeName.match(name).hasMatch())
+            return QStringLiteral("image://rostore-theme/") + name;
+    }
+    return {};
+}
+}
+#endif
+
+void FedoraPackageModel::startMetadataLoad()
+{
+#ifdef RO_STORE_HAS_APPSTREAM
+    // AppStream metadata is advisory only. RPM identity, repository and version
+    // always come exclusively from DNF5 repoquery results.
+    auto *pool = new AppStream::Pool(this);
+    pool->setFlags(AppStream::Pool::Flags(AppStream::Pool::FlagLoadOsCatalog)
+                   | AppStream::Pool::FlagLoadOsMetainfo);
+    qInfo() << "APPSTREAM METADATA LOAD START";
+    connect(pool, &AppStream::Pool::loadFinished, this, [this, pool](bool success) {
+        if (!success) {
+            qWarning() << "APPSTREAM METADATA UNAVAILABLE:" << pool->lastError();
+            return; // Existing Fedora RPM catalog remains fully functional.
+        }
+        QHash<QString, AppMetadata> next;
+        const auto components = pool->components();
+        int descriptions = 0;
+        int screenshots = 0;
+        for (const auto &component : components) {
+            if (component.kind() != AppStream::Component::KindDesktopApp)
+                continue;
+            const QString title = component.name().trimmed();
+            if (title.isEmpty())
+                continue;
+            const QString summary = component.summary().simplified();
+            const QString category = component.categories().value(0);
+            const QString iconUrl = appStreamIconSource(component);
+            const QString description = appStreamPlainDescription(component);
+            const QStringList screenshotUrls = appStreamScreenshots(component);
+            for (const auto &packageName : component.packageNames()) {
+                if (!packageName.isEmpty() && !next.contains(packageName)) {
+                    next.insert(packageName, {title, summary, category, iconUrl,
+                                              description, screenshotUrls});
+                    if (!description.isEmpty())
+                        ++descriptions;
+                    if (!screenshotUrls.isEmpty())
+                        ++screenshots;
+                }
+            }
+        }
+        m_metadataByPackage = std::move(next);
+        qInfo() << "APPSTREAM RPM METADATA LOADED:" << m_metadataByPackage.size();
+        qInfo() << "APPSTREAM DETAILS:" << descriptions << "descriptions,"
+                << screenshots << "packages with screenshots";
+        QStringList categories = { QStringLiteral("Tümü") };
+        for (auto it = m_metadataByPackage.cbegin(); it != m_metadataByPackage.cend(); ++it) {
+            if (!it.value().category.isEmpty() && !categories.contains(it.value().category))
+                categories.append(it.value().category);
+        }
+        std::sort(categories.begin() + 1, categories.end(),
+                  [](const QString &a, const QString &b) {
+            return QString::compare(a, b, Qt::CaseInsensitive) < 0;
+        });
+        if (m_categories != categories) {
+            m_categories = categories;
+            emit categoriesChanged();
+        }
+        if (!m_categories.contains(m_categoryFilter)) {
+            m_categoryFilter = QStringLiteral("Tümü");
+            emit categoryFilterChanged();
+        }
+        notifyMetadataUpdated();
+        // Refresh the initially shown sample list into the full desktop-app
+        // catalog; also repeat searches started before display-name metadata
+        // became available. QProcess retirement keeps cancelled queries safe.
+        if (!m_metadataByPackage.isEmpty())
+            runQuery(m_query);
+    });
+    pool->loadAsync();
+#endif
 }
