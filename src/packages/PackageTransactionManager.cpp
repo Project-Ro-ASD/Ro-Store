@@ -1513,6 +1513,7 @@ void PackageTransactionManager::cancelActiveFinished()
     m_activeTransaction->setState(
         PackageTransaction::State::Cancelled
     );
+    m_activeTransaction->setCancelRequested(false);
 
     resetAndReleaseActive();
 }
