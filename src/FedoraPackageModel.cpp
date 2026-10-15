@@ -348,8 +348,9 @@ void FedoraPackageModel::startMetadataLoad()
     // AppStream metadata is advisory only. RPM identity, repository and version
     // always come exclusively from DNF5 repoquery results.
     auto *pool = new AppStream::Pool(this);
-    pool->setFlags(AppStream::Pool::FlagLoadOsCatalog
+    pool->setFlags(AppStream::Pool::Flags(AppStream::Pool::FlagLoadOsCatalog)
                    | AppStream::Pool::FlagLoadOsMetainfo);
+    qInfo() << "APPSTREAM METADATA LOAD START";
     connect(pool, &AppStream::Pool::loadFinished, this, [this, pool](bool success) {
         if (!success) {
             qWarning() << "APPSTREAM METADATA UNAVAILABLE:" << pool->lastError();
