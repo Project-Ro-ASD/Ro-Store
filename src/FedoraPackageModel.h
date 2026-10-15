@@ -24,6 +24,8 @@ class FedoraPackageModel : public QAbstractListModel
     Q_PROPERTY(QString activeQuery READ activeQuery NOTIFY activeQueryChanged)
     Q_PROPERTY(QStringList sources READ sources NOTIFY sourcesChanged)
     Q_PROPERTY(QString sourceFilter READ sourceFilter WRITE setSourceFilter NOTIFY sourceFilterChanged)
+    Q_PROPERTY(QStringList categories READ categories NOTIFY categoriesChanged)
+    Q_PROPERTY(QString categoryFilter READ categoryFilter WRITE setCategoryFilter NOTIFY categoryFilterChanged)
     Q_PROPERTY(int totalResults READ totalResults NOTIFY totalResultsChanged)
     Q_PROPERTY(bool hasMore READ hasMore NOTIFY hasMoreChanged)
     Q_PROPERTY(bool truncated READ truncated NOTIFY totalResultsChanged)
@@ -55,6 +57,8 @@ public:
     QString activeQuery() const { return m_query; }
     QStringList sources() const { return m_sources; }
     QString sourceFilter() const { return m_sourceFilter; }
+    QStringList categories() const { return m_categories; }
+    QString categoryFilter() const { return m_categoryFilter; }
     int totalResults() const { return m_matching.size(); }
     bool hasMore() const { return m_visibleCount < m_matching.size(); }
     bool truncated() const { return m_truncated; }
@@ -63,6 +67,7 @@ public:
     Q_INVOKABLE void refresh();
     Q_INVOKABLE void loadMore();
     void setSourceFilter(const QString &source);
+    void setCategoryFilter(const QString &category);
 
 signals:
     void loadingChanged();
@@ -70,6 +75,8 @@ signals:
     void activeQueryChanged();
     void sourcesChanged();
     void sourceFilterChanged();
+    void categoriesChanged();
+    void categoryFilterChanged();
     void totalResultsChanged();
     void hasMoreChanged();
 
@@ -96,6 +103,8 @@ private:
     QPointer<QProcess> m_process;
     QStringList m_sources = { QStringLiteral("Tümü") };
     QString m_sourceFilter = QStringLiteral("Tümü");
+    QStringList m_categories = { QStringLiteral("Tümü") };
+    QString m_categoryFilter = QStringLiteral("Tümü");
     QString m_query;
     QString m_error;
     bool m_loading = false;
