@@ -1499,6 +1499,137 @@ void Dnf5Backend::resolveTransaction(
 
 
 
+
+void Dnf5Backend::prepareLocalRpmTransaction(
+    const QStringList &localRpmPaths,
+    const QVariantList &approvedItems
+)
+{
+    if (!sessionOpen() || m_busy || localRpmPaths.isEmpty()) {
+        emit localRpmTransactionPreparationFailed(QStringLiteral(
+            "Yerel RPM doğrulama için hazır bir DNF5 oturumu ve RPM dosyaları gerekli."));
+        return;
+    }
+    const QString sessionPath = m_sessionPath;
+    const QString service = QString::fromLatin1(DNF5_SERVICE);
+    const QDBusConnection bus = QDBusConnection::systemBus();
+
+    // The currently resolved goal contains a remote repository operation.
+    // Reset it so that the RPM mutation can only reference staged local files.
+    QDBusInterface goal(service, sessionPath, QStringLiteral("org.rpm.dnf.v0.Goal"), bus);
+    if (!goal.isValid()) {
+        emit localRpmTransactionPreparationFailed(goal.lastError().message());
+        return;
+    }
+    setBusy(true);
+    auto *resetWatcher = new QDBusPendingCallWatcher(
+        goal.asyncCall(QStringLiteral("reset")), this);
+    connect(resetWatcher, &QDBusPendingCallWatcher::finished, this,
+        [this, resetWatcher, localRpmPaths, approvedItems, service, sessionPath, bus]() {
+        QDBusPendingReply<> reset = *resetWatcher;
+        resetWatcher->deleteLater();
+        if (reset.isError() || sessionPath != m_sessionPath) {
+            setBusy(false);
+            emit localRpmTransactionPreparationFailed(QStringLiteral(
+                "DNF5 planı sıfırlanamadı: %1").arg(reset.error().message()));
+            return;
+        }
+        QDBusInterface rpm(service, sessionPath, QString::fromLatin1(DNF5_RPM_INTERFACE), bus);
+        if (!rpm.isValid()) {
+            setBusy(false);
+            emit localRpmTransactionPreparationFailed(rpm.lastError().message());
+            return;
+        }
+        // No repository query is requested here: DNF5 imports the local RPMs
+        // as cmdline packages. Any newly introduced remote dependency below
+        // is rejected before do_transaction is ever called.
+        auto *markWatcher = new QDBusPendingCallWatcher(
+            rpm.asyncCall(QStringLiteral("install"), localRpmPaths, QVariantMap{}), this);
+        connect(markWatcher, &QDBusPendingCallWatcher::finished, this,
+            [this, markWatcher, approvedItems, service, sessionPath, bus]() {
+            QDBusPendingReply<> mark = *markWatcher;
+            markWatcher->deleteLater();
+            if (mark.isError() || sessionPath != m_sessionPath) {
+                setBusy(false);
+                emit localRpmTransactionPreparationFailed(QStringLiteral(
+                    "Yerel RPM işaretleme başarısız: %1").arg(mark.error().message()));
+                return;
+            }
+            QDBusInterface goal(service, sessionPath, QStringLiteral("org.rpm.dnf.v0.Goal"), bus);
+            auto *resolveWatcher = new QDBusPendingCallWatcher(
+                goal.asyncCall(QStringLiteral("resolve"),
+                               QVariantMap{{QStringLiteral("interactive"), false}}), this);
+            connect(resolveWatcher, &QDBusPendingCallWatcher::finished, this,
+                [this, resolveWatcher, approvedItems, sessionPath]() {
+                QDBusPendingReply<> resolved = *resolveWatcher;
+                resolveWatcher->deleteLater();
+                setBusy(false);
+                if (resolved.isError() || sessionPath != m_sessionPath) {
+                    emit localRpmTransactionPreparationFailed(QStringLiteral(
+                        "Yerel RPM bağımlılık çözümlemesi başarısız: %1")
+                        .arg(resolved.error().message()));
+                    return;
+                }
+                const QDBusMessage message = resolveWatcher->reply();
+                if (message.arguments().size() < 2 || message.arguments().at(1).toUInt() >= 2) {
+                    emit localRpmTransactionPreparationFailed(QStringLiteral(
+                        "Yerel RPM bağımlılık planı çözümlenemedi."));
+                    return;
+                }
+                const QList<QVariantMap> localItems =
+                    readTransactionItemArray(message.arguments().at(0));
+
+                auto planSignature = [](const QVariantMap &entry) {
+                    const QVariantMap pkg = entry.value(QStringLiteral("object")).toMap();
+                    return QStringLiteral("%1|%2|%3|%4|%5")
+                        .arg(entry.value(QStringLiteral("action")).toString(),
+                             pkg.value(QStringLiteral("name")).toString(),
+                             pkg.value(QStringLiteral("epoch")).toString(),
+                             pkg.value(QStringLiteral("version")).toString(),
+                             pkg.value(QStringLiteral("arch")).toString());
+                };
+                QStringList approved;
+                QStringList local;
+                for (const QVariant &item : approvedItems) {
+                    const QVariantMap map = item.toMap();
+                    if (map.value(QStringLiteral("objectType")).toString()
+                        == QStringLiteral("Package"))
+                        approved << planSignature(map);
+                }
+                for (const QVariantMap &item : localItems) {
+                    if (item.value(QStringLiteral("objectType")).toString()
+                        == QStringLiteral("Package"))
+                        local << planSignature(item);
+                    // A remote RPM in the freshly resolved transaction means
+                    // another network download would occur. Fail closed.
+                    const QVariantMap pkg = item.value(QStringLiteral("object")).toMap();
+                    const QString action = item.value(QStringLiteral("action")).toString();
+                    if (action != QStringLiteral("Remove")
+                        && action != QStringLiteral("Replaced")
+                        && pkg.value(QStringLiteral("repo_id")).toString()
+                            != QStringLiteral("@commandline")
+                        && pkg.value(QStringLiteral("repo_id")).toString()
+                            != QStringLiteral("@System")) {
+                        emit localRpmTransactionPreparationFailed(QStringLiteral(
+                            "Onaylanmamış uzak bağımlılık belirlendi: %1").arg(
+                                pkg.value(QStringLiteral("name")).toString()));
+                        return;
+                    }
+                }
+                approved.sort();
+                local.sort();
+                if (approved.isEmpty() || approved != local) {
+                    emit localRpmTransactionPreparationFailed(QStringLiteral(
+                        "İndirilen dosyaların RPM planı başlangıçta onaylanan "
+                        "paket/değişiklik listesiyle uyuşmuyor; işlem durduruldu."));
+                    return;
+                }
+                emit localRpmTransactionPrepared();
+            });
+        });
+    });
+}
+
 void Dnf5Backend::executeResolvedTransaction(
     bool downloadOnly
 )
