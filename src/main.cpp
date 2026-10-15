@@ -6,6 +6,14 @@
 #include <QIcon>
 #include <QQuickImageProvider>
 #include <QRegularExpression>
+#include <QBuffer>
+#include <QEventLoop>
+#include <QImageReader>
+#include <QNetworkAccessManager>
+#include <QNetworkReply>
+#include <QNetworkRequest>
+#include <QTimer>
+#include <QUrl>
 
 #include "TrayController.h"
 #include "CatalogModel.h"
@@ -42,11 +50,70 @@ public:
     }
 };
 
+// Run only when explicitly requested; useful for diagnosing image servers
+// which return a JPEG to curl but non-image content to Qt Quick.
+static int checkImageWithQt(const QString &rawUrl)
+{
+    const QUrl url(rawUrl);
+    if (!url.isValid() || (url.scheme() != QStringLiteral("https")
+                           && !url.isLocalFile())) {
+        qWarning() << "QA IMAGE: supply an HTTPS or file:/// URL";
+        return 2;
+    }
+
+    const auto formats = QImageReader::supportedImageFormats();
+    qInfo() << "QA IMAGE JPEG DECODER:"
+            << (formats.contains(QByteArrayLiteral("jpeg"))
+                || formats.contains(QByteArrayLiteral("jpg")));
+    qInfo() << "QA IMAGE URL:" << url;
+
+    QNetworkAccessManager manager;
+    QNetworkRequest request(url);
+    QNetworkReply *reply = manager.get(request);
+    QEventLoop loop;
+    QTimer timeout;
+    timeout.setSingleShot(true);
+    QObject::connect(reply, &QNetworkReply::finished, &loop, &QEventLoop::quit);
+    QObject::connect(&timeout, &QTimer::timeout, reply, &QNetworkReply::abort);
+    timeout.start(20000);
+    loop.exec();
+    timeout.stop();
+
+    const QByteArray bytes = reply->readAll();
+    qInfo() << "QA IMAGE HTTP:"
+            << reply->attribute(QNetworkRequest::HttpStatusCodeAttribute)
+            << "Content-Type:" << reply->header(QNetworkRequest::ContentTypeHeader)
+            << "Network error:" << reply->errorString();
+    qInfo() << "QA IMAGE BYTES:" << bytes.size()
+            << "FIRST HEX:" << bytes.left(24).toHex()
+            << "FIRST TEXT:" << bytes.left(80);
+
+    QBuffer buffer;
+    buffer.setData(bytes);
+    buffer.open(QIODevice::ReadOnly);
+    QImageReader reader(&buffer);
+    const QImage image = reader.read();
+    qInfo() << "QA IMAGE FORMAT:" << reader.format()
+            << "SIZE:" << image.size()
+            << "DECODE ERROR:" << reader.errorString();
+    reply->deleteLater();
+    return image.isNull() ? 1 : 0;
+}
+
 int main(int argc, char *argv[])
 {
     qDBusRegisterMetaType<QMap<QString, QString>>();
 
     QApplication app(argc, argv);
+    const QStringList args = app.arguments();
+    const int qaIndex = args.indexOf(QStringLiteral("--qa-image-check"));
+    if (qaIndex >= 0) {
+        if (qaIndex + 1 >= args.size()) {
+            qWarning() << "Usage: ro-store --qa-image-check https://example.org/image.jpg";
+            return 2;
+        }
+        return checkImageWithQt(args.at(qaIndex + 1));
+    }
     app.setQuitOnLastWindowClosed(false);
 
     TrayController trayController;
