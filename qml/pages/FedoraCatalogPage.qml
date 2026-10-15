@@ -8,7 +8,8 @@ Item {
     id: page
     signal backRequested()
     signal downloadsRequested()
-    signal packageSelected(string name, string summary, string version, string repository)
+    signal packageSelected(string name, string summary, string version, string repository,
+                           string displayName)
 
     property var packageTransactionManager: null
     readonly property bool narrow: width < Math.max(760, 760 * metrics.fontScale)
@@ -150,7 +151,8 @@ Item {
                 activeFocusOnTab: true
 
                 function openDetails() {
-                    page.packageSelected(packageName, displaySummary, version, repository)
+                    page.packageSelected(packageName, displaySummary, version, repository,
+                                         displayName)
                 }
 
                 Keys.onReturnPressed: function(event) {
