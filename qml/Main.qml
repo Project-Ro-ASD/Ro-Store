@@ -20,6 +20,7 @@ ApplicationWindow {
     height: 650
     visible: true
     title: "Ro-Store"
+    property bool qaSafetyBannerPreview: false
     property bool exitingFromTray: false
     property var pendingConfirmation: null
 
@@ -319,7 +320,7 @@ ApplicationWindow {
 
     Rectangle {
         id: transactionSafetyNotice
-        visible: transactionManager.outcomeUncertain
+        visible: transactionManager.outcomeUncertain || root.qaSafetyBannerPreview
         anchors.top: parent.top
         anchors.left: parent.left
         anchors.right: parent.right
@@ -332,15 +333,20 @@ ApplicationWindow {
             id: noticeLabel
             anchors.fill: parent
             anchors.margins: 10
-            text: "DNF5 işlem sonucu belirsiz! Yeni paket işlemleri durduruldu. " +
-                  "Önce Yüklemeler ekranındaki teknik günlüğü ve sistem paket durumunu kontrol edin."
+            text: root.qaSafetyBannerPreview && !transactionManager.outcomeUncertain
+                  ? "ARAYÜZ TESTİ: DNF5 güvenlik uyarısı görünüm önizlemesi. Paket işlemi yapılmıyor."
+                  : "DNF5 işlem sonucu belirsiz! Yeni paket işlemleri durduruldu. " +
+                    "Önce Yüklemeler ekranındaki teknik günlüğü ve sistem paket durumunu kontrol edin."
             color: themePalette.text
             wrapMode: Text.WordWrap
         }
         MouseArea {
             anchors.fill: parent
             cursorShape: Qt.PointingHandCursor
-            onClicked: recoveryInfoDialog.open()
+            onClicked: {
+                if (transactionManager.outcomeUncertain)
+                    recoveryInfoDialog.open()
+            }
         }
     }
 
