@@ -36,6 +36,7 @@ Item {
     property string versionText: ""
     property string packageName: ""
     property string iconUrl: ""
+    property var screenshotUrls: []
     property string packageRepository: "ro-asd"
 
     property var packageTransactionManager: null
@@ -711,6 +712,69 @@ Item {
                         font.family: metrics.systemFont.family
                         font.pixelSize: metrics.fontBodyLarge
                         wrapMode: Text.WordWrap
+                    }
+
+                    Column {
+                        visible: page.screenshotUrls && page.screenshotUrls.length > 0
+                        width: parent.width
+                        spacing: metrics.spaceMedium
+
+                        Text {
+                            width: parent.width
+                            text: "Ekran görüntüleri"
+                            color: themePalette.text
+                            font.family: metrics.systemFont.family
+                            font.pixelSize: metrics.fontTitle
+                            font.bold: true
+                        }
+
+                        Flickable {
+                            width: parent.width
+                            height: 188
+                            clip: true
+                            contentWidth: screenshotRow.width
+                            contentHeight: height
+                            flickableDirection: Flickable.HorizontalFlick
+                            boundsBehavior: Flickable.StopAtBounds
+
+                            Row {
+                                id: screenshotRow
+                                spacing: metrics.spaceMedium
+
+                                Repeater {
+                                    model: page.screenshotUrls || []
+                                    delegate: Rectangle {
+                                        width: Math.min(300, Math.max(210, infoColumn.width - 4))
+                                        height: 184
+                                        radius: metrics.radiusInner
+                                        color: themePalette.alternateBase
+                                        border.color: themePalette.mid
+                                        border.width: 1
+                                        clip: true
+
+                                        Image {
+                                            id: screenshotImage
+                                            anchors.fill: parent
+                                            anchors.margins: 4
+                                            source: modelData
+                                            sourceSize.width: 640
+                                            fillMode: Image.PreserveAspectFit
+                                            asynchronous: true
+                                        }
+
+                                        Text {
+                                            anchors.centerIn: parent
+                                            visible: screenshotImage.status !== Image.Ready
+                                            text: screenshotImage.status === Image.Error
+                                                  ? "Görüntü yüklenemedi" : "Görüntü yükleniyor..."
+                                            color: themePalette.text
+                                            font.family: metrics.systemFont.family
+                                            font.pixelSize: metrics.fontSmall
+                                        }
+                                    }
+                                }
+                            }
+                        }
                     }
 
                     Rectangle {
