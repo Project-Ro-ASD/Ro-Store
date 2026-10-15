@@ -6,12 +6,15 @@
 #include <QTimer>
 #include <QSet>
 #include <QFileInfo>
+#include <QTextDocument>
 #include <QUrl>
 #include <algorithm>
 #ifdef RO_STORE_HAS_APPSTREAM
 #include <AppStreamQt/pool.h>
 #include <AppStreamQt/component.h>
 #include <AppStreamQt/icon.h>
+#include <AppStreamQt/screenshot.h>
+#include <AppStreamQt/image.h>
 #endif
 
 namespace {
@@ -76,6 +79,8 @@ QVariant FedoraPackageModel::data(const QModelIndex &index, int role) const
     case AppCategoryRole: return m_metadataByPackage.value(pkg.name).category;
     case HasAppStreamRole: return m_metadataByPackage.contains(pkg.name);
     case AppIconUrlRole: return m_metadataByPackage.value(pkg.name).iconUrl;
+    case AppDescriptionRole: return m_metadataByPackage.value(pkg.name).description;
+    case AppScreenshotUrlsRole: return m_metadataByPackage.value(pkg.name).screenshotUrls;
     default: return {};
     }
 }
@@ -92,7 +97,9 @@ QHash<int, QByteArray> FedoraPackageModel::roleNames() const
         { DisplaySummaryRole, "displaySummary" },
         { AppCategoryRole, "appCategory" },
         { HasAppStreamRole, "hasAppStream" },
-        { AppIconUrlRole, "appIconUrl" }
+        { AppIconUrlRole, "appIconUrl" },
+        { AppDescriptionRole, "appDescription" },
+        { AppScreenshotUrlsRole, "appScreenshotUrls" }
     };
 }
 
@@ -344,13 +351,61 @@ void FedoraPackageModel::notifyMetadataUpdated()
 {
     if (m_visibleCount > 0)
         emit dataChanged(index(0, 0), index(m_visibleCount - 1, 0),
-                         {DisplayNameRole, DisplaySummaryRole, AppCategoryRole, HasAppStreamRole});
+                         {DisplayNameRole, DisplaySummaryRole, AppCategoryRole,
+                          HasAppStreamRole, AppIconUrlRole, AppDescriptionRole,
+                          AppScreenshotUrlsRole});
 }
 
 #ifdef RO_STORE_HAS_APPSTREAM
 namespace {
 // Prefer locally installed/cached icon files. Remote AppStream icons are not
 // fetched implicitly: an unavailable image must fall back to the text avatar.
+// Render the upstream AppStream markup as plain text, so package descriptions
+// cannot inject links, HTML objects or unexpected markup into the QML view.
+QString appStreamPlainDescription(const AppStream::Component &component)
+{
+    QString result = component.description().trimmed();
+    if (result.contains(QLatin1Char('<'))) {
+        QTextDocument document;
+        document.setHtml(result);
+        result = document.toPlainText().trimmed();
+    }
+    return result.left(4000);
+}
+
+// Screenshots are optional external resources. Never load untrusted file://,
+// http:// or other schemes from metadata; Qt Quick may fetch HTTPS thumbnails.
+QStringList appStreamScreenshots(const AppStream::Component &component)
+{
+    QStringList urls;
+    for (const auto &screenshot : component.screenshotsAll()) {
+        if (screenshot.mediaKind() != AppStream::Screenshot::MediaKindImage)
+            continue;
+        QString chosen;
+        int bestScore = 1000000;
+        for (const auto &image : screenshot.images()) {
+            const QUrl url = image.url();
+            if (!url.isValid() || url.scheme() != QStringLiteral("https")
+                || url.host().isEmpty() || !url.userInfo().isEmpty())
+                continue;
+            // Prefer a 640px thumbnail rather than downloading a huge
+            // source image; use the source only if no thumbnail exists.
+            const int width = int(image.width());
+            const int distance = width > 640 ? width - 640 : 640 - width;
+            const int score = distance + (image.kind() == AppStream::Image::KindSource ? 10000 : 0);
+            if (score < bestScore) {
+                bestScore = score;
+                chosen = url.toString(QUrl::FullyEncoded);
+            }
+        }
+        if (!chosen.isEmpty() && !urls.contains(chosen))
+            urls.append(chosen);
+        if (urls.size() >= 3)
+            break;
+    }
+    return urls;
+}
+
 QString appStreamIconSource(const AppStream::Component &component)
 {
     const auto icons = component.icons();
@@ -400,6 +455,8 @@ void FedoraPackageModel::startMetadataLoad()
         }
         QHash<QString, AppMetadata> next;
         const auto components = pool->components();
+        int descriptions = 0;
+        int screenshots = 0;
         for (const auto &component : components) {
             if (component.kind() != AppStream::Component::KindDesktopApp)
                 continue;
@@ -409,13 +466,23 @@ void FedoraPackageModel::startMetadataLoad()
             const QString summary = component.summary().simplified();
             const QString category = component.categories().value(0);
             const QString iconUrl = appStreamIconSource(component);
+            const QString description = appStreamPlainDescription(component);
+            const QStringList screenshotUrls = appStreamScreenshots(component);
             for (const auto &packageName : component.packageNames()) {
-                if (!packageName.isEmpty() && !next.contains(packageName))
-                    next.insert(packageName, {title, summary, category, iconUrl});
+                if (!packageName.isEmpty() && !next.contains(packageName)) {
+                    next.insert(packageName, {title, summary, category, iconUrl,
+                                              description, screenshotUrls});
+                    if (!description.isEmpty())
+                        ++descriptions;
+                    if (!screenshotUrls.isEmpty())
+                        ++screenshots;
+                }
             }
         }
         m_metadataByPackage = std::move(next);
         qInfo() << "APPSTREAM RPM METADATA LOADED:" << m_metadataByPackage.size();
+        qInfo() << "APPSTREAM DETAILS:" << descriptions << "descriptions,"
+                << screenshots << "packages with screenshots";
         notifyMetadataUpdated();
     });
     pool->loadAsync();
