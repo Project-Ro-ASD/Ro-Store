@@ -5,10 +5,13 @@
 #include <QSysInfo>
 #include <QTimer>
 #include <QSet>
+#include <QFileInfo>
+#include <QUrl>
 #include <algorithm>
 #ifdef RO_STORE_HAS_APPSTREAM
 #include <AppStreamQt/pool.h>
 #include <AppStreamQt/component.h>
+#include <AppStreamQt/icon.h>
 #endif
 
 namespace {
@@ -72,6 +75,7 @@ QVariant FedoraPackageModel::data(const QModelIndex &index, int role) const
     }
     case AppCategoryRole: return m_metadataByPackage.value(pkg.name).category;
     case HasAppStreamRole: return m_metadataByPackage.contains(pkg.name);
+    case AppIconUrlRole: return m_metadataByPackage.value(pkg.name).iconUrl;
     default: return {};
     }
 }
@@ -87,7 +91,8 @@ QHash<int, QByteArray> FedoraPackageModel::roleNames() const
         { DisplayNameRole, "displayName" },
         { DisplaySummaryRole, "displaySummary" },
         { AppCategoryRole, "appCategory" },
-        { HasAppStreamRole, "hasAppStream" }
+        { HasAppStreamRole, "hasAppStream" },
+        { AppIconUrlRole, "appIconUrl" }
     };
 }
 
@@ -342,6 +347,41 @@ void FedoraPackageModel::notifyMetadataUpdated()
                          {DisplayNameRole, DisplaySummaryRole, AppCategoryRole, HasAppStreamRole});
 }
 
+#ifdef RO_STORE_HAS_APPSTREAM
+namespace {
+// Prefer locally installed/cached icon files. Remote AppStream icons are not
+// fetched implicitly: an unavailable image must fall back to the text avatar.
+QString appStreamIconSource(const AppStream::Component &component)
+{
+    const auto icons = component.icons();
+    for (const auto &icon : icons) {
+        if (icon.kind() != AppStream::Icon::KindCached
+            && icon.kind() != AppStream::Icon::KindLocal)
+            continue;
+
+        const QUrl url = icon.url();
+        QString filePath;
+        if (url.isLocalFile())
+            filePath = url.toLocalFile();
+        if (filePath.isEmpty())
+            filePath = icon.filename();
+        const QFileInfo file(filePath);
+        if (file.isAbsolute() && file.isFile() && file.isReadable())
+            return QUrl::fromLocalFile(file.absoluteFilePath()).toString();
+    }
+    for (const auto &icon : icons) {
+        if (icon.kind() != AppStream::Icon::KindStock)
+            continue;
+        const QString name = icon.name().trimmed();
+        static const QRegularExpression safeName(QStringLiteral("^[A-Za-z0-9._-]{1,128}$"));
+        if (safeName.match(name).hasMatch())
+            return QStringLiteral("image://rostore-theme/") + name;
+    }
+    return {};
+}
+}
+#endif
+
 void FedoraPackageModel::startMetadataLoad()
 {
 #ifdef RO_STORE_HAS_APPSTREAM
@@ -366,9 +406,10 @@ void FedoraPackageModel::startMetadataLoad()
                 continue;
             const QString summary = component.summary().simplified();
             const QString category = component.categories().value(0);
+            const QString iconUrl = appStreamIconSource(component);
             for (const auto &packageName : component.packageNames()) {
                 if (!packageName.isEmpty() && !next.contains(packageName))
-                    next.insert(packageName, {title, summary, category});
+                    next.insert(packageName, {title, summary, category, iconUrl});
             }
         }
         m_metadataByPackage = std::move(next);
