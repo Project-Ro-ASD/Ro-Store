@@ -39,7 +39,9 @@ public:
         DisplaySummaryRole,
         AppCategoryRole,
         HasAppStreamRole,
-        AppIconUrlRole
+        AppIconUrlRole,
+        AppDescriptionRole,
+        AppScreenshotUrlsRole
     };
 
     explicit FedoraPackageModel(QObject *parent = nullptr);
@@ -84,6 +86,8 @@ private:
         QString summary;
         QString category;
         QString iconUrl;
+        QString description;
+        QStringList screenshotUrls;
     };
 
     QVector<FedoraPackage> m_packages;
