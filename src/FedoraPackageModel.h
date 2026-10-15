@@ -7,8 +7,6 @@
 #include <QStringList>
 #include <QVector>
 
-namespace AppStream { class Pool; }
-
 struct FedoraPackage
 {
     QString name;
@@ -84,7 +82,6 @@ private:
 
     QVector<FedoraPackage> m_packages;
     QHash<QString, AppMetadata> m_metadataByPackage;
-    QPointer<AppStream::Pool> m_appStreamPool;
     QVector<int> m_matching;
     QPointer<QProcess> m_process;
     QStringList m_sources = { QStringLiteral("Tümü") };
