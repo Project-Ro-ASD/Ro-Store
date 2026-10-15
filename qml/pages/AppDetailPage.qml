@@ -792,7 +792,7 @@ Item {
                                             wrapMode: Text.WordWrap
                                             visible: screenshotImage.status !== Image.Ready
                                             text: screenshotImage.status === Image.Error
-                                                  ? "Görüntü uygulamada açılamadı.\\nTarayıcıda açmak için tıklayın."
+                                                  ? "Görüntü uygulamada açılamadı.\nTarayıcıda açmak için tıklayın."
                                                   : "Görüntü yükleniyor..."
                                             color: themePalette.text
                                             font.family: metrics.systemFont.family
@@ -1519,7 +1519,7 @@ Item {
                         anchors.centerIn: parent
                         visible: enlargedScreenshot.status !== Image.Ready
                         text: enlargedScreenshot.status === Image.Error
-                              ? "Görüntü uygulama içinde yüklenemedi.\\nTarayıcıda açabilirsiniz."
+                              ? "Görüntü uygulama içinde yüklenemedi.\nTarayıcıda açabilirsiniz."
                               : "Görüntü yükleniyor..."
                         horizontalAlignment: Text.AlignHCenter
                         wrapMode: Text.WordWrap
