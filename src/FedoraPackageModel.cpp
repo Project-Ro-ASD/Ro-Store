@@ -367,9 +367,14 @@ void FedoraPackageModel::rebuildResults()
     beginResetModel();
     m_matching.clear();
     for (int i = 0; i < m_packages.size(); ++i) {
-        if (m_sourceFilter == QStringLiteral("Tümü")
-            || m_packages.at(i).repository == m_sourceFilter)
-            m_matching.append(i);
+        const FedoraPackage &pkg = m_packages.at(i);
+        if (m_sourceFilter != QStringLiteral("Tümü")
+            && pkg.repository != m_sourceFilter)
+            continue;
+        if (m_categoryFilter != QStringLiteral("Tümü")
+            && m_metadataByPackage.value(pkg.name).category != m_categoryFilter)
+            continue;
+        m_matching.append(i);
     }
     m_visibleCount = std::min(PageSize, int(m_matching.size()));
     endResetModel();
@@ -384,6 +389,15 @@ void FedoraPackageModel::setSourceFilter(const QString &source)
         return;
     m_sourceFilter = source;
     emit sourceFilterChanged();
+    rebuildResults();
+}
+
+void FedoraPackageModel::setCategoryFilter(const QString &category)
+{
+    if (m_categoryFilter == category || !m_categories.contains(category))
+        return;
+    m_categoryFilter = category;
+    emit categoryFilterChanged();
     rebuildResults();
 }
 
@@ -535,6 +549,23 @@ void FedoraPackageModel::startMetadataLoad()
         qInfo() << "APPSTREAM RPM METADATA LOADED:" << m_metadataByPackage.size();
         qInfo() << "APPSTREAM DETAILS:" << descriptions << "descriptions,"
                 << screenshots << "packages with screenshots";
+        QStringList categories = { QStringLiteral("Tümü") };
+        for (auto it = m_metadataByPackage.cbegin(); it != m_metadataByPackage.cend(); ++it) {
+            if (!it.value().category.isEmpty() && !categories.contains(it.value().category))
+                categories.append(it.value().category);
+        }
+        std::sort(categories.begin() + 1, categories.end(),
+                  [](const QString &a, const QString &b) {
+            return QString::compare(a, b, Qt::CaseInsensitive) < 0;
+        });
+        if (m_categories != categories) {
+            m_categories = categories;
+            emit categoriesChanged();
+        }
+        if (!m_categories.contains(m_categoryFilter)) {
+            m_categoryFilter = QStringLiteral("Tümü");
+            emit categoryFilterChanged();
+        }
         notifyMetadataUpdated();
         // Refresh the initially shown sample list into the full desktop-app
         // catalog; also repeat searches started before display-name metadata
