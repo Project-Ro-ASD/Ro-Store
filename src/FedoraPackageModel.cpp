@@ -122,11 +122,13 @@ void FedoraPackageModel::setError(const QString &text)
 void FedoraPackageModel::search(const QString &name)
 {
     const QString query = name.trimmed();
-    // Repoquery receives each argument separately, never through a shell.
-    // Only literal RPM package-name characters are accepted; no glob injection.
-    static const QRegularExpression allowed(QStringLiteral("^[A-Za-z0-9_.+\\-]{2,64}$"));
+    // QProcess invokes DNF5 directly (no shell). Accept display names with
+    // spaces and Unicode letters, but reject DNF glob and option syntax.
+    static const QRegularExpression allowed(
+        QStringLiteral("^[\\p{L}\\p{N}_.+\\- ]{2,64}$"),
+        QRegularExpression::UseUnicodePropertiesOption);
     if (!query.isEmpty() && !allowed.match(query).hasMatch()) {
-        setError(QStringLiteral("En az 2 karakter içeren bir paket adı girin (harf, rakam, ., _, + veya -)."));
+        setError(QStringLiteral("En az 2 karakter içeren bir paket veya uygulama adı girin."));
         return;
     }
     runQuery(query);
@@ -187,7 +189,23 @@ void FedoraPackageModel::runQuery(const QString &name)
             QStringLiteral("obs-studio")
         });
     } else {
+        // Preserve RPM-name search and additionally resolve AppStream display
+        // names/summaries to their actual RPM package names. All results still
+        // come from the enabled DNF5 repositories, not AppStream alone.
         arguments.append(QStringLiteral("*") + name + QStringLiteral("*"));
+#ifdef RO_STORE_HAS_APPSTREAM
+        static const QRegularExpression safePackage(
+            QStringLiteral("^[A-Za-z0-9][A-Za-z0-9_.+\\-]{0,127}$"));
+        for (auto it = m_metadataByPackage.cbegin();
+             it != m_metadataByPackage.cend(); ++it) {
+            const AppMetadata &metadata = it.value();
+            if ((metadata.title.contains(name, Qt::CaseInsensitive)
+                 || metadata.summary.contains(name, Qt::CaseInsensitive))
+                && safePackage.match(it.key()).hasMatch()) {
+                arguments.append(it.key());
+            }
+        }
+#endif
     }
 
     process->setArguments(arguments);
@@ -484,6 +502,10 @@ void FedoraPackageModel::startMetadataLoad()
         qInfo() << "APPSTREAM DETAILS:" << descriptions << "descriptions,"
                 << screenshots << "packages with screenshots";
         notifyMetadataUpdated();
+        // A search started while AppStream was loading only checked RPM names.
+        // Repeat it once so matches on human-readable titles also appear.
+        if (!m_query.isEmpty())
+            runQuery(m_query);
     });
     pool->loadAsync();
 #endif
