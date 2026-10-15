@@ -9,7 +9,8 @@ Item {
     signal backRequested()
     signal downloadsRequested()
     signal packageSelected(string name, string summary, string version, string repository,
-                           string displayName, string category, string iconUrl)
+                           string displayName, string category, string iconUrl,
+                           string description, var screenshots)
 
     property var packageTransactionManager: null
     readonly property bool narrow: width < Math.max(760, 760 * metrics.fontScale)
@@ -142,6 +143,8 @@ Item {
                 required property string appCategory
                 required property bool hasAppStream
                 required property string appIconUrl
+                required property string appDescription
+                required property var appScreenshotUrls
 
                 width: packagesView.width - 14
                 height: Math.max(104, rowContent.implicitHeight + metrics.spaceMedium * 2)
@@ -153,7 +156,8 @@ Item {
 
                 function openDetails() {
                     page.packageSelected(packageName, displaySummary, version, repository,
-                                         displayName, appCategory, appIconUrl)
+                                         displayName, appCategory, appIconUrl,
+                                         appDescription, appScreenshotUrls)
                 }
 
                 Keys.onReturnPressed: function(event) {
