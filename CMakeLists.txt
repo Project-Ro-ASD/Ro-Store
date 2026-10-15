@@ -23,6 +23,7 @@ set(CMAKE_CXX_STANDARD 20)
 set(CMAKE_CXX_STANDARD_REQUIRED ON)
 
 find_package(Qt6 REQUIRED COMPONENTS Core Quick Network DBus Widgets)
+find_package(AppStreamQt QUIET)
 
 qt_standard_project_setup()
 
@@ -105,6 +106,16 @@ target_link_libraries(ro-store
         Qt6::DBus
         Qt6::Widgets
 )
+
+if(TARGET AppStreamQt::AppStreamQt)
+    target_link_libraries(ro-store PRIVATE AppStreamQt::AppStreamQt)
+    target_compile_definitions(ro-store PRIVATE RO_STORE_HAS_APPSTREAM=1)
+elseif(TARGET AppStreamQt)
+    target_link_libraries(ro-store PRIVATE AppStreamQt)
+    target_compile_definitions(ro-store PRIVATE RO_STORE_HAS_APPSTREAM=1)
+else()
+    message(STATUS "AppStreamQt unavailable: Fedora RPM fallback only")
+endif()
 
 target_include_directories(ro-store
     PRIVATE
