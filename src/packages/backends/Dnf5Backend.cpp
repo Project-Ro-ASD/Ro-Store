@@ -1581,11 +1581,12 @@ void Dnf5Backend::prepareLocalRpmTransaction(
 
                 auto planSignature = [](const QVariantMap &entry) {
                     const QVariantMap pkg = entry.value(QStringLiteral("object")).toMap();
-                    return QStringLiteral("%1|%2|%3|%4|%5")
+                    return QStringLiteral("%1|%2|%3|%4|%5|%6")
                         .arg(entry.value(QStringLiteral("action")).toString(),
                              pkg.value(QStringLiteral("name")).toString(),
                              pkg.value(QStringLiteral("epoch")).toString(),
                              pkg.value(QStringLiteral("version")).toString(),
+                             pkg.value(QStringLiteral("release")).toString(),
                              pkg.value(QStringLiteral("arch")).toString());
                 };
                 QStringList approved;
