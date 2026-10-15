@@ -1167,9 +1167,13 @@ void PackageTransactionManager::startControlledDownload()
     const QString package = m_activeTransaction->packageName();
     // Isolated, non-root RPM downloading. The resulting files are never
     // passed directly to rpm; a new DNF5 solver run must validate them.
+    const QString cacheRoot = QStandardPaths::writableLocation(QStandardPaths::CacheLocation);
+    if (!QDir().mkpath(cacheRoot)) {
+        failActive(QStringLiteral("İndirme önbelleği klasörü oluşturulamadı."));
+        return;
+    }
     m_downloadDirectory = std::make_unique<QTemporaryDir>(
-        QDir(QStandardPaths::writableLocation(QStandardPaths::CacheLocation))
-            .filePath(QStringLiteral("ro-store-download-XXXXXX")));
+        QDir(cacheRoot).filePath(QStringLiteral("ro-store-download-XXXXXX")));
     if (!m_downloadDirectory->isValid()) {
         failActive(QStringLiteral("Geçici indirme klasörü oluşturulamadı."));
         return;
@@ -1180,13 +1184,32 @@ void PackageTransactionManager::startControlledDownload()
     QProcess *const process = m_controlledDownload;
     QStringList args {
         QStringLiteral("download"),
-        QStringLiteral("--resolve"),
         QStringLiteral("--destdir"), m_downloadDirectory->path()
     };
-    if (!m_activeTransaction->repositoryId().isEmpty()) {
-        args << QStringLiteral("--from-repo=%1").arg(m_activeTransaction->repositoryId());
+    // Download EXACTLY the solver-approved inbound NEVRAs, including weak
+    // dependencies. A second independent --resolve could choose other RPMs
+    // or omit optional dependencies and unexpectedly consume extra data.
+    for (const QVariant &entry : std::as_const(m_approvedPlan)) {
+        const QVariantMap item = entry.toMap();
+        const QString action = item.value(QStringLiteral("action")).toString();
+        if (action == QStringLiteral("Remove") || action == QStringLiteral("Replaced")
+            || action == QStringLiteral("Reason Change"))
+            continue;
+        const QVariantMap pkg = item.value(QStringLiteral("object")).toMap();
+        const QString repo = pkg.value(QStringLiteral("repo_id")).toString();
+        if (repo == QStringLiteral("@System"))
+            continue;
+        const QString nevra = pkg.value(QStringLiteral("full_nevra")).toString();
+        if (nevra.isEmpty()) {
+            failActive(QStringLiteral("İşlem planında tam RPM kimliği eksik; güvenli indirme başlatılmadı."));
+            return;
+        }
+        args << nevra;
     }
-    args << package;
+    if (args.size() == 3) {
+        failActive(QStringLiteral("Plan indirilmesi gereken RPM içermiyor; güvenli işlem başlatılmadı."));
+        return;
+    }
     process->setProgram(QStringLiteral("/usr/bin/dnf5"));
     process->setArguments(args);
     process->setProcessChannelMode(QProcess::MergedChannels);
