@@ -425,11 +425,12 @@ ApplicationWindow {
             packageTransactionManager: transactionManager
             onBackRequested: stackView.pop()
             onDownloadsRequested: stackView.push(downloadsPageComponent)
-            onPackageSelected: function(name, summary, version, repository, displayName, category, iconUrl) {
+            onPackageSelected: function(name, summary, version, repository, displayName, category, iconUrl, description, screenshots) {
                 stackView.push(detailPageComponent, {
                     appName: displayName || name,
                     summaryText: summary,
-                    descriptionText: summary,
+                    descriptionText: description || summary,
+                    screenshotUrls: screenshots || [],
                     categoryText: category || "Fedora RPM",
                     versionText: version,
                     packageName: name,
