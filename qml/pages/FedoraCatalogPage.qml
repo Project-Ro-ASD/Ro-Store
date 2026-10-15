@@ -105,6 +105,27 @@ Item {
             }
         }
 
+        RowLayout {
+            Layout.fillWidth: true
+            Label {
+                text: "Kategori:"
+                color: palette.text
+                font.pixelSize: metrics.fontSmall
+            }
+            ComboBox {
+                id: categoryBox
+                Layout.fillWidth: true
+                model: fedoraPackages.categories
+                onActivated: fedoraPackages.categoryFilter = currentText
+                Connections {
+                    target: fedoraPackages
+                    function onCategoryFilterChanged() {
+                        categoryBox.currentIndex = Math.max(0, categoryBox.find(fedoraPackages.categoryFilter))
+                    }
+                }
+            }
+        }
+
         Label {
             Layout.fillWidth: true
             visible: fedoraPackages.loading || fedoraPackages.error.length > 0
