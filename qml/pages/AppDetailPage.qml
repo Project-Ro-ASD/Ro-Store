@@ -50,10 +50,19 @@ Item {
         && trackedTransaction.state !== PackageTransaction.OutcomeUnknown
         && trackedTransaction.state !== PackageTransaction.Cancelled
 
+    // Queued transactions can be removed immediately; active transactions
+    // can only be cancelled during the backend's safe pre-RPM phases.
     property bool canCancelTransaction: page.transactionRunning
         && page.packageTransactionManager !== null
-        && page.packageTransactionManager.canCancelActive
-        && page.trackedTransaction === page.packageTransactionManager.activeTransaction
+        && page.trackedTransaction !== null
+        && !page.trackedTransaction.cancelRequested
+        && (
+            page.trackedTransaction.state === PackageTransaction.Queued
+            || (
+                page.trackedTransaction === page.packageTransactionManager.activeTransaction
+                && page.packageTransactionManager.canCancelActive
+            )
+        )
 
     function formatBytes(bytes) {
         var size = Number(bytes)
