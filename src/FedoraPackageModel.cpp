@@ -7,9 +7,39 @@
 #include <QSet>
 #include <algorithm>
 
+namespace {
+// Keep a cancelled repoquery alive until the operating system reports exit.
+// kill() is asynchronous; deleting a still-running QProcess triggers a Qt warning.
+void retireQuery(QProcess *process)
+{
+    if (!process)
+        return;
+    if (process->state() == QProcess::NotRunning) {
+        process->deleteLater();
+        return;
+    }
+    QObject::connect(process, &QProcess::finished,
+                     process, &QObject::deleteLater);
+    process->kill();
+}
+}
+
 FedoraPackageModel::FedoraPackageModel(QObject *parent)
     : QAbstractListModel(parent)
 {
+}
+
+FedoraPackageModel::~FedoraPackageModel()
+{
+    // The owner may be destroyed while queries are still pending, for example
+    // when Ro-Store is closed just after opening the Fedora catalog.
+    for (QProcess *process : findChildren<QProcess *>(QString(), Qt::FindDirectChildrenOnly)) {
+        QObject::disconnect(process, nullptr, this, nullptr);
+        if (process->state() != QProcess::NotRunning) {
+            process->kill();
+            process->waitForFinished(2000);
+        }
+    }
 }
 
 int FedoraPackageModel::rowCount(const QModelIndex &parent) const
@@ -83,8 +113,7 @@ void FedoraPackageModel::runQuery(const QString &name)
     if (m_process) {
         QProcess *old = m_process;
         m_process = nullptr;
-        old->kill();
-        old->deleteLater();
+        retireQuery(old);
     }
 
     if (m_query != name) {
@@ -170,8 +199,7 @@ void FedoraPackageModel::runQuery(const QString &name)
     QTimer::singleShot(90000, process, [this, process]() {
         if (m_process == process && process->state() != QProcess::NotRunning) {
             m_process = nullptr;
-            process->kill();
-            process->deleteLater();
+            retireQuery(process);
             setLoading(false);
             setError(QStringLiteral("DNF5 sorgusu zaman aşımına uğradı. Depo bağlantısını kontrol edip tekrar deneyin."));
         }
