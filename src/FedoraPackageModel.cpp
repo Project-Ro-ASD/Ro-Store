@@ -6,6 +6,10 @@
 #include <QTimer>
 #include <QSet>
 #include <algorithm>
+#ifdef RO_STORE_HAS_APPSTREAM
+#include <AppStreamQt/pool.h>
+#include <AppStreamQt/component.h>
+#endif
 
 namespace {
 // Keep a cancelled repoquery alive until the operating system reports exit.
@@ -27,6 +31,7 @@ void retireQuery(QProcess *process)
 FedoraPackageModel::FedoraPackageModel(QObject *parent)
     : QAbstractListModel(parent)
 {
+    startMetadataLoad();
 }
 
 FedoraPackageModel::~FedoraPackageModel()
@@ -59,6 +64,14 @@ QVariant FedoraPackageModel::data(const QModelIndex &index, int role) const
     case ArchitectureRole: return pkg.architecture;
     case RepositoryRole: return pkg.repository;
     case SummaryRole: return pkg.summary;
+    case DisplayNameRole: return m_metadataByPackage.contains(pkg.name)
+        ? m_metadataByPackage.value(pkg.name).title : pkg.name;
+    case DisplaySummaryRole: {
+        const auto metadata = m_metadataByPackage.value(pkg.name);
+        return metadata.summary.isEmpty() ? pkg.summary : metadata.summary;
+    }
+    case AppCategoryRole: return m_metadataByPackage.value(pkg.name).category;
+    case HasAppStreamRole: return m_metadataByPackage.contains(pkg.name);
     default: return {};
     }
 }
@@ -70,7 +83,11 @@ QHash<int, QByteArray> FedoraPackageModel::roleNames() const
         { VersionRole, "version" },
         { ArchitectureRole, "architecture" },
         { RepositoryRole, "repository" },
-        { SummaryRole, "summary" }
+        { SummaryRole, "summary" },
+        { DisplayNameRole, "displayName" },
+        { DisplaySummaryRole, "displaySummary" },
+        { AppCategoryRole, "appCategory" },
+        { HasAppStreamRole, "hasAppStream" }
     };
 }
 
@@ -316,4 +333,48 @@ void FedoraPackageModel::loadMore()
     m_visibleCount += extra;
     endInsertRows();
     emit hasMoreChanged();
+}
+
+void FedoraPackageModel::notifyMetadataUpdated()
+{
+    if (m_visibleCount > 0)
+        emit dataChanged(index(0, 0), index(m_visibleCount - 1, 0),
+                         {DisplayNameRole, DisplaySummaryRole, AppCategoryRole, HasAppStreamRole});
+}
+
+void FedoraPackageModel::startMetadataLoad()
+{
+#ifdef RO_STORE_HAS_APPSTREAM
+    // AppStream metadata is advisory only. RPM identity, repository and version
+    // always come exclusively from DNF5 repoquery results.
+    auto *pool = new AppStream::Pool(this);
+    m_appStreamPool = pool;
+    pool->setFlags(AppStream::Pool::FlagLoadOsCatalog
+                   | AppStream::Pool::FlagLoadOsMetainfo);
+    connect(pool, &AppStream::Pool::loadFinished, this, [this, pool](bool success) {
+        if (!success) {
+            qWarning() << "APPSTREAM METADATA UNAVAILABLE:" << pool->lastError();
+            return; // Existing Fedora RPM catalog remains fully functional.
+        }
+        QHash<QString, AppMetadata> next;
+        const auto components = pool->components();
+        for (const auto &component : components) {
+            if (component.kind() != AppStream::Component::KindDesktopApp)
+                continue;
+            const QString title = component.name().trimmed();
+            if (title.isEmpty())
+                continue;
+            const QString summary = component.summary().simplified();
+            const QString category = component.categories().value(0);
+            for (const auto &packageName : component.packageNames()) {
+                if (!packageName.isEmpty() && !next.contains(packageName))
+                    next.insert(packageName, {title, summary, category});
+            }
+        }
+        m_metadataByPackage = std::move(next);
+        qInfo() << "APPSTREAM RPM METADATA LOADED:" << m_metadataByPackage.size();
+        notifyMetadataUpdated();
+    });
+    pool->loadAsync();
+#endif
 }
