@@ -1,0 +1,62 @@
+#pragma once
+#include <QObject>
+#include <QPointer>
+#include <QVariantList>
+#include <QStringList>
+
+class Dnf5Backend;
+
+// One DNF5 solver goal for the entire selection. Never execute RPM changes
+// in the running desktop; only prepare an offline transaction upon approval.
+class SystemOfflineUpgrade : public QObject {
+    Q_OBJECT
+    Q_PROPERTY(QObject* transactionManager READ transactionManager WRITE setTransactionManager NOTIFY changed)
+    Q_PROPERTY(bool busy READ busy NOTIFY changed)
+    Q_PROPERTY(bool ready READ ready NOTIFY changed)
+    Q_PROPERTY(bool preparing READ preparing NOTIFY changed)
+    Q_PROPERTY(bool outcomeUnknown READ outcomeUnknown NOTIFY changed)
+    Q_PROPERTY(QString message READ message NOTIFY changed)
+    Q_PROPERTY(QString planText READ planText NOTIFY changed)
+    Q_PROPERTY(int planCount READ planCount NOTIFY changed)
+    Q_PROPERTY(qulonglong planBytes READ planBytes NOTIFY changed)
+    Q_PROPERTY(bool offlineReady READ offlineReady NOTIFY changed)
+public:
+    explicit SystemOfflineUpgrade(QObject* parent = nullptr);
+    ~SystemOfflineUpgrade() override;
+    QObject* transactionManager() const { return m_manager.data(); }
+    void setTransactionManager(QObject* manager);
+    bool busy() const { return m_busy; }
+    bool ready() const { return m_ready; }
+    bool preparing() const { return m_preparing; }
+    bool outcomeUnknown() const { return m_outcomeUnknown; }
+    bool offlineReady() const { return m_offlineReady; }
+    QString message() const { return m_message; }
+    QString planText() const { return m_planText; }
+    int planCount() const { return m_planCount; }
+    qulonglong planBytes() const { return m_planBytes; }
+    Q_INVOKABLE void resolve(const QStringList &selectedNevras);
+    Q_INVOKABLE void stageOffline();
+    Q_INVOKABLE void abandonPlan();
+    Q_INVOKABLE void requestCancellation();
+signals:
+    void changed();
+private:
+    void fail(const QString &message);
+    void releaseLock();
+    void verifyOfflineStatus();
+    QString journalPath() const;
+    bool writeJournal();
+    QPointer<QObject> m_manager;
+    Dnf5Backend* m_backend = nullptr;
+    QStringList m_requested;
+    QString m_message;
+    QString m_planText;
+    int m_planCount = 0;
+    qulonglong m_planBytes = 0;
+    bool m_busy = false;
+    bool m_ready = false;
+    bool m_preparing = false;
+    bool m_outcomeUnknown = false;
+    bool m_offlineReady = false;
+    bool m_locked = false;
+};
