@@ -16,6 +16,7 @@ class SystemOfflineUpgrade : public QObject {
     Q_PROPERTY(bool busy READ busy NOTIFY changed)
     Q_PROPERTY(bool ready READ ready NOTIFY changed)
     Q_PROPERTY(bool preparing READ preparing NOTIFY changed)
+    Q_PROPERTY(bool checkingPreparation READ checkingPreparation NOTIFY changed)
     Q_PROPERTY(bool outcomeUnknown READ outcomeUnknown NOTIFY changed)
     Q_PROPERTY(bool recoveryVerified READ recoveryVerified NOTIFY changed)
     Q_PROPERTY(QString message READ message NOTIFY changed)
@@ -37,6 +38,7 @@ public:
     bool busy() const { return m_busy; }
     bool ready() const { return m_ready; }
     bool preparing() const { return m_preparing; }
+    bool checkingPreparation() const { return m_preflightRunning; }
     bool outcomeUnknown() const { return m_outcomeUnknown; }
     bool recoveryVerified() const { return m_recoveryVerified; }
     bool offlineReady() const { return m_offlineReady; }
@@ -65,6 +67,7 @@ private:
     void fail(const QString &message);
     void releaseLock();
     void verifyOfflineStatus();
+    void beginOfflineStage();
     QString journalPath() const;
     bool writeJournal();
     QPointer<QObject> m_manager;
@@ -85,6 +88,7 @@ private:
     bool m_busy = false;
     bool m_ready = false;
     bool m_preparing = false;
+    bool m_preflightRunning = false;
     bool m_outcomeUnknown = false;
     bool m_offlineReady = false;
     bool m_locked = false;
