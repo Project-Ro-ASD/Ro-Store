@@ -176,6 +176,19 @@ Item {
                 font.pixelSize: metrics.fontSmall
                 wrapMode: Text.WordWrap
             }
+            Label {
+                Layout.fillWidth: true
+                visible: updates.selectedCount > 0
+                text: "Seçilen RPM dosyalarının tahmini toplamı: "
+                      + page.formatCacheBytes(updates.selectedDownloadBytes)
+                      + (updates.selectedUnknownSizes > 0
+                          ? " · " + updates.selectedUnknownSizes
+                            + " paket boyutu bilinmiyor; gerçek DNF5 işlem toplamı farklı olabilir."
+                          : " · Bağımlılıkların indirme boyutu dahil değildir.")
+                color: palette.text
+                font.pixelSize: metrics.fontSmall
+                wrapMode: Text.WordWrap
+            }
 
             RowLayout {
                 id: wideActions
