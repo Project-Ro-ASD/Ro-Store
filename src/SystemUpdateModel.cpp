@@ -88,6 +88,24 @@ QString SystemUpdateModel::updateKey(const SystemUpdateItem &item)
     return item.name + QChar('|') + item.architecture;
 }
 
+QStringList SystemUpdateModel::selectedNevras() const
+{
+    // Exact package candidates from the last repoquery, not loose names.
+    // This list is used for staging only, never trusted as an install plan.
+    QStringList result;
+    static const QRegularExpression safe(
+        QStringLiteral("^[A-Za-z0-9][A-Za-z0-9_.+\\-:~]{0,180}$"));
+    for (const SystemUpdateItem &item : m_updates) {
+        if (!m_selected.contains(updateKey(item)))
+            continue;
+        const QString nevra = item.name + QChar('-') + item.version
+                            + QChar('.') + item.architecture;
+        if (safe.match(nevra).hasMatch())
+            result.append(nevra);
+    }
+    return result;
+}
+
 int SystemUpdateModel::selectedKernelCount() const
 {
     int count = 0;
