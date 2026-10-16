@@ -90,6 +90,28 @@ Item {
             font.pixelSize: metrics.fontBody
         }
 
+        RowLayout {
+            Layout.fillWidth: true
+            Label {
+                Layout.fillWidth: true
+                text: updates.selectedCount + " paket seçili"
+                      + (updates.selectedKernelCount > 0
+                         ? " · " + updates.selectedKernelCount + " kernel paketi" : "")
+                color: palette.text
+                font.pixelSize: metrics.fontSmall
+            }
+            ThemedActionButton {
+                text: "Tümünü seç"
+                enabled: !updates.loading && updates.updateCount > 0
+                onClicked: updates.selectAll()
+            }
+            ThemedActionButton {
+                text: "Seçimi temizle"
+                enabled: !updates.loading && updates.selectedCount > 0
+                onClicked: updates.clearSelection()
+            }
+        }
+
         ListView {
             id: updateList
             Layout.fillWidth: true
@@ -107,6 +129,7 @@ Item {
                 required property string architecture
                 required property string repository
                 required property bool kernelUpdate
+                required property bool updateSelected
 
                 width: updateList.width - 14
                 height: Math.max(82, cardColumn.implicitHeight + metrics.spaceMedium * 2)
@@ -121,15 +144,24 @@ Item {
                     anchors.margins: metrics.spaceMedium
                     spacing: metrics.spaceCompact
 
-                    Label {
+                    RowLayout {
                         Layout.fillWidth: true
-                        text: updateCard.packageName
-                              + (updateCard.kernelUpdate ? "  ·  Kernel" : "")
-                        font.family: metrics.systemFont.family
-                        font.pixelSize: metrics.fontTitle
-                        font.bold: true
-                        color: palette.text
-                        elide: Text.ElideRight
+                        CheckBox {
+                            checked: updateCard.updateSelected
+                            onToggled: updates.setSelected(updateCard.packageName,
+                                                           updateCard.architecture, checked)
+                            Accessible.name: updateCard.packageName + " güncellemesini seç"
+                        }
+                        Label {
+                            Layout.fillWidth: true
+                                text: updateCard.packageName
+                                  + (updateCard.kernelUpdate ? "  ·  Kernel" : "")
+                            font.family: metrics.systemFont.family
+                            font.pixelSize: metrics.fontTitle
+                            font.bold: true
+                            color: palette.text
+                            elide: Text.ElideRight
+                        }
                     }
                     Label {
                         Layout.fillWidth: true
