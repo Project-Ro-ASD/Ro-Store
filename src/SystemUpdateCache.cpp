@@ -11,6 +11,63 @@
 #include <QTimer>
 #include <QSet>
 #include <QDebug>
+#include <QProcessEnvironment>
+
+namespace {
+
+// Verify both the exact RPM identity and the trusted signing key. Always use
+// the C locale for rpm output: translated "Tamam"/"OK" must not alter trust.
+struct VerifiedRpm {
+    bool valid = false;
+    QString reason;
+};
+
+VerifiedRpm verifyStagedRpm(const QString &filePath, const QString &expectedNevra)
+{
+    const QFileInfo file(filePath);
+    if (!file.isFile() || file.isSymLink() || file.size() <= 0)
+        return { false, QStringLiteral("Eksik, boş veya güvenli olmayan RPM dosyası") };
+
+    QProcess identify;
+    identify.start(QStringLiteral("rpm"), {
+        QStringLiteral("-qp"), QStringLiteral("--qf"),
+        QStringLiteral("%{NAME}-%{EPOCHNUM}:%{VERSION}-%{RELEASE}.%{ARCH}"),
+        filePath
+    });
+    if (!identify.waitForFinished(8000)
+        || identify.exitStatus() != QProcess::NormalExit || identify.exitCode() != 0)
+        return { false, QStringLiteral("RPM kimliği okunamadı") };
+
+    QString identity = QString::fromUtf8(identify.readAllStandardOutput()).trimmed();
+    if (identity != expectedNevra) {
+        // dnf5 repoquery often omits epoch zero but rpm -qp emits "0:".
+        identity.replace(QStringLiteral("-0:"), QStringLiteral("-"));
+        if (identity != expectedNevra)
+            return { false, QStringLiteral("RPM paket kimliği seçimle eşleşmiyor") };
+    }
+
+    QProcess signature;
+    QProcessEnvironment environment = QProcessEnvironment::systemEnvironment();
+    environment.insert(QStringLiteral("LC_ALL"), QStringLiteral("C"));
+    environment.insert(QStringLiteral("LANG"), QStringLiteral("C"));
+    environment.insert(QStringLiteral("LANGUAGE"), QStringLiteral("C"));
+    signature.setProcessEnvironment(environment);
+    signature.start(QStringLiteral("rpm"), { QStringLiteral("--checksig"), filePath });
+    if (!signature.waitForFinished(8000)
+        || signature.exitStatus() != QProcess::NormalExit || signature.exitCode() != 0)
+        return { false, QStringLiteral("RPM imza kontrolü başarısız: ")
+                 + QString::fromLocal8Bit(signature.readAllStandardOutput()).trimmed().left(140) };
+
+    const QString result = QString::fromLatin1(signature.readAllStandardOutput()).trimmed();
+    if (!result.contains(QStringLiteral("signatures OK"), Qt::CaseInsensitive)
+        || result.contains(QStringLiteral("NOT OK"), Qt::CaseInsensitive)
+        || result.contains(QStringLiteral("NOKEY"), Qt::CaseInsensitive)
+        || result.contains(QStringLiteral("NOTTRUSTED"), Qt::CaseInsensitive))
+        return { false, QStringLiteral("RPM imzası doğrulanamadı: ") + result.left(140) };
+    return { true, {} };
+}
+
+} // namespace
 
 SystemUpdateCache::SystemUpdateCache(QObject *parent) : QObject(parent)
 {
