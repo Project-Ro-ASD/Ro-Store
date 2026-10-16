@@ -90,6 +90,26 @@ Item {
         }
     }
 
+    Dialog {
+        id: recoveryConfirm
+        parent: Overlay.overlay
+        anchors.centerIn: parent
+        modal: true
+        width: Math.min(page.width - 24, 520)
+        title: "Çevrimdışı işlem kurtarma kaydını temizle"
+        standardButtons: Dialog.Yes | Dialog.No
+        onAccepted: offlineUpdate.acknowledgeRecovery()
+        Label {
+            width: parent.width
+            wrapMode: Text.WordWrap
+            text: "Sistem yeniden başlatıldı ve DNF5 bekleyen işlem işareti bulunamadı. " +
+                  "Bu, güncellemenin başarılı olduğunu KANITLAMAZ. " +
+                  "dnf5 offline log ve dnf5 history çıktısını kontrol ettiyseniz " +
+                  "yalnızca Ro-Store kurtarma kilidini kaldırmayı onaylayabilirsiniz. " +
+                  "Bu işlem geçmişini geri almaz veya herhangi bir RPM kurmaz."
+        }
+    }
+
     Component.onCompleted: updates.refresh()
 
     // The page itself scrolls independently of the packages ListView and
@@ -488,12 +508,35 @@ Item {
                         onClicked: offlineUpdate.requestCancellation()
                     }
                 }
+                RowLayout {
+                    Layout.fillWidth: true
+                    visible: offlineUpdate.outcomeUnknown
+                    ThemedActionButton {
+                        text: "Kurtarma durumunu denetle"
+                        Layout.preferredWidth: Math.max(205, implicitWidth + 12)
+                        Layout.preferredHeight: Math.max(34, metrics.fontPx(34))
+                        font.pixelSize: metrics.fontSmall
+                        onClicked: offlineUpdate.recheckRecovery()
+                    }
+                    ThemedActionButton {
+                        text: "Kaydı onayla ve kilidi kaldır"
+                        Layout.preferredWidth: Math.max(220, implicitWidth + 12)
+                        Layout.preferredHeight: Math.max(34, metrics.fontPx(34))
+                        font.pixelSize: metrics.fontSmall
+                        enabled: offlineUpdate.recoveryVerified
+                        onClicked: recoveryConfirm.open()
+                    }
+                }
                 Label {
                     Layout.fillWidth: true
                     visible: offlineUpdate.offlineReady
                     text: "Çevrimdışı hazırlama kaydı oluşturuldu. Şimdi kurulum yapılmadı. " +
                           "Yeniden başlatma, geçmiş ve kurtarma kontrolü ayrı onay gerektirir; " +
-                          "DNF5 durumunu doğrulamadan bir kez daha hazırlama başlatmayın."
+                          "DNF5 durumunu doğrulamadan bir kez daha hazırlama başlatmayın. " +
+                          "Hazırlanan işlemi ayrıca başlatmak isterseniz terminalde " +
+                          "sudo dnf5 offline reboot komutu kullanılır. " +
+                          "Bu komut bilgisayarı yeniden başlatıp güncelleme işlemini uygulamaya başlayabilir; " +
+                          "kullanmadan önce çalışmalarınızı kaydedin."
                     font.pixelSize: metrics.fontSmall
                     font.bold: true
                     color: palette.text
