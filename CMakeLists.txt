@@ -40,6 +40,8 @@ qt_add_executable(ro-store
     src/FedoraPackageModel.cpp
     src/SystemUpdateModel.h
     src/SystemUpdateModel.cpp
+    src/SystemUpdateCache.h
+    src/SystemUpdateCache.cpp
     src/PackageStatus.h
     src/PackageStatus.cpp
     src/packages/PackageTransaction.h
