@@ -28,6 +28,7 @@ class SystemOfflineUpgrade : public QObject {
     Q_PROPERTY(int progressPercent READ progressPercent NOTIFY changed)
     Q_PROPERTY(bool offlineReady READ offlineReady NOTIFY changed)
     Q_PROPERTY(bool rebootRequestRunning READ rebootRequestRunning NOTIFY changed)
+    Q_PROPERTY(bool clearingPrepared READ clearingPrepared NOTIFY changed)
 public:
     explicit SystemOfflineUpgrade(QObject* parent = nullptr);
     ~SystemOfflineUpgrade() override;
@@ -40,6 +41,7 @@ public:
     bool recoveryVerified() const { return m_recoveryVerified; }
     bool offlineReady() const { return m_offlineReady; }
     bool rebootRequestRunning() const { return m_rebootRequestRunning; }
+    bool clearingPrepared() const { return m_clearingPrepared; }
     QString message() const { return m_message; }
     QString planText() const { return m_planText; }
     int planCount() const { return m_planCount; }
@@ -55,6 +57,7 @@ public:
     Q_INVOKABLE void recheckRecovery();
     Q_INVOKABLE void acknowledgeRecovery();
     Q_INVOKABLE void requestConfirmedReboot();
+    Q_INVOKABLE void discardPreparedOffline();
     Q_INVOKABLE void invalidateIfSelectionChanged(const QStringList &selectedNevras);
 signals:
     void changed();
@@ -73,6 +76,7 @@ private:
     int m_removalCount = 0;
     bool m_kernelAffected = false;
     bool m_rebootRequestRunning = false;
+    bool m_clearingPrepared = false;
     QPointer<QProcess> m_rebootProcess;
     qulonglong m_planBytes = 0;
     qulonglong m_downloadedBytes = 0;
