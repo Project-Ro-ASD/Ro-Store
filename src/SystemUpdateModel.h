@@ -72,6 +72,7 @@ public:
     Q_INVOKABLE void clearSelection();
     Q_INVOKABLE void previewPlan();
     Q_INVOKABLE void cancelPreview();
+    Q_INVOKABLE QStringList selectedNevras() const;
 
 signals:
     void loadingChanged();
