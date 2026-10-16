@@ -10,6 +10,46 @@
 
 ## Türkçe
 
+## v0.6.0 — Fedora RPM sistem güncellemeleri
+
+Ro-Store v0.6.0, Fedora 44 üzerindeki RPM sistem güncellemelerini DNF5 ile
+denetleyip seçilen paketler için tek bir bağımlılık çözümleme planı oluşturur.
+Kullanıcı plandaki ekleme, değiştirme ve kaldırma işlemlerini inceleyebilir.
+İlk güvenlik sürümünde kaldırma, sürüm düşürme ve tanınmayan işlem içeren
+planların hazırlanması engellenir.
+
+Ayrı kullanıcı onayıyla DNF5 çevrimdışı güncelleme dosyaları hazırlanır.
+Bu aşama kurulu RPM'leri değiştirmez ve sistemi otomatik yeniden başlatmaz.
+Hazırlık iptal edilebilir; uygulama öncesi ayrı yeniden başlatma onayı gerekir.
+Belirsiz sonuçlarda güvenlik kaydı korunur ve yeniden başlatma sonrasında
+DNF5 geçmişi incelenerek kurtarma kilidi kaldırılır.
+
+**Doğrulama:** Fedora 44 x86_64 üzerinde 7zip ve assimp için 4 işlemlik
+plan (0 kaldırma) hazırlanıp başarıyla iptal edildi. Daha sonra aynı
+paketler çevrimdışı yeniden başlatmayla güncellendi; DNF5 history 175
+`Status: Ok` bildirdi ve kurulu yeni sürümler doğrulandı.
+Fedora 44 x86_64/aarch64 RPM derleme, kurulum ve başlatma CI kontrolleri
+uygulanır. aarch64 üzerinde gerçek çevrimdışı RPM güncellemesi denenmedi.
+
+**Kapsam:** Fedora 44 RPM güncellemeleri; Flatpak ve Fedora 44→45 dağıtım
+sürümü yükseltmesi kapsam dışındadır. Kernel güncelleme adayları gösterilir,
+ancak gerçek kernel/NVIDIA çevrimdışı uygulaması bu testte doğrulanmadı.
+DNF5 durum ve işlem geçmişi, kurulumu doğrulamak için temel referanstır.
+
+### v0.6.0 kurulum
+
+[Ro-Store sürümlerinden](https://github.com/Project-Ro-ASD/Ro-Store/releases)
+mimarinize uygun `ro-store-0.6.0-1.fc44.x86_64.rpm` veya
+`ro-store-0.6.0-1.fc44.aarch64.rpm` dosyasını indirin (sürüm yayımlandıktan
+sonra). Dosyanın bulunduğu klasörde:
+
+~~~bash
+sudo dnf5 install ./ro-store-0.6.0-1.fc44.x86_64.rpm
+~~~
+
+ARM64 kullanıyorsanız komuttaki RPM adını `aarch64` paketiyle değiştirin.
+
+
 ## v0.5.0 — AppStream ile Fedora uygulama keşfi
 
 Ro-Store v0.5.0, Ro-ASD uygulama kataloğunu koruyarak Fedora RPM kataloğunu

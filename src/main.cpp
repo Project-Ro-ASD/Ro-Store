@@ -18,6 +18,9 @@
 #include "TrayController.h"
 #include "CatalogModel.h"
 #include "FedoraPackageModel.h"
+#include "SystemUpdateModel.h"
+#include "SystemUpdateCache.h"
+#include "SystemOfflineUpgrade.h"
 #include "PackageStatus.h"
 #include "AppLauncher.h"
 #include "SystemFontMonitor.h"
@@ -133,6 +136,9 @@ int main(int argc, char *argv[])
 
     qmlRegisterType<CatalogModel>("RoStore", 1, 0, "CatalogModel");
     qmlRegisterType<FedoraPackageModel>("RoStore", 1, 0, "FedoraPackageModel");
+    qmlRegisterType<SystemUpdateModel>("RoStore", 1, 0, "SystemUpdateModel");
+    qmlRegisterType<SystemUpdateCache>("RoStore", 1, 0, "SystemUpdateCache");
+    qmlRegisterType<SystemOfflineUpgrade>("RoStore", 1, 0, "SystemOfflineUpgrade");
     qmlRegisterType<PackageStatus>("RoStore", 1, 0, "PackageStatus");
     qmlRegisterType<AppLauncher>("RoStore", 1, 0, "AppLauncher");
     qmlRegisterType<SourceManager>("RoStore", 1, 0, "SourceManager");

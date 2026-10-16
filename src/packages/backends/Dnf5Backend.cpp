@@ -12,6 +12,8 @@
 #include <QMap>
 #include <QStringList>
 #include <QVariantMap>
+#include <QRegularExpression>
+#include <QSet>
 
 namespace {
 
@@ -1027,6 +1029,141 @@ void Dnf5Backend::queryPackageState(const QString &packageName)
 
 
 
+void Dnf5Backend::resolveSystemUpdates(const QStringList &exactNevras)
+{
+    // One complete DNF5 goal: every requested update and all dependencies
+    // are resolved together; this method NEVER executes an RPM transaction.
+    if (m_busy || exactNevras.isEmpty() || exactNevras.size() > 500) {
+        emit systemUpdatesResolveFailed(
+            QStringLiteral("Güncelleme isteği boş, aşırı büyük veya DNF5 meşgul."));
+        return;
+    }
+    static const QRegularExpression safe(
+        QStringLiteral("^[A-Za-z0-9][A-Za-z0-9_.+\\-:~]{0,240}$"));
+    QSet<QString> seen;
+    for (const QString &nevra : exactNevras) {
+        if (!safe.match(nevra).hasMatch() || seen.contains(nevra)) {
+            emit systemUpdatesResolveFailed(
+                QStringLiteral("Güncelleme paket kimliği geçersiz veya tekrarlı."));
+            return;
+        }
+        seen.insert(nevra);
+    }
+    ensureSessionAsync([this, exactNevras](bool success) {
+        if (!success) {
+            emit systemUpdatesResolveFailed(m_lastError);
+            return;
+        }
+        // A previously abandoned/read-only goal must never contaminate
+        // the next update selection. Reset the same DNF5 session goal first.
+        QDBusInterface goal(QString::fromLatin1(DNF5_SERVICE), m_sessionPath,
+                            QStringLiteral("org.rpm.dnf.v0.Goal"),
+                            QDBusConnection::systemBus());
+        if (!goal.isValid()) {
+            emit systemUpdatesResolveFailed(
+                QStringLiteral("DNF5 Goal arayüzü bulunamadı: ") + goal.lastError().message());
+            return;
+        }
+        setBusy(true);
+        auto *reset = new QDBusPendingCallWatcher(
+            goal.asyncCall(QStringLiteral("reset")), this);
+        connect(reset, &QDBusPendingCallWatcher::finished, this,
+                [this, reset, exactNevras]() {
+            QDBusPendingReply<> resetReply = *reset;
+            reset->deleteLater();
+            if (resetReply.isError()) {
+                setBusy(false);
+                emit systemUpdatesResolveFailed(
+                    QStringLiteral("Eski DNF5 hedefi sıfırlanamadı; yeni plan engellendi: ")
+                    + resetReply.error().message());
+                return;
+            }
+            QDBusInterface rpm(QString::fromLatin1(DNF5_SERVICE), m_sessionPath,
+                               QString::fromLatin1(DNF5_RPM_INTERFACE),
+                               QDBusConnection::systemBus());
+            if (!rpm.isValid()) {
+                setBusy(false);
+                emit systemUpdatesResolveFailed(
+                    QStringLiteral("DNF5 RPM arayüzü bulunamadı: ")
+                    + rpm.lastError().message());
+                return;
+            }
+            auto *mark = new QDBusPendingCallWatcher(
+                rpm.asyncCall(QStringLiteral("upgrade"), exactNevras, QVariantMap{}), this);
+            connect(mark, &QDBusPendingCallWatcher::finished, this, [this, mark]() {
+            QDBusPendingReply<> reply = *mark;
+            mark->deleteLater();
+            if (reply.isError()) {
+                setBusy(false);
+                emit systemUpdatesResolveFailed(
+                    QStringLiteral("DNF5 güncelleme hedefi oluşturulamadı: ")
+                    + reply.error().message());
+                return;
+            }
+            QDBusInterface goal(QString::fromLatin1(DNF5_SERVICE), m_sessionPath,
+                                QStringLiteral("org.rpm.dnf.v0.Goal"),
+                                QDBusConnection::systemBus());
+            if (!goal.isValid()) {
+                setBusy(false);
+                emit systemUpdatesResolveFailed(
+                    QStringLiteral("DNF5 bağımlılık çözücüsü kullanılamıyor."));
+                return;
+            }
+            goal.setTimeout(120000);
+            auto *resolve = new QDBusPendingCallWatcher(
+                goal.asyncCall(QStringLiteral("resolve"), QVariantMap{
+                    {QStringLiteral("interactive"), false}}), this);
+            connect(resolve, &QDBusPendingCallWatcher::finished,
+                    this, [this, resolve]() {
+                QDBusPendingReply<> result = *resolve;
+                const QDBusMessage message = resolve->reply();
+                resolve->deleteLater();
+                setBusy(false);
+                if (result.isError() || message.arguments().size() < 2) {
+                    emit systemUpdatesResolveFailed(QStringLiteral("DNF5 planı çözülemedi: ")
+                        + result.error().message());
+                    return;
+                }
+                bool ok = false;
+                const uint code = message.arguments().at(1).toUInt(&ok);
+                if (!ok || code != 0) {
+                    emit systemUpdatesResolveFailed(
+                        QStringLiteral("DNF5 bağımlılık çözümlemesi güvenli sonuç vermedi (kod %1).")
+                            .arg(code));
+                    return;
+                }
+                const QList<QVariantMap> items =
+                    readTransactionItemArray(message.arguments().at(0));
+                if (items.isEmpty()) {
+                    emit systemUpdatesResolveFailed(
+                        QStringLiteral("DNF5 boş işlem planı döndürdü."));
+                    return;
+                }
+                QVariantList plan;
+                qulonglong downloadBytes = 0;
+                for (const QVariantMap &item : items) {
+                    plan.append(item);
+                    const QString action = item.value(QStringLiteral("action")).toString();
+                    if (action == QStringLiteral("Remove") ||
+                        action == QStringLiteral("Replaced") ||
+                        action == QStringLiteral("Reason Change"))
+                        continue;
+                    const QVariantMap object = item.value(QStringLiteral("object")).toMap();
+                    QVariant size = object.value(QStringLiteral("download_size"));
+                    if (!size.isValid() || !size.toULongLong())
+                        size = object.value(QStringLiteral("package_size"));
+                    downloadBytes += size.toULongLong();
+                }
+                qInfo() << "SYSTEM UPDATE SINGLE DNF5 GOAL RESOLVED:"
+                        << items.size() << "items," << downloadBytes << "estimated bytes";
+                emit systemUpdatesResolved(plan, downloadBytes);
+            });
+        });
+        });
+    });
+}
+
+
 void Dnf5Backend::resolveTransaction(
     const QString &packageName,
     TransactionOperation operation,
@@ -1632,7 +1769,8 @@ void Dnf5Backend::prepareLocalRpmTransaction(
 }
 
 void Dnf5Backend::executeResolvedTransaction(
-    bool downloadOnly
+    bool downloadOnly,
+    bool offline
 )
 {
     if (!sessionOpen()) {
@@ -1684,7 +1822,7 @@ void Dnf5Backend::executeResolvedTransaction(
 
     options.insert(
         QStringLiteral("offline"),
-        false
+        offline
     );
 
     options.insert(
@@ -1708,7 +1846,8 @@ void Dnf5Backend::executeResolvedTransaction(
     qInfo()
         << "DNF5 DO TRANSACTION START"
         << "downloadOnly:"
-        << downloadOnly;
+        << downloadOnly
+        << "offline:" << offline;
 
     emit transactionExecutionStarted(
         downloadOnly

@@ -10,6 +10,9 @@ KeyboardActionButton {
 
     property bool accented: false
     property bool outlined: false
+    // Opt-in for pages with long localized action labels. Existing buttons
+    // elsewhere keep their original one-line behavior.
+    property bool wrapButtonText: false
 
     hoverEnabled: true
 
@@ -70,6 +73,11 @@ KeyboardActionButton {
         opacity: control.enabled ? 1 : 0.65
         horizontalAlignment: Text.AlignHCenter
         verticalAlignment: Text.AlignVCenter
+        // Restrict labels to the actual button bounds. Eliding the second
+        // line avoids drawing outside a compact button at high KDE DPI.
+        wrapMode: control.wrapButtonText ? Text.WordWrap : Text.NoWrap
+        maximumLineCount: control.wrapButtonText ? 2 : 1
         elide: Text.ElideRight
+        clip: true
     }
 }
