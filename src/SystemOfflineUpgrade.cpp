@@ -543,3 +543,93 @@ void SystemOfflineUpgrade::requestConfirmedReboot()
     process->start();
     emit changed();
 }
+
+
+void SystemOfflineUpgrade::discardPreparedOffline()
+{
+    if (!m_offlineReady || m_preparing || m_outcomeUnknown || m_clearingPrepared
+        || m_rebootRequestRunning || !QFile::exists(journalPath()))
+        return;
+    QDBusInterface offline(QStringLiteral("org.rpm.dnf.v0"),
+        QStringLiteral("/org/rpm/dnf/v0"),
+        QStringLiteral("org.rpm.dnf.v0.Offline"), QDBusConnection::systemBus());
+    if (!offline.isValid()) {
+        m_message = QStringLiteral(
+            "DNF5 çevrimdışı arayüzüne ulaşılamadı. Hazırlanmış işlem ve güvenlik kaydı korunuyor.");
+        emit changed();
+        return;
+    }
+    m_clearingPrepared = true;
+    m_message = QStringLiteral(
+        "Açık onayla DNF5 çevrimdışı işlem dosyalarının temizlenmesi istendi. "
+        "Bu işlem RPM'leri sisteme kurmaz.");
+    emit changed();
+    auto *clean = new QDBusPendingCallWatcher(
+        offline.asyncCall(QStringLiteral("clean"),
+            QVariantMap{{QStringLiteral("interactive"), true}}), this);
+    connect(clean, &QDBusPendingCallWatcher::finished, this,
+            [this, clean]() {
+        QDBusPendingReply<bool, QString> result = *clean;
+        clean->deleteLater();
+        if (result.isError() || !result.argumentAt<0>()) {
+            m_clearingPrepared = false;
+            m_message = QStringLiteral("DNF5 çevrimdışı temizleme doğrulanamadı: ")
+                + (result.isError() ? result.error().message() : result.argumentAt<1>());
+            emit changed();
+            return;
+        }
+        QDBusInterface offline(QStringLiteral("org.rpm.dnf.v0"),
+            QStringLiteral("/org/rpm/dnf/v0"),
+            QStringLiteral("org.rpm.dnf.v0.Offline"), QDBusConnection::systemBus());
+        if (!offline.isValid()) {
+            m_clearingPrepared = false;
+            m_outcomeUnknown = true;
+            m_message = QStringLiteral(
+                "DNF5 temizleme isteği bitti fakat son durum doğrulanamadı. Güvenlik kaydı korunuyor.");
+            emit changed();
+            return;
+        }
+        auto *verify = new QDBusPendingCallWatcher(
+            offline.asyncCall(QStringLiteral("get_status")), this);
+        connect(verify, &QDBusPendingCallWatcher::finished, this,
+                [this, verify]() {
+            QDBusPendingReply<bool, QVariantMap> statusReply = *verify;
+            verify->deleteLater();
+            m_clearingPrepared = false;
+            if (statusReply.isError()) {
+                m_outcomeUnknown = true;
+                m_message = QStringLiteral(
+                    "Çevrimdışı temizleme son durumu doğrulanamadı. Güvenlik kaydı korunuyor.");
+                emit changed();
+                return;
+            }
+            const QString status = statusReply.argumentAt<1>()
+                .value(QStringLiteral("status")).toString();
+            if (statusReply.argumentAt<0>()
+                || status == QStringLiteral("ready")
+                || status == QStringLiteral("download-complete")) {
+                m_outcomeUnknown = true;
+                m_message = QStringLiteral(
+                    "DNF5 hâlâ çevrimdışı işlem bildiriyor. Kurtarma kaydı korunuyor: ") + status;
+                emit changed();
+                return;
+            }
+            if (!QFile::remove(journalPath())) {
+                m_outcomeUnknown = true;
+                m_message = QStringLiteral(
+                    "DNF5 hazırlığı temizlendi ancak Ro-Store güvenlik kaydı silinemedi.");
+                emit changed();
+                return;
+            }
+            m_offlineReady = false;
+            m_ready = false;
+            m_busy = false;
+            m_message = QStringLiteral(
+                "DNF5 çevrimdışı hazırlık iptal edildi ve güvenlik kaydı doğrulanarak temizlendi. "
+                "Bu işlem mevcut sistem paketlerini değiştirmedi; silinen resmi indirme önbelleği "
+                "gelecekte yeniden indirilebilir.");
+            releaseLock();
+            emit changed();
+        });
+    });
+}
