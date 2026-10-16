@@ -1054,19 +1054,43 @@ void Dnf5Backend::resolveSystemUpdates(const QStringList &exactNevras)
             emit systemUpdatesResolveFailed(m_lastError);
             return;
         }
-        QDBusInterface rpm(QString::fromLatin1(DNF5_SERVICE), m_sessionPath,
-                           QString::fromLatin1(DNF5_RPM_INTERFACE),
-                           QDBusConnection::systemBus());
-        if (!rpm.isValid()) {
+        // A previously abandoned/read-only goal must never contaminate
+        // the next update selection. Reset the same DNF5 session goal first.
+        QDBusInterface goal(QString::fromLatin1(DNF5_SERVICE), m_sessionPath,
+                            QStringLiteral("org.rpm.dnf.v0.Goal"),
+                            QDBusConnection::systemBus());
+        if (!goal.isValid()) {
             emit systemUpdatesResolveFailed(
-                QStringLiteral("DNF5 RPM arayüzü bulunamadı: ") + rpm.lastError().message());
+                QStringLiteral("DNF5 Goal arayüzü bulunamadı: ") + goal.lastError().message());
             return;
         }
-        m_busy = true;
-        emit busyChanged();
-        auto *mark = new QDBusPendingCallWatcher(
-            rpm.asyncCall(QStringLiteral("upgrade"), exactNevras, QVariantMap{}), this);
-        connect(mark, &QDBusPendingCallWatcher::finished, this, [this, mark]() {
+        setBusy(true);
+        auto *reset = new QDBusPendingCallWatcher(
+            goal.asyncCall(QStringLiteral("reset")), this);
+        connect(reset, &QDBusPendingCallWatcher::finished, this,
+                [this, reset, exactNevras]() {
+            QDBusPendingReply<> resetReply = *reset;
+            reset->deleteLater();
+            if (resetReply.isError()) {
+                setBusy(false);
+                emit systemUpdatesResolveFailed(
+                    QStringLiteral("Eski DNF5 hedefi sıfırlanamadı; yeni plan engellendi: ")
+                    + resetReply.error().message());
+                return;
+            }
+            QDBusInterface rpm(QString::fromLatin1(DNF5_SERVICE), m_sessionPath,
+                               QString::fromLatin1(DNF5_RPM_INTERFACE),
+                               QDBusConnection::systemBus());
+            if (!rpm.isValid()) {
+                setBusy(false);
+                emit systemUpdatesResolveFailed(
+                    QStringLiteral("DNF5 RPM arayüzü bulunamadı: ")
+                    + rpm.lastError().message());
+                return;
+            }
+            auto *mark = new QDBusPendingCallWatcher(
+                rpm.asyncCall(QStringLiteral("upgrade"), exactNevras, QVariantMap{}), this);
+            connect(mark, &QDBusPendingCallWatcher::finished, this, [this, mark]() {
             QDBusPendingReply<> reply = *mark;
             mark->deleteLater();
             if (reply.isError()) {
@@ -1134,6 +1158,7 @@ void Dnf5Backend::resolveSystemUpdates(const QStringList &exactNevras)
                         << items.size() << "items," << downloadBytes << "estimated bytes";
                 emit systemUpdatesResolved(plan, downloadBytes);
             });
+        });
         });
     });
 }
