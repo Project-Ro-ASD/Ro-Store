@@ -458,3 +458,64 @@ void SystemOfflineUpgrade::invalidateIfSelectionChanged(const QStringList &selec
         emit changed();
     }
 }
+
+
+void SystemOfflineUpgrade::requestConfirmedReboot()
+{
+    // This is reachable only after the user explicitly confirmed a completed,
+    // daemon-verified offline preparation and separately approved reboot.
+    if (!m_offlineReady || m_preparing || m_outcomeUnknown || m_rebootRequestRunning
+        || !QFile::exists(journalPath()))
+        return;
+    if (!QFileInfo::exists(QStringLiteral("/usr/bin/pkexec"))
+        || !QFileInfo::exists(QStringLiteral("/usr/bin/dnf5"))) {
+        m_message = QStringLiteral(
+            "pkexec veya dnf5 bulunamadı. Yönetici olarak terminalden "
+            "'sudo dnf5 offline reboot' komutunu ayrı onayla çalıştırabilirsiniz.");
+        emit changed();
+        return;
+    }
+    auto *process = new QProcess(this);
+    m_rebootProcess = process;
+    m_rebootRequestRunning = true;
+    process->setProgram(QStringLiteral("/usr/bin/pkexec"));
+    process->setArguments({QStringLiteral("/usr/bin/dnf5"),
+                           QStringLiteral("-y"),
+                           QStringLiteral("offline"),
+                           QStringLiteral("reboot")});
+    process->setProcessChannelMode(QProcess::MergedChannels);
+    m_message = QStringLiteral(
+        "Açık onayla DNF5 çevrimdışı yeniden başlatma isteği gönderiliyor. "
+        "Kimlik doğrulama penceresi açılabilir. Çalışmalarınızı kaydetmiş olmalısınız.");
+    qInfo() << "SYSTEM OFFLINE REBOOT REQUEST: explicitly approved by user";
+    connect(process, &QProcess::finished, this,
+            [this, process](int code, QProcess::ExitStatus status) {
+        if (m_rebootProcess != process)
+            return;
+        const QString output =
+            QString::fromLocal8Bit(process->readAllStandardOutput()).trimmed().left(1200);
+        m_rebootProcess = nullptr;
+        m_rebootRequestRunning = false;
+        process->deleteLater();
+        m_message = status == QProcess::NormalExit && code == 0
+            ? QStringLiteral("DNF5 yeniden başlatma isteği tamamlandı. "
+                             "Sistem açıldıktan sonra kurtarma kaydını denetleyin.")
+            : QStringLiteral("Yeniden başlatma gerçekleşmemiş olabilir (kod %1): %2. "
+                             "Çevrimdışı işlem kaydı korunuyor.").arg(code).arg(output);
+        emit changed();
+    });
+    connect(process, &QProcess::errorOccurred, this,
+            [this, process](QProcess::ProcessError error) {
+        if (m_rebootProcess != process || error != QProcess::FailedToStart)
+            return;
+        m_rebootProcess = nullptr;
+        m_rebootRequestRunning = false;
+        m_message = QStringLiteral(
+            "Yönetici yetkisiyle yeniden başlatma başlatılamadı. "
+            "Çevrimdışı kayıt korunuyor.");
+        process->deleteLater();
+        emit changed();
+    });
+    process->start();
+    emit changed();
+}
