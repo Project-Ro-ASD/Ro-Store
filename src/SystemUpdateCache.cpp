@@ -87,6 +87,10 @@ SystemUpdateCache::~SystemUpdateCache()
         m_downloadProcess->kill();
         m_downloadProcess->waitForFinished(3000);
     }
+    if (m_offlineQuery && m_offlineQuery->state() != QProcess::NotRunning) {
+        m_offlineQuery->kill();
+        m_offlineQuery->waitForFinished(1500);
+    }
 }
 
 QString SystemUpdateCache::path() const { return m_root; }
