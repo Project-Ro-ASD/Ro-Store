@@ -618,7 +618,7 @@ void SystemOfflineUpgrade::discardPreparedOffline()
             return;
         }
         auto *watcher = new QDBusPendingCallWatcher(
-            offline.asyncCall(QStringLiteral("clean"),
+            offline.asyncCall(QStringLiteral("clean_with_options"),
                               QVariantMap{{QStringLiteral("interactive"), true}}), this);
         connect(watcher, &QDBusPendingCallWatcher::finished, this,
                 [this, watcher, path]() {
