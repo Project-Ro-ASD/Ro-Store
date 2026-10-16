@@ -99,7 +99,7 @@ ApplicationWindow {
             Label {
                 width: parent.width
                 wrapMode: Text.WordWrap
-                text: "Paket kurulumu veya kaldırma işlemi devam ediyor. Uygulamadan tamamen çıkarsanız işlem kesilebilir. Emin misiniz?"
+                text: "Paket işlemi veya sistem güncelleme planı / çevrimdışı hazırlığı sürüyor. Uygulamadan tamamen çıkmak DNF5 işlem sonucunu belirsiz bırakabilir. Devam etmek istediğinize emin misiniz?"
             }
             Column {
                 width: parent.width
