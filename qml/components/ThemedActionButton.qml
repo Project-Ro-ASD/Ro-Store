@@ -73,7 +73,11 @@ KeyboardActionButton {
         opacity: control.enabled ? 1 : 0.65
         horizontalAlignment: Text.AlignHCenter
         verticalAlignment: Text.AlignVCenter
+        // Restrict labels to the actual button bounds. Eliding the second
+        // line avoids drawing outside a compact button at high KDE DPI.
         wrapMode: control.wrapButtonText ? Text.WordWrap : Text.NoWrap
-        elide: control.wrapButtonText ? Text.ElideNone : Text.ElideRight
+        maximumLineCount: control.wrapButtonText ? 2 : 1
+        elide: Text.ElideRight
+        clip: true
     }
 }
