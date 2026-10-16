@@ -425,6 +425,7 @@ ApplicationWindow {
     Component {
         id: systemUpdatesPageComponent
         SystemUpdatesPage {
+            packageTransactionManager: transactionManager
             onBackRequested: stackView.pop()
         }
     }
