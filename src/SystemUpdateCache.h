@@ -6,8 +6,9 @@
 #include <QPointer>
 #include <QProcess>
 #include <QTemporaryDir>
+#include <QElapsedTimer>
+#include <QTimer>
 #include <memory>
-#include <QVariantList>
 
 // Persistent user-owned staging area. This component does NOT download,
 // install, or assume any RPM file is safe to execute.
@@ -20,6 +21,11 @@ class SystemUpdateCache : public QObject
     Q_PROPERTY(QString error READ error NOTIFY changed)
     Q_PROPERTY(bool downloading READ downloading NOTIFY changed)
     Q_PROPERTY(QString downloadStatus READ downloadStatus NOTIFY changed)
+    Q_PROPERTY(QString downloadLog READ downloadLog NOTIFY changed)
+    Q_PROPERTY(QString downloadFile READ downloadFile NOTIFY changed)
+    Q_PROPERTY(int downloadPercent READ downloadPercent NOTIFY changed)
+    Q_PROPERTY(qulonglong stagedBytes READ stagedBytes NOTIFY changed)
+    Q_PROPERTY(int elapsedSeconds READ elapsedSeconds NOTIFY changed)
 public:
     explicit SystemUpdateCache(QObject *parent = nullptr);
     ~SystemUpdateCache() override;
@@ -29,6 +35,11 @@ public:
     QString error() const { return m_error; }
     bool downloading() const { return m_downloading; }
     QString downloadStatus() const { return m_downloadStatus; }
+    QString downloadLog() const { return m_downloadLog; }
+    QString downloadFile() const { return m_downloadFile; }
+    int downloadPercent() const { return m_downloadPercent; }
+    qulonglong stagedBytes() const { return m_stagedBytes; }
+    int elapsedSeconds() const { return m_elapsedSeconds; }
 
     Q_INVOKABLE void refresh();
     Q_INVOKABLE void clear();
@@ -40,12 +51,23 @@ signals:
 
 private:
     void completeDownload(bool cancelled, int exitCode);
+    void appendDownloadOutput(const QByteArray &bytes);
+    void pollStagingProgress();
     QString m_root;
     QPointer<QProcess> m_downloadProcess;
     std::unique_ptr<QTemporaryDir> m_staging;
     QStringList m_requested;
     QString m_downloadStatus;
+    QString m_downloadLog;
+    QString m_downloadFile;
+    QString m_pendingOutput;
+    int m_downloadPercent = -1; // Per-file percent, not total transaction percent.
+    qulonglong m_stagedBytes = 0; // Files currently present in staging; not total network bytes.
+    int m_elapsedSeconds = 0;
+    bool m_seenPackageDownloads = false;
     bool m_downloading = false;
+    QElapsedTimer m_elapsedTimer;
+    QTimer m_progressTimer;
     int m_count = 0;
     qulonglong m_bytes = 0;
     QString m_error;
