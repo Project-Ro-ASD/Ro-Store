@@ -230,8 +230,17 @@ void SystemUpdateCache::checkOfflineStatus()
     emit changed();
 }
 
-void SystemUpdateCache::downloadSelected(const QStringList &nevras)
+void SystemUpdateCache::downloadSelected(const QStringList &nevras,
+                                         qulonglong estimatedBytes,
+                                         int unknownSizeCount)
 {
+    if (unknownSizeCount != 0 || estimatedBytes > 50ull * 1024ull * 1024ull
+        || estimatedBytes == 0) {
+        m_error = QStringLiteral("İndirme engellendi: güvenilir paket boyutu bilinmiyor "
+                                 "veya 50 MiB güvenlik sınırı aşıldı.");
+        emit changed();
+        return;
+    }
     if (m_downloading || nevras.isEmpty()) {
         qWarning() << "SYSTEM UPDATE DOWNLOAD SKIPPED: active or empty selection";
         return;
