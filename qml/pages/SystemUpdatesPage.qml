@@ -415,7 +415,23 @@ Item {
                 Label {
                     Layout.fillWidth: true
                     text: updateCache.rpmCount + " RPM · " + page.formatCacheBytes(updateCache.bytes)
-                          + " · Şimdilik yalnızca önbellek hazırlığı, otomatik indirme yok."
+                          + " · İndirme yalnızca onayla başlar; kurulum yapılmaz."
+                    font.family: metrics.systemFont.family
+                    font.pixelSize: metrics.fontSmall
+                    color: palette.text
+                    wrapMode: Text.WordWrap
+                }
+                Label {
+                    Layout.fillWidth: true
+                    visible: !updateCache.downloading && updates.selectedCount > 0
+                             && !(updates.previewText.length > 0
+                                  && updates.previewError.length === 0
+                                  && updates.previewSelectionCount === updates.selectedCount
+                                  && !updates.previewAllUpdates
+                                  && updates.selectedCount <= 3)
+                    text: updates.selectedCount > 3
+                          ? "İlk indirme testi için en fazla 3 paket seçin."
+                          : "İndirme için önce seçili paketlerin planını inceleyin ve sorgunun bitmesini bekleyin."
                     font.family: metrics.systemFont.family
                     font.pixelSize: metrics.fontSmall
                     color: palette.text
