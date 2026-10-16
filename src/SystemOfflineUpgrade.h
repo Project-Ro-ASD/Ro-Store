@@ -42,6 +42,7 @@ public:
     Q_INVOKABLE void requestCancellation();
     Q_INVOKABLE void recheckRecovery();
     Q_INVOKABLE void acknowledgeRecovery();
+    Q_INVOKABLE void invalidateIfSelectionChanged(const QStringList &selectedNevras);
 signals:
     void changed();
 private:
@@ -64,4 +65,5 @@ private:
     bool m_offlineReady = false;
     bool m_locked = false;
     bool m_recoveryVerified = false;
+    bool m_selectionInvalidated = false;
 };
