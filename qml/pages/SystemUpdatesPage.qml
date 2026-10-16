@@ -112,6 +112,62 @@ Item {
             }
         }
 
+        RowLayout {
+            Layout.fillWidth: true
+            ThemedActionButton {
+                text: "Seçilenlerin planını incele"
+                enabled: !updates.loading && !updates.previewRunning
+                         && updates.selectedCount > 0
+                onClicked: updates.previewPlan()
+            }
+            ThemedActionButton {
+                text: "Plan sorgusunu iptal et"
+                visible: updates.previewRunning
+                onClicked: updates.cancelPreview()
+            }
+            Label {
+                Layout.fillWidth: true
+                text: updates.previewRunning ? "DNF5 bağımlılık planı hazırlanıyor..." : ""
+                color: palette.text
+                wrapMode: Text.WordWrap
+            }
+        }
+
+        Label {
+            visible: updates.previewError.length > 0
+            Layout.fillWidth: true
+            text: updates.previewError
+            color: palette.text
+            wrapMode: Text.WordWrap
+        }
+
+        Frame {
+            visible: updates.previewText.length > 0
+            Layout.fillWidth: true
+            Layout.preferredHeight: Math.min(260, Math.max(110, page.height / 3))
+            ColumnLayout {
+                anchors.fill: parent
+                Label {
+                    text: "DNF5 plan çıktısı — yalnızca önizleme, paket değiştirilmedi"
+                    color: palette.text
+                    font.bold: true
+                    Layout.fillWidth: true
+                    wrapMode: Text.WordWrap
+                }
+                ScrollView {
+                    Layout.fillWidth: true
+                    Layout.fillHeight: true
+                    TextArea {
+                        readOnly: true
+                        selectByMouse: true
+                        wrapMode: TextEdit.NoWrap
+                        text: updates.previewText
+                        font.family: "monospace"
+                    }
+                }
+            }
+        }
+
         ListView {
             id: updateList
             Layout.fillWidth: true
