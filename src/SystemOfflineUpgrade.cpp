@@ -37,11 +37,15 @@ SystemOfflineUpgrade::SystemOfflineUpgrade(QObject *parent) : QObject(parent)
         m_planBytes = bytes;
         QStringList summary;
         int removals = 0;
+        bool kernel = false;
         int unknownBytes = 0;
         for (const QVariant &row : items) {
             const QVariantMap item = row.toMap();
             const QVariantMap pkg = item.value(QStringLiteral("object")).toMap();
             const QString action = item.value(QStringLiteral("action")).toString();
+            const QString name = pkg.value(QStringLiteral("name")).toString();
+            if (name.startsWith(QStringLiteral("kernel"), Qt::CaseInsensitive))
+                kernel = true;
             if (action == QStringLiteral("Remove"))
                 ++removals;
             else if (action != QStringLiteral("Replaced")
@@ -55,6 +59,8 @@ SystemOfflineUpgrade::SystemOfflineUpgrade(QObject *parent) : QObject(parent)
                      pkg.value(QStringLiteral("arch")).toString());
         }
         m_planText = summary.join(QChar('\n'));
+        m_removalCount = removals;
+        m_kernelAffected = kernel;
         m_ready = true;
         m_message = QStringLiteral(
             "Tek DNF5 işlem planı çözüldü: %1 değişiklik, %2 kaldırma. "
@@ -169,6 +175,8 @@ void SystemOfflineUpgrade::resolve(const QStringList &selectedNevras)
     m_planText.clear();
     m_planBytes = 0;
     m_planCount = 0;
+    m_removalCount = 0;
+    m_kernelAffected = false;
     m_message = QStringLiteral("DNF5 tüm seçilen RPM güncellemelerini tek işlemde çözüyor...");
     emit changed();
     // Never overwrite an offline transaction prepared by DNF5, Discover,
