@@ -88,6 +88,41 @@ SystemUpdateCache::~SystemUpdateCache()
     }
 }
 
+void SystemUpdateCache::setPackageTransactionManager(QObject *manager)
+{
+    if (m_transactionManager == manager)
+        return;
+    if (m_downloading)
+        cancelDownload();
+    m_transactionManager = manager;
+    if (manager) {
+        // Keep QML state refreshed and stop the standalone downloader if a
+        // queued or active package mutation appears.
+        connect(manager, SIGNAL(activeTransactionChanged()), this, SLOT(checkTransactionConflict()));
+        connect(manager, SIGNAL(queuedCountChanged()), this, SLOT(checkTransactionConflict()));
+        connect(manager, SIGNAL(outcomeUncertainChanged()), this, SLOT(checkTransactionConflict()));
+    }
+    emit changed();
+}
+
+bool SystemUpdateCache::transactionAvailable() const
+{
+    if (!m_transactionManager)
+        return false; // Fail closed if shared manager has not been connected.
+    return !m_transactionManager->property("busy").toBool()
+        && m_transactionManager->property("queuedCount").toInt() == 0
+        && !m_transactionManager->property("outcomeUncertain").toBool();
+}
+
+void SystemUpdateCache::checkTransactionConflict()
+{
+    if (m_downloading && !transactionAvailable()) {
+        m_downloadStatus = QStringLiteral("Başka bir paket işlemi başladı; yalnızca RPM indirmesi durduruluyor.");
+        cancelDownload();
+    }
+    emit changed();
+}
+
 QString SystemUpdateCache::path() const { return m_root; }
 
 void SystemUpdateCache::refresh()
@@ -233,6 +268,11 @@ void SystemUpdateCache::downloadSelected(const QStringList &nevras,
                                          qulonglong estimatedBytes,
                                          int unknownSizeCount)
 {
+    if (!transactionAvailable()) {
+        m_error = QStringLiteral("Başka bir paket işlemi bekliyor, çalışıyor veya kurtarma kilidi aktif. İndirme başlatılmadı.");
+        emit changed();
+        return;
+    }
     if (unknownSizeCount != 0 || estimatedBytes > 50ull * 1024ull * 1024ull
         || estimatedBytes == 0) {
         m_error = QStringLiteral("İndirme engellendi: güvenilir paket boyutu bilinmiyor "
