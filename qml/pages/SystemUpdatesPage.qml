@@ -15,6 +15,7 @@ Item {
     property var packageTransactionManager: null
     SystemUpdateCache { id: updateCache; packageTransactionManager: page.packageTransactionManager }
     SystemOfflineUpgrade { id: offlineUpdate; transactionManager: page.packageTransactionManager }
+    property bool showAdvancedTools: false
     Connections {
         target: updates
         function onSelectionChanged() {
@@ -217,7 +218,7 @@ Item {
         }
 
         Label {
-            text: "Fedora'da kurulu tüm RPM paketlerinin güncelleme adaylarını etkin DNF5 depolarından denetler. Bu ekran henüz yalnızca bilgi gösterir; sistemde hiçbir paket değiştirmez."
+            text: "Fedora için kullanılabilir güncellemeleri buradan kontrol edebilir, paketleri seçip güncelleme planını inceleyebilirsiniz. Güncellemeler yalnızca onayınızla hazırlanır ve ayrı bir yeniden başlatma onayından sonra uygulanır."
             Layout.fillWidth: true
             wrapMode: Text.WordWrap
             font.family: metrics.systemFont.family
@@ -262,6 +263,31 @@ Item {
             font.pixelSize: metrics.fontBody
         }
 
+        RowLayout {
+            Layout.fillWidth: true
+            spacing: metrics.spaceCompact
+            ThemedActionButton {
+                text: "Tümünü seç"
+                Layout.preferredHeight: Math.max(36, metrics.fontPx(36))
+                enabled: !updates.loading && updates.updateCount > 0
+                onClicked: updates.selectAll()
+            }
+            ThemedActionButton {
+                text: "Seçimi kaldır"
+                Layout.preferredHeight: Math.max(36, metrics.fontPx(36))
+                enabled: !updates.loading && updates.selectedCount > 0
+                onClicked: updates.clearSelection()
+            }
+            Item { Layout.fillWidth: true }
+        }
+        ThemedActionButton {
+            text: page.showAdvancedTools ? "Gelişmiş seçenekleri gizle" : "Gelişmiş seçenekler"
+            Layout.preferredHeight: Math.max(34, metrics.fontPx(34))
+            Layout.alignment: Qt.AlignRight
+            font.pixelSize: metrics.fontSmall
+            onClicked: page.showAdvancedTools = !page.showAdvancedTools
+        }
+
         // Compact buttons: selection actions next to each other,
         // dependency preview on the far right. Preserve readable text
         // on narrow windows by placing the preview on a second row.
@@ -282,7 +308,7 @@ Item {
             Label {
                 Layout.fillWidth: true
                 visible: updates.selectedCount > 0
-                text: "Seçilen RPM dosyalarının tahmini toplamı: "
+                text: "Seçili paketlerin tahmini indirme boyutu: "
                       + page.formatCacheBytes(updates.selectedDownloadBytes)
                       + (updates.selectedUnknownSizes > 0
                           ? " · " + updates.selectedUnknownSizes
@@ -295,8 +321,8 @@ Item {
 
             RowLayout {
                 id: wideActions
+                visible: page.showAdvancedTools && pageContent.width >= Math.max(515, metrics.fontPx(515))
                 Layout.fillWidth: true
-                visible: pageContent.width >= Math.max(515, metrics.fontPx(515))
                 spacing: metrics.spaceCompact
 
                 Item { Layout.fillWidth: true }
@@ -342,7 +368,7 @@ Item {
 
             ColumnLayout {
                 Layout.fillWidth: true
-                visible: !wideActions.visible
+                visible: page.showAdvancedTools && !wideActions.visible
                 spacing: metrics.spaceCompact
 
                 RowLayout {
@@ -396,7 +422,7 @@ Item {
 
             Label {
                 Layout.fillWidth: true
-                visible: updates.previewRunning
+                visible: page.showAdvancedTools && updates.previewRunning
                 text: "DNF5 bağımlılık planı hazırlanıyor..."
                 color: palette.text
                 font.family: metrics.systemFont.family
@@ -406,7 +432,7 @@ Item {
         }
 
         Label {
-            visible: updates.previewError.length > 0
+            visible: page.showAdvancedTools && updates.previewError.length > 0
             Layout.fillWidth: true
             text: updates.previewError
             color: palette.text
@@ -416,8 +442,8 @@ Item {
 
         Frame {
             id: previewFrame
+            visible: page.showAdvancedTools && updates.previewText.length > 0
             property bool collapsed: false
-            visible: updates.previewText.length > 0
             Layout.fillWidth: true
             // Collapsing keeps the heading and toggle visible while allowing
             // the RPM list to reclaim most of the window's vertical space.
@@ -479,7 +505,7 @@ Item {
                 spacing: metrics.spaceCompact
                 Label {
                     Layout.fillWidth: true
-                    text: "DNF5 tek işlemli çevrimdışı sistem güncellemesi"
+                    text: "Güncellemeleri hazırla"
                     font.family: metrics.systemFont.family
                     font.pixelSize: metrics.fontBody
                     font.bold: true
@@ -488,9 +514,8 @@ Item {
                 }
                 Label {
                     Layout.fillWidth: true
-                    text: "Seçili güncellemeler ve tüm bağımlılıklar tek bir DNF5 işleminde çözümlenir. " +
-                          "Çevrimdışı hazırlama ayrıca onaylanır. Sistem şimdi güncellenmez ve " +
-                          "uygulama bilgisayarı kendiliğinden yeniden başlatmaz."
+                    text: "1. Paketleri seçin. 2. Güncelleme planını oluşturup eklenecek ve kaldırılacak paketleri inceleyin. " +
+                          "3. Onay vererek dosyaları hazırlayın. Güncellemeler hemen kurulmaz; yeniden başlatma ayrıca onaylanır."
                     font.pixelSize: metrics.fontSmall
                     color: palette.text
                     wrapMode: Text.WordWrap
@@ -498,7 +523,7 @@ Item {
                 RowLayout {
                     Layout.fillWidth: true
                     ThemedActionButton {
-                        text: offlineUpdate.busy ? "DNF5 planı bekleniyor..." : "Tek işlem planını çözümle"
+                        text: offlineUpdate.busy ? "Plan hazırlanıyor..." : "Güncelleme planını oluştur"
                         Layout.preferredWidth: Math.max(210, implicitWidth + 12)
                         Layout.preferredHeight: Math.max(34, metrics.fontPx(34))
                         font.pixelSize: metrics.fontSmall
@@ -511,7 +536,7 @@ Item {
                         onClicked: offlineUpdate.resolve(updates.selectedNevras())
                     }
                     ThemedActionButton {
-                        text: "Planı bırak"
+                        text: "Planı iptal et"
                         Layout.preferredHeight: Math.max(34, metrics.fontPx(34))
                         Layout.preferredWidth: Math.max(96, implicitWidth + 12)
                         font.pixelSize: metrics.fontSmall
@@ -568,7 +593,7 @@ Item {
                     Layout.fillWidth: true
                     visible: offlineUpdate.ready || offlineUpdate.preparing
                     ThemedActionButton {
-                        text: "Çevrimdışı güncellemeyi hazırla"
+                        text: "Güncelleme dosyalarını hazırla"
                         Layout.preferredHeight: Math.max(34, metrics.fontPx(34))
                         Layout.preferredWidth: Math.max(230, implicitWidth + 12)
                         font.pixelSize: metrics.fontSmall
@@ -658,7 +683,7 @@ Item {
                     Layout.fillWidth: true
                     Label {
                         Layout.fillWidth: true
-                        text: "Güncelleme indirme önbelleği"
+                        text: "İndirme önbelleği (isteğe bağlı test aracı)"
                         font.family: metrics.systemFont.family
                         font.pixelSize: metrics.fontBody
                         font.bold: true
@@ -666,14 +691,14 @@ Item {
                         wrapMode: Text.WordWrap
                     }
                     ThemedActionButton {
-                        text: "Yenile"
+                        text: "Dosyaları kontrol et"
                         Layout.preferredHeight: Math.max(32, metrics.fontPx(32))
                         Layout.preferredWidth: Math.max(82, implicitWidth + 12)
                         font.pixelSize: metrics.fontSmall
                         onClicked: updateCache.refresh()
                     }
                     ThemedActionButton {
-                        text: updateCache.downloading ? "İptal et" : "Seçilenleri indir"
+                        text: updateCache.downloading ? "İndirmeyi durdur" : "Yalnızca RPM dosyalarını indir"
                         Layout.preferredHeight: Math.max(32, metrics.fontPx(32))
                         Layout.preferredWidth: Math.max(145, implicitWidth + 12)
                         font.pixelSize: metrics.fontSmall
@@ -697,7 +722,7 @@ Item {
                         }
                     }
                     ThemedActionButton {
-                        text: "Temizle"
+                        text: "İndirilen dosyaları sil"
                         Layout.preferredHeight: Math.max(32, metrics.fontPx(32))
                         Layout.preferredWidth: Math.max(90, implicitWidth + 12)
                         font.pixelSize: metrics.fontSmall
@@ -876,7 +901,7 @@ Item {
                     Layout.fillWidth: true
                     Label {
                         Layout.fillWidth: true
-                        text: "Fedora çevrimdışı güncelleme durumu"
+                        text: "Gelişmiş: Fedora güncelleme durumu"
                         font.family: metrics.systemFont.family
                         font.pixelSize: metrics.fontBody
                         font.bold: true
