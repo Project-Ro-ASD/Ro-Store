@@ -387,7 +387,11 @@ Item {
                         font.pixelSize: metrics.fontSmall
                         enabled: updateCache.downloading ||
                                  (!updates.loading && !updates.previewRunning
-                                  && updates.selectedCount > 0 && updates.selectedCount <= 3)
+                                  && updates.selectedCount > 0 && updates.selectedCount <= 3
+                                  && updates.previewText.length > 0
+                                  && updates.previewError.length === 0
+                                  && updates.previewSelectionCount === updates.selectedCount
+                                  && !updates.previewAllUpdates)
                         onClicked: {
                             if (updateCache.downloading) {
                                 updateCache.cancelDownload()
