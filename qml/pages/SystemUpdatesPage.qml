@@ -299,7 +299,7 @@ Item {
                     spacing: metrics.spaceMedium
 
                     Label {
-                        text: "DNF5 planı · Salt okunur önizleme"
+                        text: "DNF5 planı · " + updates.previewSelectionCount + " paket" + (updates.previewAllUpdates ? " · Tüm sistem" : " · Seçili paketler")
                         color: palette.text
                         font.family: metrics.systemFont.family
                         font.pixelSize: metrics.fontBody
