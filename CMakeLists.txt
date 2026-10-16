@@ -42,6 +42,8 @@ qt_add_executable(ro-store
     src/SystemUpdateModel.cpp
     src/SystemUpdateCache.h
     src/SystemUpdateCache.cpp
+    src/SystemOfflineUpgrade.h
+    src/SystemOfflineUpgrade.cpp
     src/PackageStatus.h
     src/PackageStatus.cpp
     src/packages/PackageTransaction.h
