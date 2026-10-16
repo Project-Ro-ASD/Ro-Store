@@ -21,6 +21,8 @@ class SystemUpdateCache : public QObject
     Q_PROPERTY(QString error READ error NOTIFY changed)
     Q_PROPERTY(bool downloading READ downloading NOTIFY changed)
     Q_PROPERTY(int maximumBatch READ maximumBatch CONSTANT)
+    Q_PROPERTY(bool offlineCheckRunning READ offlineCheckRunning NOTIFY changed)
+    Q_PROPERTY(QString offlineStatus READ offlineStatus NOTIFY changed)
     Q_PROPERTY(QString downloadStatus READ downloadStatus NOTIFY changed)
     Q_PROPERTY(QString downloadLog READ downloadLog NOTIFY changed)
     Q_PROPERTY(QString downloadFile READ downloadFile NOTIFY changed)
@@ -40,6 +42,9 @@ public:
     QString error() const { return m_error; }
     bool downloading() const { return m_downloading; }
     int maximumBatch() const { return 12; }
+    bool offlineCheckRunning() const { return m_offlineCheckRunning; }
+    QString offlineStatus() const { return m_offlineStatus; }
+    Q_INVOKABLE void checkOfflineStatus();
     Q_INVOKABLE int countCached(const QStringList &nevras) const;
     Q_INVOKABLE qulonglong cachedBytes(const QStringList &nevras) const;
     QString downloadStatus() const { return m_downloadStatus; }
@@ -83,6 +88,9 @@ private:
     int m_lastReusedCount = 0;
     int m_lastRejectedCount = 0;
     bool m_downloading = false;
+    bool m_offlineCheckRunning = false;
+    QString m_offlineStatus;
+    QPointer<QProcess> m_offlineQuery;
     QElapsedTimer m_elapsedTimer;
     QTimer m_progressTimer;
     int m_count = 0;
