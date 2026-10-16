@@ -162,6 +162,8 @@ void SystemUpdateModel::invalidatePreview()
     m_previewBuffer.clear();
     m_previewText.clear();
     m_previewError.clear();
+    m_previewSelectionCount = 0;
+    m_previewAllUpdates = false;
     setPreviewRunning(false);
     emit previewChanged();
 }
@@ -208,6 +210,8 @@ void SystemUpdateModel::previewPlan()
     }
 
     invalidatePreview();
+    m_previewSelectionCount = m_selected.size();
+    m_previewAllUpdates = allSelected;
     auto *process = new QProcess(this);
     m_previewProcess = process;
     process->setProgram(QStringLiteral("dnf5"));
