@@ -12,7 +12,6 @@
 #include <QSet>
 #include <QDebug>
 #include <QProcessEnvironment>
-#include <QRegularExpression>
 
 namespace {
 
@@ -86,10 +85,6 @@ SystemUpdateCache::~SystemUpdateCache()
     if (m_downloadProcess && m_downloadProcess->state() != QProcess::NotRunning) {
         m_downloadProcess->kill();
         m_downloadProcess->waitForFinished(3000);
-    }
-    if (m_offlineQuery && m_offlineQuery->state() != QProcess::NotRunning) {
-        m_offlineQuery->kill();
-        m_offlineQuery->waitForFinished(1500);
     }
 }
 
@@ -184,49 +179,53 @@ qulonglong SystemUpdateCache::cachedBytes(const QStringList &nevras) const
 
 void SystemUpdateCache::checkOfflineStatus()
 {
-    if (m_offlineCheckRunning)
-        return;
-    m_offlineStatus = QStringLiteral("DNF5 çevrimdışı işlem durumu sorgulanıyor...");
-    m_offlineCheckRunning = true;
-    auto *process = new QProcess(this);
-    m_offlineQuery = process;
-    process->setProgram(QStringLiteral("dnf5"));
-    process->setArguments({QStringLiteral("offline"), QStringLiteral("status")});
-    process->setProcessChannelMode(QProcess::MergedChannels);
+    // dnf5 offline status is not reliably unprivileged on Fedora 44: it may
+    // attempt to create directories in /var/lib/dnf/offline and fail with
+    // EACCES. Inspect standard systemd markers and DNF5 state directories
+    // WITHOUT invoking dnf5, privilege escalation or writing any files.
+    // These indicators are informative, not an authoritative solver state.
+    const QFileInfo marker(QStringLiteral("/system-update"));
+    const QFileInfo etcMarker(QStringLiteral("/etc/system-update"));
+    const bool bootMarker = marker.isSymLink() || marker.exists()
+                         || etcMarker.isSymLink() || etcMarker.exists();
 
-    connect(process, &QProcess::finished, this,
-            [this, process](int code, QProcess::ExitStatus status) {
-        if (m_offlineQuery != process)
-            return;
-        const QString result = QString::fromLocal8Bit(process->readAllStandardOutput()).trimmed().left(3000);
-        m_offlineQuery = nullptr;
-        process->deleteLater();
-        m_offlineCheckRunning = false;
-        m_offlineStatus = result.isEmpty()
-            ? QStringLiteral("DNF5 çevrimdışı işlem durumu okunamadı (kod %1).").arg(code)
-            : result;
-        if (status != QProcess::NormalExit)
-            m_offlineStatus.prepend(QStringLiteral("Sorgu beklenmedik biçimde bitti. "));
-        qInfo() << "SYSTEM UPDATE OFFLINE STATUS:" << code << m_offlineStatus.left(200);
-        emit changed();
-    });
-    connect(process, &QProcess::errorOccurred, this,
-            [this, process](QProcess::ProcessError error) {
-        if (error != QProcess::FailedToStart || m_offlineQuery != process)
-            return;
-        m_offlineQuery = nullptr;
-        process->deleteLater();
-        m_offlineCheckRunning = false;
-        m_offlineStatus = QStringLiteral("DNF5 çevrimdışı durum sorgusu başlatılamadı.");
-        emit changed();
-    });
-    process->start();
-    QTimer::singleShot(15000, process, [this, process]() {
-        if (m_offlineQuery == process && process->state() != QProcess::NotRunning) {
-            m_offlineStatus = QStringLiteral("DNF5 çevrimdışı durum sorgusu zaman aşımına uğradı.");
-            process->kill();
-        }
-    });
+    const QFileInfo currentState(QStringLiteral("/usr/lib/sysimage/libdnf5/offline"));
+    const QFileInfo legacyState(QStringLiteral("/var/lib/dnf/offline"));
+    const bool stateDirectoryVisible =
+        (currentState.isDir() && currentState.isReadable())
+        || (legacyState.isDir() && legacyState.isReadable());
+    const bool stateDirectoryExists = currentState.exists() || legacyState.exists();
+
+    if (bootMarker) {
+        m_offlineStatus = QStringLiteral(
+            "systemd çevrimdışı güncelleme başlatma işareti bulundu. "
+            "Hazırlanmış bir çevrimdışı işlem olabilir; paketleri, işlem "
+            "geçerliliğini ve yeniden başlatma güvenliğini ayrıca doğrulayın.");
+    } else if (stateDirectoryVisible) {
+        m_offlineStatus = QStringLiteral(
+            "Yeniden başlatma için çevrimdışı güncelleme işareti bulunamadı. "
+            "DNF5 durum dizini okunabiliyor; içinde geçerli veya bekleyen "
+            "bir işlem olduğu yalnızca dizin varlığından anlaşılamaz.");
+    } else if (stateDirectoryExists) {
+        m_offlineStatus = QStringLiteral(
+            "Çevrimdışı yeniden başlatma işareti bulunamadı. "
+            "DNF5 durum dizini mevcut ancak normal kullanıcıyla okunamıyor. "
+            "Hazırlanmış işlem olup olmadığı doğrulanamadı.");
+    } else {
+        m_offlineStatus = QStringLiteral(
+            "Çevrimdışı yeniden başlatma işareti görülmüyor. "
+            "DNF5 durum dosyaları da kullanıcı tarafından doğrulanamadı. "
+            "Bu sonuç kesin olarak işlem yok anlamına gelmez.");
+    }
+    m_offlineStatus += QStringLiteral(
+        "\nBu yalnızca salt okunur sistem göstergesi kontrolüdür; "
+        "DNF5 işlem durumu kesin olarak doğrulanmaz. "
+        "Hiçbir paket kurulmaz ve sistem yeniden başlatılmaz.");
+    m_offlineCheckRunning = false;
+    qInfo() << "SYSTEM UPDATE OFFLINE INDICATORS (read-only):"
+            << "boot marker:" << bootMarker
+            << "state readable:" << stateDirectoryVisible
+            << "state exists:" << stateDirectoryExists;
     emit changed();
 }
 
