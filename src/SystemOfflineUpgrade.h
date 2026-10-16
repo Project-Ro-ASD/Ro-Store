@@ -15,6 +15,7 @@ class SystemOfflineUpgrade : public QObject {
     Q_PROPERTY(bool ready READ ready NOTIFY changed)
     Q_PROPERTY(bool preparing READ preparing NOTIFY changed)
     Q_PROPERTY(bool outcomeUnknown READ outcomeUnknown NOTIFY changed)
+    Q_PROPERTY(bool recoveryVerified READ recoveryVerified NOTIFY changed)
     Q_PROPERTY(QString message READ message NOTIFY changed)
     Q_PROPERTY(QString planText READ planText NOTIFY changed)
     Q_PROPERTY(int planCount READ planCount NOTIFY changed)
@@ -29,6 +30,7 @@ public:
     bool ready() const { return m_ready; }
     bool preparing() const { return m_preparing; }
     bool outcomeUnknown() const { return m_outcomeUnknown; }
+    bool recoveryVerified() const { return m_recoveryVerified; }
     bool offlineReady() const { return m_offlineReady; }
     QString message() const { return m_message; }
     QString planText() const { return m_planText; }
@@ -38,6 +40,8 @@ public:
     Q_INVOKABLE void stageOffline();
     Q_INVOKABLE void abandonPlan();
     Q_INVOKABLE void requestCancellation();
+    Q_INVOKABLE void recheckRecovery();
+    Q_INVOKABLE void acknowledgeRecovery();
 signals:
     void changed();
 private:
@@ -59,4 +63,5 @@ private:
     bool m_outcomeUnknown = false;
     bool m_offlineReady = false;
     bool m_locked = false;
+    bool m_recoveryVerified = false;
 };
