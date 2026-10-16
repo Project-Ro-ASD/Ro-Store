@@ -49,7 +49,7 @@ Item {
         modal: true
         title: "Seçilen RPM dosyalarını indir"
         standardButtons: Dialog.Yes | Dialog.No
-        onAccepted: updateCache.downloadSelected(packageIds)
+        onAccepted: updateCache.downloadSelected(packageIds, updates.selectedDownloadBytes, updates.selectedUnknownSizes)
         Label {
             width: parent.width
             wrapMode: Text.WordWrap
