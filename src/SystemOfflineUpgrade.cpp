@@ -347,8 +347,8 @@ bool SystemOfflineUpgrade::writeJournal()
     obj.insert(QStringLiteral("selection_count"), m_requested.size());
     obj.insert(QStringLiteral("plan_count"), m_planCount);
     obj.insert(QStringLiteral("type"), QStringLiteral("offline-system-upgrade"));
-    file.write(QJsonDocument(obj).toJson(QJsonDocument::Compact));
-    return file.commit();
+    const QByteArray payload = QJsonDocument(obj).toJson(QJsonDocument::Compact);
+    return file.write(payload) == payload.size() && file.commit();
 }
 
 void SystemOfflineUpgrade::stageOffline()
