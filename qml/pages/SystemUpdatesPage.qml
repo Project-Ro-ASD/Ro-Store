@@ -12,7 +12,8 @@ Item {
     ThemeMetrics { id: metrics }
     SystemPalette { id: palette }
     SystemUpdateModel { id: updates }
-    SystemUpdateCache { id: updateCache }
+    property var packageTransactionManager: null
+    SystemUpdateCache { id: updateCache; packageTransactionManager: page.packageTransactionManager }
 
     function formatCacheBytes(bytes) {
         if (bytes < 1048576)
