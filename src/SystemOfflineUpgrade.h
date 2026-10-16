@@ -23,6 +23,7 @@ class SystemOfflineUpgrade : public QObject {
     Q_PROPERTY(QString planText READ planText NOTIFY changed)
     Q_PROPERTY(int planCount READ planCount NOTIFY changed)
     Q_PROPERTY(int removalCount READ removalCount NOTIFY changed)
+    Q_PROPERTY(bool unsafePlan READ unsafePlan NOTIFY changed)
     Q_PROPERTY(bool kernelAffected READ kernelAffected NOTIFY changed)
     Q_PROPERTY(qulonglong planBytes READ planBytes NOTIFY changed)
     Q_PROPERTY(qulonglong downloadedBytes READ downloadedBytes NOTIFY changed)
@@ -48,6 +49,7 @@ public:
     QString planText() const { return m_planText; }
     int planCount() const { return m_planCount; }
     int removalCount() const { return m_removalCount; }
+    bool unsafePlan() const { return m_unsafePlan; }
     bool kernelAffected() const { return m_kernelAffected; }
     qulonglong planBytes() const { return m_planBytes; }
     qulonglong downloadedBytes() const { return m_downloadedBytes; }
@@ -68,6 +70,7 @@ private:
     void releaseLock();
     void verifyOfflineStatus();
     void beginOfflineStage();
+    void beginConfirmedReboot();
     QString journalPath() const;
     bool writeJournal();
     QPointer<QObject> m_manager;
@@ -77,6 +80,7 @@ private:
     QString m_planText;
     int m_planCount = 0;
     int m_removalCount = 0;
+    bool m_unsafePlan = false;
     bool m_kernelAffected = false;
     bool m_rebootRequestRunning = false;
     bool m_clearingPrepared = false;
