@@ -10,6 +10,7 @@
 #include <QTemporaryDir>
 #include <QTimer>
 #include <QSet>
+#include <QTimer>
 
 SystemUpdateCache::SystemUpdateCache(QObject *parent) : QObject(parent)
 {
@@ -164,6 +165,13 @@ void SystemUpdateCache::downloadSelected(const QStringList &nevras)
         completeDownload(true, -1);
     });
     process->start();
+    QTimer::singleShot(300000, process, [this, process]() {
+        if (m_downloadProcess == process && process->state() != QProcess::NotRunning) {
+            m_downloadStatus = QStringLiteral("İndirme 5 dakikalık zaman sınırına ulaştı; durduruluyor.");
+            process->kill();
+            emit changed();
+        }
+    });
     emit changed();
 }
 
