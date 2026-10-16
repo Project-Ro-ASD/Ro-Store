@@ -630,7 +630,7 @@ Item {
                         Layout.preferredHeight: Math.max(40, metrics.fontPx(40))
                         Layout.preferredWidth: Math.max(160, Math.min(260, parent.width * 0.66))
                         font.pixelSize: metrics.fontSmall
-                        enabled: offlineUpdate.ready && !offlineUpdate.preparing
+                        enabled: offlineUpdate.ready && !offlineUpdate.preparing && !offlineUpdate.checkingPreparation
                         onClicked: offlinePrepareConfirmation.open()
                     }
                     ThemedActionButton {
