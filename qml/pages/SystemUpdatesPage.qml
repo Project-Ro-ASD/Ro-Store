@@ -14,6 +14,7 @@ Item {
     SystemUpdateModel { id: updates }
     property var packageTransactionManager: null
     SystemUpdateCache { id: updateCache; packageTransactionManager: page.packageTransactionManager }
+    SystemOfflineUpgrade { id: offlineUpdate; transactionManager: page.packageTransactionManager }
 
     function formatCacheBytes(bytes) {
         if (bytes < 1048576)
@@ -63,6 +64,29 @@ Item {
                   " (bağımlılıklar ve depo verisi hariç; gerçek trafik farklı olabilir). " +
                   "Bu yalnızca indirme testidir; hiçbir RPM kurulmayacak. " +
                   "Sınırlı internet kullanıyorsan toplamı incelemeden onaylama."
+        }
+    }
+
+    Dialog {
+        id: offlinePrepareConfirmation
+        parent: Overlay.overlay
+        anchors.centerIn: parent
+        width: Math.min(page.width - 24, 530)
+        modal: true
+        title: "Sistem güncellemesini çevrimdışı hazırla"
+        standardButtons: Dialog.Yes | Dialog.No
+        onAccepted: offlineUpdate.stageOffline()
+        Label {
+            width: parent.width
+            wrapMode: Text.WordWrap
+            text: "DNF5 tarafından çözülen TEK işlem planı: " +
+                  offlineUpdate.planCount + " işlem; yaklaşık " +
+                  page.formatCacheBytes(offlineUpdate.planBytes) + " indirme. " +
+                  "Paket kaldırmaları dahil bütün DNF5 planını incelemiş olmalısın. " +
+                  "İndirilen paketler çevrimdışı uygulama için hazırlanacak. " +
+                  "Şimdi RPM KURULMAZ ve bilgisayar YENİDEN BAŞLATILMAZ. " +
+                  "İndirme miktarı Ro-Store'un bağımsız RPM önbelleğinden düşülmemiştir. " +
+                  "Hazırlamayı onaylıyor musun?"
         }
     }
 
@@ -371,6 +395,109 @@ Item {
                         font.family: "monospace"
                         font.pixelSize: metrics.fontSmall
                     }
+                }
+            }
+        }
+
+        Frame {
+            Layout.fillWidth: true
+            ColumnLayout {
+                anchors.fill: parent
+                spacing: metrics.spaceCompact
+                Label {
+                    Layout.fillWidth: true
+                    text: "DNF5 tek işlemli çevrimdışı sistem güncellemesi"
+                    font.family: metrics.systemFont.family
+                    font.pixelSize: metrics.fontBody
+                    font.bold: true
+                    color: palette.text
+                    wrapMode: Text.WordWrap
+                }
+                Label {
+                    Layout.fillWidth: true
+                    text: "Seçili güncellemeler ve tüm bağımlılıklar tek bir DNF5 işleminde çözümlenir. " +
+                          "Çevrimdışı hazırlama ayrıca onaylanır. Sistem şimdi güncellenmez ve " +
+                          "uygulama bilgisayarı kendiliğinden yeniden başlatmaz."
+                    font.pixelSize: metrics.fontSmall
+                    color: palette.text
+                    wrapMode: Text.WordWrap
+                }
+                RowLayout {
+                    Layout.fillWidth: true
+                    ThemedActionButton {
+                        text: offlineUpdate.busy ? "DNF5 planı bekleniyor..." : "Tek işlem planını çözümle"
+                        Layout.preferredWidth: Math.max(210, implicitWidth + 12)
+                        Layout.preferredHeight: Math.max(34, metrics.fontPx(34))
+                        font.pixelSize: metrics.fontSmall
+                        enabled: !offlineUpdate.busy && !offlineUpdate.outcomeUnknown
+                                 && !offlineUpdate.offlineReady
+                                 && !updateCache.downloading
+                                 && !updates.loading && !updates.previewRunning
+                                 && updates.selectedCount > 0
+                                 && updateCache.transactionAvailable
+                        onClicked: offlineUpdate.resolve(updates.selectedNevras())
+                    }
+                    ThemedActionButton {
+                        text: "Planı bırak"
+                        Layout.preferredHeight: Math.max(34, metrics.fontPx(34))
+                        Layout.preferredWidth: Math.max(96, implicitWidth + 12)
+                        font.pixelSize: metrics.fontSmall
+                        enabled: offlineUpdate.ready && !offlineUpdate.preparing
+                        onClicked: offlineUpdate.abandonPlan()
+                    }
+                    Item { Layout.fillWidth: true }
+                }
+                Label {
+                    Layout.fillWidth: true
+                    visible: offlineUpdate.message.length > 0
+                    text: offlineUpdate.message
+                    font.pixelSize: metrics.fontSmall
+                    color: palette.text
+                    wrapMode: Text.WordWrap
+                }
+                ScrollView {
+                    Layout.fillWidth: true
+                    Layout.preferredHeight: 175
+                    visible: offlineUpdate.ready || offlineUpdate.preparing || offlineUpdate.offlineReady
+                    TextArea {
+                        text: offlineUpdate.planText
+                        readOnly: true
+                        selectByMouse: true
+                        wrapMode: TextEdit.NoWrap
+                        font.family: "monospace"
+                        font.pixelSize: metrics.fontSmall
+                    }
+                }
+                RowLayout {
+                    Layout.fillWidth: true
+                    visible: offlineUpdate.ready || offlineUpdate.preparing
+                    ThemedActionButton {
+                        text: "Çevrimdışı güncellemeyi hazırla"
+                        Layout.preferredHeight: Math.max(34, metrics.fontPx(34))
+                        Layout.preferredWidth: Math.max(230, implicitWidth + 12)
+                        font.pixelSize: metrics.fontSmall
+                        enabled: offlineUpdate.ready && !offlineUpdate.preparing
+                        onClicked: offlinePrepareConfirmation.open()
+                    }
+                    ThemedActionButton {
+                        text: "İptal iste"
+                        Layout.preferredHeight: Math.max(34, metrics.fontPx(34))
+                        Layout.preferredWidth: Math.max(100, implicitWidth + 12)
+                        font.pixelSize: metrics.fontSmall
+                        enabled: offlineUpdate.preparing
+                        onClicked: offlineUpdate.requestCancellation()
+                    }
+                }
+                Label {
+                    Layout.fillWidth: true
+                    visible: offlineUpdate.offlineReady
+                    text: "Çevrimdışı hazırlama kaydı oluşturuldu. Şimdi kurulum yapılmadı. " +
+                          "Yeniden başlatma, geçmiş ve kurtarma kontrolü ayrı onay gerektirir; " +
+                          "DNF5 durumunu doğrulamadan bir kez daha hazırlama başlatmayın."
+                    font.pixelSize: metrics.fontSmall
+                    font.bold: true
+                    color: palette.text
+                    wrapMode: Text.WordWrap
                 }
             }
         }
