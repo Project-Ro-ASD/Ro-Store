@@ -10,7 +10,7 @@
 #include <QTemporaryDir>
 #include <QTimer>
 #include <QSet>
-#include <QTimer>
+#include <QDebug>
 
 SystemUpdateCache::SystemUpdateCache(QObject *parent) : QObject(parent)
 {
@@ -98,8 +98,10 @@ void SystemUpdateCache::clear()
 
 void SystemUpdateCache::downloadSelected(const QStringList &nevras)
 {
-    if (m_downloading || nevras.isEmpty())
+    if (m_downloading || nevras.isEmpty()) {
+        qWarning() << "SYSTEM UPDATE DOWNLOAD SKIPPED: active or empty selection";
         return;
+    }
     if (nevras.size() > 3) {
         m_error = QStringLiteral("İlk güvenlik testinde en fazla 3 paket indirilebilir.");
         emit changed();
@@ -131,6 +133,8 @@ void SystemUpdateCache::downloadSelected(const QStringList &nevras)
     }
     m_requested = nevras;
     m_error.clear();
+    qInfo() << "SYSTEM UPDATE DOWNLOAD START (download only):" << nevras
+            << "staging directory:" << m_staging->path();
     m_downloadStatus = QStringLiteral("%1 RPM için indirme başlatıldı.").arg(nevras.size());
     auto *process = new QProcess(this);
     m_downloadProcess = process;
@@ -144,6 +148,8 @@ void SystemUpdateCache::downloadSelected(const QStringList &nevras)
         if (m_downloadProcess != process)
             return;
         const QString log = QString::fromLocal8Bit(process->readAllStandardOutput()).trimmed();
+        if (!log.isEmpty())
+            qInfo().noquote() << "SYSTEM UPDATE DOWNLOAD OUTPUT:" << log.right(300);
         if (!log.isEmpty()) {
             m_downloadStatus = log.right(300);
             emit changed();
@@ -179,7 +185,8 @@ void SystemUpdateCache::cancelDownload()
 {
     if (!m_downloading || !m_downloadProcess)
         return;
-    m_downloadStatus = QStringLiteral("İndirme iptal ediliyor, tamamlanmış RPM dosyaları korunacak.");
+    m_downloadStatus = QStringLiteral("İndirme iptal ediliyor; doğrulanan tamamlanmış dosyalar korunacak.");
+    qInfo() << "SYSTEM UPDATE DOWNLOAD CANCEL REQUESTED";
     m_downloadProcess->kill(); // Only the standalone dnf5 download worker; no RPM transaction.
     emit changed();
 }
@@ -187,6 +194,7 @@ void SystemUpdateCache::cancelDownload()
 void SystemUpdateCache::completeDownload(bool cancelled, int exitCode)
 {
     int kept = 0;
+    int rejected = 0;
     // Fail closed: only retain RPMs verified by the local RPM signature checker
     // AND matching one of the exact requested NEVRAs. A file extension alone
     // is not evidence of correctness.
@@ -195,38 +203,61 @@ void SystemUpdateCache::completeDownload(bool cancelled, int exitCode)
         const QFileInfoList files = folder.entryInfoList(
             {QStringLiteral("*.rpm")}, QDir::Files | QDir::NoSymLinks);
         for (const QFileInfo &file : files) {
-            if (file.isSymLink() || !file.isFile() || file.size() <= 0)
+            if (file.isSymLink() || !file.isFile() || file.size() <= 0) {
+                ++rejected;
                 continue;
+            }
             QProcess identify;
             identify.start(QStringLiteral("rpm"),
                 {QStringLiteral("-qp"), QStringLiteral("--qf"),
                  QStringLiteral("%{NAME}-%{EPOCHNUM}:%{VERSION}-%{RELEASE}.%{ARCH}"),
                  file.absoluteFilePath()});
-            if (!identify.waitForFinished(8000) || identify.exitCode() != 0)
+            if (!identify.waitForFinished(8000) || identify.exitCode() != 0) {
+                ++rejected;
+                qWarning() << "SYSTEM UPDATE DOWNLOAD RPM METADATA REJECTED:" << file.fileName();
                 continue;
+            }
             QString identity = QString::fromUtf8(identify.readAllStandardOutput()).trimmed();
             if (!m_requested.contains(identity)) {
                 // DNF candidate EVR commonly omits an epoch of zero.
                 identity.replace(QStringLiteral("-0:"), QStringLiteral("-"));
-                if (!m_requested.contains(identity))
+                if (!m_requested.contains(identity)) {
+                    ++rejected;
+                    qWarning() << "SYSTEM UPDATE DOWNLOAD UNEXPECTED RPM:" << file.fileName();
                     continue;
+                }
             }
             QProcess signature;
             signature.start(QStringLiteral("rpm"), {QStringLiteral("--checksig"), file.absoluteFilePath()});
-            if (!signature.waitForFinished(8000) || signature.exitCode() != 0)
+            if (!signature.waitForFinished(8000) || signature.exitCode() != 0) {
+                ++rejected;
+                qWarning() << "SYSTEM UPDATE DOWNLOAD SIGNATURE CHECK FAILED:"
+                           << file.fileName()
+                           << QString::fromLocal8Bit(signature.readAllStandardOutput()).left(250)
+                           << QString::fromLocal8Bit(signature.readAllStandardError()).left(250);
                 continue;
+            }
             const QString check = QString::fromLocal8Bit(signature.readAllStandardOutput());
             if (!check.contains(QStringLiteral("signatures OK"), Qt::CaseInsensitive)
                 || check.contains(QStringLiteral("NOT OK"), Qt::CaseInsensitive)
-                || check.contains(QStringLiteral("NOKEY"), Qt::CaseInsensitive))
+                || check.contains(QStringLiteral("NOKEY"), Qt::CaseInsensitive)) {
+                ++rejected;
+                qWarning() << "SYSTEM UPDATE DOWNLOAD SIGNATURE NOT VERIFIED:"
+                           << file.fileName() << check.left(250);
                 continue;
+            }
             const QString destination = QDir(m_root).filePath(file.fileName());
             if (QFileInfo::exists(destination)) {
                 // Never overwrite a previously staged RPM based on filename.
+                qInfo() << "SYSTEM UPDATE DOWNLOAD ALREADY CACHED:" << file.fileName();
                 continue;
             }
             if (QFile::rename(file.absoluteFilePath(), destination))
                 ++kept;
+            else {
+                ++rejected;
+                qWarning() << "SYSTEM UPDATE DOWNLOAD CACHE MOVE FAILED:" << file.fileName();
+            }
         }
     }
     m_staging.reset(); // Discard incomplete/unverified files only.
@@ -234,6 +265,16 @@ void SystemUpdateCache::completeDownload(bool cancelled, int exitCode)
     m_downloading = false;
     m_downloadStatus = cancelled
         ? QStringLiteral("İndirme durduruldu; %1 doğrulanmış RPM korundu.").arg(kept)
-        : QStringLiteral("İndirme bitti (kod %1); %2 doğrulanmış RPM korundu.").arg(exitCode).arg(kept);
+        : QStringLiteral("İndirme bitti (çıkış kodu %1); %2 doğrulanmış RPM korundu, %3 dosya doğrulanamadı.")
+              .arg(exitCode).arg(kept).arg(rejected);
     refresh();
+    if (!cancelled && (exitCode != 0 || rejected > 0 || kept == 0)) {
+        m_error = QStringLiteral("İndirme tamamlanamadı veya RPM doğrulaması başarısız. "
+                                 "Ayrıntılar için terminalde SYSTEM UPDATE DOWNLOAD kayıtlarını kontrol edin.");
+        emit changed();
+    }
+    qInfo() << "SYSTEM UPDATE DOWNLOAD FINISHED:"
+            << "cancelled:" << cancelled << "exit:" << exitCode
+            << "kept:" << kept << "rejected:" << rejected
+            << "cache count:" << m_count;
 }
