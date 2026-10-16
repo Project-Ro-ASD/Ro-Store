@@ -20,6 +20,14 @@ SystemUpdateCache::SystemUpdateCache(QObject *parent) : QObject(parent)
     refresh();
 }
 
+SystemUpdateCache::~SystemUpdateCache()
+{
+    if (m_downloadProcess && m_downloadProcess->state() != QProcess::NotRunning) {
+        m_downloadProcess->kill();
+        m_downloadProcess->waitForFinished(3000);
+    }
+}
+
 QString SystemUpdateCache::path() const { return m_root; }
 
 void SystemUpdateCache::refresh()
