@@ -15,6 +15,15 @@ Item {
     property var packageTransactionManager: null
     SystemUpdateCache { id: updateCache; packageTransactionManager: page.packageTransactionManager }
     SystemOfflineUpgrade { id: offlineUpdate; transactionManager: page.packageTransactionManager }
+    Connections {
+        target: updates
+        function onSelectionChanged() {
+            offlineUpdate.invalidateIfSelectionChanged(updates.selectedNevras())
+        }
+        function onUpdatesChanged() {
+            offlineUpdate.invalidateIfSelectionChanged(updates.selectedNevras())
+        }
+    }
 
     function formatCacheBytes(bytes) {
         if (bytes < 1048576)
