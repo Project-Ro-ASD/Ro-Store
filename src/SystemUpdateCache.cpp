@@ -67,6 +67,57 @@ VerifiedRpm verifyStagedRpm(const QString &filePath, const QString &expectedNevr
     return { true, {} };
 }
 
+// RPM files on disk omit the epoch (for example: 3:615.78.08 ->
+// 615.78.08). The DNF5 repoquery candidate contains the epoch.
+// Generate filename candidates only to locate the file; trust ONLY the
+// package metadata and signature verified by verifyStagedRpm().
+QStringList cachedFilenameCandidates(const QString &nevra)
+{
+    QStringList names { nevra + QStringLiteral(".rpm") };
+    const qsizetype colon = nevra.indexOf(QChar(':'));
+    if (colon > 0) {
+        const qsizetype dash = nevra.lastIndexOf(QChar('-'), colon - 1);
+        if (dash >= 0) {
+            const QString epoch = nevra.mid(dash + 1, colon - dash - 1);
+            bool numeric = !epoch.isEmpty();
+            for (const QChar character : epoch)
+                numeric = numeric && character.isDigit();
+            if (numeric) {
+                const QString withoutEpoch =
+                    nevra.left(dash + 1) + nevra.mid(colon + 1) + QStringLiteral(".rpm");
+                if (!names.contains(withoutEpoch))
+                    names.append(withoutEpoch);
+            }
+        }
+    }
+    return names;
+}
+
+struct CachedRpmLookup {
+    QString verifiedPath;
+    QString invalidPath;
+    QString invalidReason;
+};
+
+CachedRpmLookup findCachedRpm(const QString &root, const QString &nevra)
+{
+    CachedRpmLookup lookup;
+    for (const QString &name : cachedFilenameCandidates(nevra)) {
+        const QString path = QDir(root).filePath(name);
+        const QFileInfo file(path);
+        if (!file.exists() && !file.isSymLink())
+            continue;
+        const VerifiedRpm verified = verifyStagedRpm(path, nevra);
+        if (verified.valid) {
+            lookup.verifiedPath = path;
+            return lookup;
+        }
+        lookup.invalidPath = path;
+        lookup.invalidReason = verified.reason;
+    }
+    return lookup;
+}
+
 } // namespace
 
 SystemUpdateCache::SystemUpdateCache(QObject *parent) : QObject(parent)
@@ -193,11 +244,9 @@ void SystemUpdateCache::clear()
 int SystemUpdateCache::countCached(const QStringList &nevras) const
 {
     int count = 0;
-    for (const QString &nevra : nevras) {
-        const QString file = QDir(m_root).filePath(nevra + QStringLiteral(".rpm"));
-        if (QFileInfo::exists(file) && verifyStagedRpm(file, nevra).valid)
+    for (const QString &nevra : nevras)
+        if (!findCachedRpm(m_root, nevra).verifiedPath.isEmpty())
             ++count;
-    }
     return count;
 }
 
@@ -205,9 +254,9 @@ qulonglong SystemUpdateCache::cachedBytes(const QStringList &nevras) const
 {
     qulonglong bytes = 0;
     for (const QString &nevra : nevras) {
-        const QString file = QDir(m_root).filePath(nevra + QStringLiteral(".rpm"));
-        if (QFileInfo::exists(file) && verifyStagedRpm(file, nevra).valid)
-            bytes += static_cast<qulonglong>(QFileInfo(file).size());
+        const QString path = findCachedRpm(m_root, nevra).verifiedPath;
+        if (!path.isEmpty())
+            bytes += static_cast<qulonglong>(QFileInfo(path).size());
     }
     return bytes;
 }
@@ -317,16 +366,16 @@ void SystemUpdateCache::downloadSelected(const QStringList &nevras,
     QStringList missing;
     int reused = 0;
     for (const QString &nevra : nevras) {
-        const QString cachedPath = QDir(m_root).filePath(nevra + QStringLiteral(".rpm"));
-        if (QFileInfo::exists(cachedPath)) {
-            const VerifiedRpm checked = verifyStagedRpm(cachedPath, nevra);
-            if (checked.valid) {
-                ++reused;
-                continue;
-            }
-            // Never overwrite or delete an untrusted cached file automatically.
+        const CachedRpmLookup cached = findCachedRpm(m_root, nevra);
+        if (!cached.verifiedPath.isEmpty()) {
+            ++reused;
+            continue;
+        }
+        if (!cached.invalidPath.isEmpty()) {
+            // Never silently overwrite/remove an existing untrusted file.
+            m_staging.reset();
             m_error = QStringLiteral("Önbellekte doğrulanamayan RPM var: ")
-                      + nevra + QStringLiteral(" — ") + checked.reason
+                      + nevra + QStringLiteral(" — ") + cached.invalidReason
                       + QStringLiteral(". Dosyayı inceleyin veya önbelleği temizleyin.");
             emit changed();
             return;
@@ -452,8 +501,16 @@ void SystemUpdateCache::completeDownload(bool cancelled, int exitCode)
             }
             const QString destination = QDir(m_root).filePath(file.fileName());
             if (QFileInfo::exists(destination)) {
-                // Never overwrite a previously staged RPM based on filename.
-                qInfo() << "SYSTEM UPDATE DOWNLOAD ALREADY CACHED:" << file.fileName();
+                // Another file with the same name is NOT enough to call it
+                // cached. Revalidate the existing package and signing key.
+                if (verifyStagedRpm(destination, matchedNevra).valid) {
+                    ++m_reusedThisRun;
+                    qInfo() << "SYSTEM UPDATE DOWNLOAD ALREADY CACHED:" << file.fileName();
+                } else {
+                    ++rejected;
+                    qWarning() << "SYSTEM UPDATE DOWNLOAD DESTINATION CONFLICT:"
+                               << file.fileName() << "existing RPM could not be verified";
+                }
                 continue;
             }
             if (QFile::rename(file.absoluteFilePath(), destination))
