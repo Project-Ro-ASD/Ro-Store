@@ -12,6 +12,7 @@
 #include <QSet>
 #include <QDebug>
 #include <QProcessEnvironment>
+#include <QRegularExpression>
 
 namespace {
 
@@ -75,6 +76,8 @@ SystemUpdateCache::SystemUpdateCache(QObject *parent) : QObject(parent)
     // Keep new system-update assets away from the v0.5 temporary download
     // folders, where cancellation currently deletes in-flight RPMs.
     m_root = QDir(base).filePath(QStringLiteral("system-updates/rpms"));
+    m_progressTimer.setInterval(350);
+    connect(&m_progressTimer, &QTimer::timeout, this, &SystemUpdateCache::pollStagingProgress);
     refresh();
 }
 
@@ -218,6 +221,15 @@ void SystemUpdateCache::downloadSelected(const QStringList &nevras)
     }
     m_requested = missing;
     m_error.clear();
+    m_downloadLog.clear();
+    m_pendingOutput.clear();
+    m_downloadFile.clear();
+    m_downloadPercent = -1;
+    m_stagedBytes = 0;
+    m_elapsedSeconds = 0;
+    m_seenPackageDownloads = false;
+    m_elapsedTimer.start();
+    m_progressTimer.start();
     qInfo() << "SYSTEM UPDATE DOWNLOAD START (download only):" << missing
             << "staging directory:" << m_staging->path();
     m_downloadStatus = QStringLiteral("%1 RPM indiriliyor; %2 doğrulanmış dosya yeniden kullanılacak.").arg(missing.size()).arg(reused);
@@ -232,17 +244,12 @@ void SystemUpdateCache::downloadSelected(const QStringList &nevras)
     connect(process, &QProcess::readyReadStandardOutput, this, [this, process]() {
         if (m_downloadProcess != process)
             return;
-        const QString log = QString::fromLocal8Bit(process->readAllStandardOutput()).trimmed();
-        if (!log.isEmpty())
-            qInfo().noquote() << "SYSTEM UPDATE DOWNLOAD OUTPUT:" << log.right(300);
-        if (!log.isEmpty()) {
-            m_downloadStatus = log.right(300);
-            emit changed();
-        }
+        appendDownloadOutput(process->readAllStandardOutput());
     });
     connect(process, &QProcess::finished, this, [this, process](int code, QProcess::ExitStatus status) {
         if (m_downloadProcess != process)
             return;
+        appendDownloadOutput(process->readAllStandardOutput());
         m_downloadProcess = nullptr;
         process->deleteLater();
         completeDownload(status != QProcess::NormalExit, code);
@@ -278,6 +285,8 @@ void SystemUpdateCache::cancelDownload()
 
 void SystemUpdateCache::completeDownload(bool cancelled, int exitCode)
 {
+    m_progressTimer.stop();
+    pollStagingProgress();
     int kept = 0;
     int rejected = 0;
     // Fail closed: only retain RPMs verified by the local RPM signature checker
@@ -341,4 +350,52 @@ void SystemUpdateCache::completeDownload(bool cancelled, int exitCode)
             << "cancelled:" << cancelled << "exit:" << exitCode
             << "kept:" << kept << "rejected:" << rejected
             << "cache count:" << m_count;
+}
+
+
+void SystemUpdateCache::appendDownloadOutput(const QByteArray &bytes)
+{
+    if (bytes.isEmpty())
+        return;
+    // DNF5 may write CR-only terminal updates. Keep only a bounded tail.
+    m_pendingOutput += QString::fromLocal8Bit(bytes);
+    m_pendingOutput.replace(QChar('\r'), QChar('\n'));
+    const QStringList rows = m_pendingOutput.split(QChar('\n'));
+    m_pendingOutput = rows.constLast().right(1000);
+    static const QRegularExpression percentPattern(
+        QStringLiteral(R"(\b(100|[1-9]?[0-9])%\b?)"));
+    for (int i = 0; i + 1 < rows.size(); ++i) {
+        const QString row = rows.at(i).trimmed();
+        if (row.isEmpty())
+            continue;
+        qInfo().noquote() << "SYSTEM UPDATE DOWNLOAD OUTPUT:" << row.right(300);
+        m_downloadLog += row.left(600) + QChar('\n');
+        if (m_downloadLog.size() > 14000)
+            m_downloadLog = m_downloadLog.right(14000);
+        m_downloadStatus = row.left(320);
+        if (row.contains(QStringLiteral("Downloading Packages:"), Qt::CaseInsensitive))
+            m_seenPackageDownloads = true;
+        if (m_seenPackageDownloads) {
+            const auto match = percentPattern.match(row);
+            if (match.hasMatch()) {
+                m_downloadPercent = match.captured(1).toInt();
+                m_downloadFile = row.left(match.capturedStart(0)).trimmed().left(150);
+            }
+        }
+    }
+    emit changed();
+}
+
+void SystemUpdateCache::pollStagingProgress()
+{
+    if (m_elapsedTimer.isValid())
+        m_elapsedSeconds = static_cast<int>(m_elapsedTimer.elapsed() / 1000);
+    m_stagedBytes = 0;
+    if (m_staging && m_staging->isValid()) {
+        const QDir folder(m_staging->path());
+        const QFileInfoList files = folder.entryInfoList(QDir::Files | QDir::NoSymLinks);
+        for (const QFileInfo &file : files)
+            m_stagedBytes += static_cast<qulonglong>(qMax<qint64>(0, file.size()));
+    }
+    emit changed();
 }
