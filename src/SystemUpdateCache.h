@@ -75,7 +75,10 @@ private:
     void completeDownload(bool cancelled, int exitCode);
     void appendDownloadOutput(const QByteArray &bytes);
     void pollStagingProgress();
+private slots:
     void checkTransactionConflict();
+
+private:
     QPointer<QObject> m_transactionManager;
     QString m_root;
     QPointer<QProcess> m_downloadProcess;
