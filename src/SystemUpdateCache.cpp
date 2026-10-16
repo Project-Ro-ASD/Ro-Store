@@ -188,17 +188,45 @@ void SystemUpdateCache::downloadSelected(const QStringList &nevras)
         emit changed();
         return;
     }
-    m_requested = nevras;
+    // Reuse verified completed RPMs rather than wasting bandwidth.
+    QStringList missing;
+    int reused = 0;
+    for (const QString &nevra : nevras) {
+        const QString cachedPath = QDir(m_root).filePath(nevra + QStringLiteral(".rpm"));
+        if (QFileInfo::exists(cachedPath)) {
+            const VerifiedRpm checked = verifyStagedRpm(cachedPath, nevra);
+            if (checked.valid) {
+                ++reused;
+                continue;
+            }
+            // Never overwrite or delete an untrusted cached file automatically.
+            m_error = QStringLiteral("Önbellekte doğrulanamayan RPM var: ")
+                      + nevra + QStringLiteral(" — ") + checked.reason
+                      + QStringLiteral(". Dosyayı inceleyin veya önbelleği temizleyin.");
+            emit changed();
+            return;
+        }
+        missing.append(nevra);
+    }
+    if (missing.isEmpty()) {
+        m_staging.reset();
+        m_error.clear();
+        m_downloadStatus = QStringLiteral("%1 doğrulanmış RPM zaten önbellekte; indirme gerekmedi.").arg(reused);
+        refresh();
+        qInfo() << "SYSTEM UPDATE DOWNLOAD CACHE HIT:" << reused;
+        return;
+    }
+    m_requested = missing;
     m_error.clear();
-    qInfo() << "SYSTEM UPDATE DOWNLOAD START (download only):" << nevras
+    qInfo() << "SYSTEM UPDATE DOWNLOAD START (download only):" << missing
             << "staging directory:" << m_staging->path();
-    m_downloadStatus = QStringLiteral("%1 RPM için indirme başlatıldı.").arg(nevras.size());
+    m_downloadStatus = QStringLiteral("%1 RPM indiriliyor; %2 doğrulanmış dosya yeniden kullanılacak.").arg(missing.size()).arg(reused);
     auto *process = new QProcess(this);
     m_downloadProcess = process;
     m_downloading = true;
     process->setProgram(QStringLiteral("/usr/bin/dnf5"));
     QStringList args { QStringLiteral("download"), QStringLiteral("--destdir"), m_staging->path() };
-    args.append(nevras);
+    args.append(missing);
     process->setArguments(args);
     process->setProcessChannelMode(QProcess::MergedChannels);
     connect(process, &QProcess::readyReadStandardOutput, this, [this, process]() {
@@ -264,43 +292,22 @@ void SystemUpdateCache::completeDownload(bool cancelled, int exitCode)
                 ++rejected;
                 continue;
             }
-            QProcess identify;
-            identify.start(QStringLiteral("rpm"),
-                {QStringLiteral("-qp"), QStringLiteral("--qf"),
-                 QStringLiteral("%{NAME}-%{EPOCHNUM}:%{VERSION}-%{RELEASE}.%{ARCH}"),
-                 file.absoluteFilePath()});
-            if (!identify.waitForFinished(8000) || identify.exitCode() != 0) {
-                ++rejected;
-                qWarning() << "SYSTEM UPDATE DOWNLOAD RPM METADATA REJECTED:" << file.fileName();
-                continue;
-            }
-            QString identity = QString::fromUtf8(identify.readAllStandardOutput()).trimmed();
-            if (!m_requested.contains(identity)) {
-                // DNF candidate EVR commonly omits an epoch of zero.
-                identity.replace(QStringLiteral("-0:"), QStringLiteral("-"));
-                if (!m_requested.contains(identity)) {
-                    ++rejected;
-                    qWarning() << "SYSTEM UPDATE DOWNLOAD UNEXPECTED RPM:" << file.fileName();
-                    continue;
+            // Match every completed RPM against the requested NEVRAs and
+            // verify the signing key in a fixed locale before preservation.
+            QString matchedNevra;
+            QString rejectionReason;
+            for (const QString &nevra : m_requested) {
+                const VerifiedRpm checked = verifyStagedRpm(file.absoluteFilePath(), nevra);
+                if (checked.valid) {
+                    matchedNevra = nevra;
+                    break;
                 }
+                rejectionReason = checked.reason;
             }
-            QProcess signature;
-            signature.start(QStringLiteral("rpm"), {QStringLiteral("--checksig"), file.absoluteFilePath()});
-            if (!signature.waitForFinished(8000) || signature.exitCode() != 0) {
+            if (matchedNevra.isEmpty()) {
                 ++rejected;
-                qWarning() << "SYSTEM UPDATE DOWNLOAD SIGNATURE CHECK FAILED:"
-                           << file.fileName()
-                           << QString::fromLocal8Bit(signature.readAllStandardOutput()).left(250)
-                           << QString::fromLocal8Bit(signature.readAllStandardError()).left(250);
-                continue;
-            }
-            const QString check = QString::fromLocal8Bit(signature.readAllStandardOutput());
-            if (!check.contains(QStringLiteral("signatures OK"), Qt::CaseInsensitive)
-                || check.contains(QStringLiteral("NOT OK"), Qt::CaseInsensitive)
-                || check.contains(QStringLiteral("NOKEY"), Qt::CaseInsensitive)) {
-                ++rejected;
-                qWarning() << "SYSTEM UPDATE DOWNLOAD SIGNATURE NOT VERIFIED:"
-                           << file.fileName() << check.left(250);
+                qWarning() << "SYSTEM UPDATE DOWNLOAD VERIFICATION REJECTED:"
+                           << file.fileName() << rejectionReason;
                 continue;
             }
             const QString destination = QDir(m_root).filePath(file.fileName());
