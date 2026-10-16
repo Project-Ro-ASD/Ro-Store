@@ -25,6 +25,9 @@ Item {
             ThemedIconButton {
                 text: "Geri"
                 themedIconName: "go-previous"
+                Layout.preferredHeight: Math.max(40, metrics.fontPx(40))
+                Layout.preferredWidth: Math.max(90, implicitWidth + 16)
+                font.pixelSize: metrics.fontBody
                 onClicked: page.backRequested()
             }
             Label {
@@ -39,6 +42,9 @@ Item {
             ThemedIconButton {
                 text: "Yeniden denetle"
                 themedIconName: "view-refresh"
+                Layout.preferredHeight: Math.max(40, metrics.fontPx(40))
+                Layout.preferredWidth: Math.max(166, implicitWidth + 16)
+                font.pixelSize: metrics.fontBody
                 enabled: !updates.loading
                 onClicked: updates.refresh()
             }
@@ -90,45 +96,82 @@ Item {
             font.pixelSize: metrics.fontBody
         }
 
-        RowLayout {
+        // Keep the count in a separate line so the actions are never
+        // squeezed by long text, especially at 400 px or increased KDE font.
+        ColumnLayout {
             Layout.fillWidth: true
+            spacing: metrics.spaceCompact
+
             Label {
                 Layout.fillWidth: true
                 text: updates.selectedCount + " paket seçili"
                       + (updates.selectedKernelCount > 0
                          ? " · " + updates.selectedKernelCount + " kernel paketi" : "")
                 color: palette.text
-                font.pixelSize: metrics.fontSmall
+                font.family: metrics.systemFont.family
+                font.pixelSize: metrics.fontBody
+                wrapMode: Text.WordWrap
             }
-            ThemedActionButton {
-                text: "Tümünü seç"
-                enabled: !updates.loading && updates.updateCount > 0
-                onClicked: updates.selectAll()
-            }
-            ThemedActionButton {
-                text: "Seçimi temizle"
-                enabled: !updates.loading && updates.selectedCount > 0
-                onClicked: updates.clearSelection()
+
+            RowLayout {
+                Layout.fillWidth: true
+                spacing: metrics.spaceMedium
+
+                ThemedActionButton {
+                    text: "Tümünü seç"
+                    Layout.fillWidth: true
+                    Layout.maximumWidth: 210
+                    Layout.minimumWidth: 0
+                    Layout.preferredHeight: Math.max(42, metrics.fontPx(42))
+                    font.pixelSize: metrics.fontBody
+                    enabled: !updates.loading && updates.updateCount > 0
+                    onClicked: updates.selectAll()
+                }
+
+                ThemedActionButton {
+                    text: "Seçimi temizle"
+                    Layout.fillWidth: true
+                    Layout.maximumWidth: 210
+                    Layout.minimumWidth: 0
+                    Layout.preferredHeight: Math.max(42, metrics.fontPx(42))
+                    font.pixelSize: metrics.fontBody
+                    enabled: !updates.loading && updates.selectedCount > 0
+                    onClicked: updates.clearSelection()
+                }
             }
         }
 
-        RowLayout {
+        ColumnLayout {
             Layout.fillWidth: true
+            spacing: metrics.spaceCompact
+
             ThemedActionButton {
-                text: "Seçilenlerin planını incele"
-                enabled: !updates.loading && !updates.previewRunning
-                         && updates.selectedCount > 0
-                onClicked: updates.previewPlan()
+                text: updates.previewRunning
+                      ? "Plan sorgusunu iptal et" : "Seçilenlerin planını incele"
+                Layout.fillWidth: true
+                Layout.maximumWidth: 320
+                Layout.minimumWidth: 0
+                Layout.preferredHeight: Math.max(44, metrics.fontPx(44))
+                font.pixelSize: metrics.fontBody
+                enabled: updates.previewRunning
+                         || (!updates.loading && updates.selectedCount > 0)
+                onClicked: {
+                    if (updates.previewRunning) {
+                        updates.cancelPreview()
+                    } else {
+                        previewFrame.collapsed = false
+                        updates.previewPlan()
+                    }
+                }
             }
-            ThemedActionButton {
-                text: "Plan sorgusunu iptal et"
-                visible: updates.previewRunning
-                onClicked: updates.cancelPreview()
-            }
+
             Label {
                 Layout.fillWidth: true
-                text: updates.previewRunning ? "DNF5 bağımlılık planı hazırlanıyor..." : ""
+                visible: updates.previewRunning
+                text: "DNF5 bağımlılık planı hazırlanıyor..."
                 color: palette.text
+                font.family: metrics.systemFont.family
+                font.pixelSize: metrics.fontBody
                 wrapMode: Text.WordWrap
             }
         }
@@ -138,23 +181,54 @@ Item {
             Layout.fillWidth: true
             text: updates.previewError
             color: palette.text
+            font.pixelSize: metrics.fontBody
             wrapMode: Text.WordWrap
         }
 
         Frame {
+            id: previewFrame
+            property bool collapsed: false
             visible: updates.previewText.length > 0
             Layout.fillWidth: true
-            Layout.preferredHeight: Math.min(260, Math.max(110, page.height / 3))
+            // Collapsing keeps the heading and toggle visible while allowing
+            // the RPM list to reclaim most of the window's vertical space.
+            Layout.preferredHeight: collapsed
+                                    ? Math.max(52, previewHeader.implicitHeight + 20)
+                                    : Math.min(300, Math.max(180, page.height * 0.42))
+
             ColumnLayout {
                 anchors.fill: parent
-                Label {
-                    text: "DNF5 plan çıktısı — yalnızca önizleme, paket değiştirilmedi"
-                    color: palette.text
-                    font.bold: true
+                spacing: metrics.spaceCompact
+
+                RowLayout {
+                    id: previewHeader
                     Layout.fillWidth: true
-                    wrapMode: Text.WordWrap
+                    spacing: metrics.spaceMedium
+
+                    Label {
+                        text: "DNF5 planı · Salt okunur önizleme"
+                        color: palette.text
+                        font.family: metrics.systemFont.family
+                        font.pixelSize: metrics.fontBody
+                        font.bold: true
+                        Layout.fillWidth: true
+                        wrapMode: Text.WordWrap
+                    }
+
+                    ThemedActionButton {
+                        text: previewFrame.collapsed ? "Büyüt" : "Küçült"
+                        Layout.preferredWidth: Math.max(100, implicitWidth + 16)
+                        Layout.preferredHeight: Math.max(38, metrics.fontPx(38))
+                        font.pixelSize: metrics.fontBody
+                        Accessible.name: previewFrame.collapsed
+                                         ? "Güncelleme planını büyüt"
+                                         : "Güncelleme planını küçült"
+                        onClicked: previewFrame.collapsed = !previewFrame.collapsed
+                    }
                 }
+
                 ScrollView {
+                    visible: !previewFrame.collapsed
                     Layout.fillWidth: true
                     Layout.fillHeight: true
                     TextArea {
@@ -163,6 +237,7 @@ Item {
                         wrapMode: TextEdit.NoWrap
                         text: updates.previewText
                         font.family: "monospace"
+                        font.pixelSize: metrics.fontSmall
                     }
                 }
             }
