@@ -216,7 +216,7 @@ void SystemUpdateCache::completeDownload(bool cancelled, int exitCode)
             if (!signature.waitForFinished(8000) || signature.exitCode() != 0)
                 continue;
             const QString check = QString::fromLocal8Bit(signature.readAllStandardOutput());
-            if (!check.contains(QStringLiteral("OK"), Qt::CaseInsensitive)
+            if (!check.contains(QStringLiteral("signatures OK"), Qt::CaseInsensitive)
                 || check.contains(QStringLiteral("NOT OK"), Qt::CaseInsensitive)
                 || check.contains(QStringLiteral("NOKEY"), Qt::CaseInsensitive))
                 continue;
