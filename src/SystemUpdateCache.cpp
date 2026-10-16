@@ -212,6 +212,10 @@ void SystemUpdateCache::downloadSelected(const QStringList &nevras)
         missing.append(nevra);
     }
     if (missing.isEmpty()) {
+        m_hasDownloadResult = true;
+        m_lastNewCount = 0;
+        m_lastReusedCount = reused;
+        m_lastRejectedCount = 0;
         m_staging.reset();
         m_error.clear();
         m_downloadStatus = QStringLiteral("%1 doğrulanmış RPM zaten önbellekte; indirme gerekmedi.").arg(reused);
@@ -220,6 +224,11 @@ void SystemUpdateCache::downloadSelected(const QStringList &nevras)
         return;
     }
     m_requested = missing;
+    m_reusedThisRun = reused;
+    m_hasDownloadResult = false;
+    m_lastNewCount = 0;
+    m_lastReusedCount = 0;
+    m_lastRejectedCount = 0;
     m_error.clear();
     m_downloadLog.clear();
     m_pendingOutput.clear();
@@ -334,14 +343,20 @@ void SystemUpdateCache::completeDownload(bool cancelled, int exitCode)
         }
     }
     m_staging.reset(); // Discard incomplete/unverified files only.
+    m_hasDownloadResult = true;
+    m_lastNewCount = kept;
+    m_lastReusedCount = m_reusedThisRun;
+    m_lastRejectedCount = rejected;
+    m_reusedThisRun = 0;
     m_requested.clear();
     m_downloading = false;
     m_downloadStatus = cancelled
-        ? QStringLiteral("İndirme durduruldu; %1 doğrulanmış RPM korundu.").arg(kept)
-        : QStringLiteral("İndirme bitti (çıkış kodu %1); %2 doğrulanmış RPM korundu, %3 dosya doğrulanamadı.")
-              .arg(exitCode).arg(kept).arg(rejected);
+        ? QStringLiteral("İndirme iptal edildi; %1 yeni RPM korundu, %2 önceden önbellekteydi.")
+              .arg(kept).arg(m_lastReusedCount)
+        : QStringLiteral("İndirme bitti (kod %1); %2 yeni, %3 önbellekten, %4 doğrulanamayan RPM.")
+              .arg(exitCode).arg(kept).arg(m_lastReusedCount).arg(rejected);
     refresh();
-    if (!cancelled && (exitCode != 0 || rejected > 0 || kept == 0)) {
+    if (!cancelled && (exitCode != 0 || rejected > 0 || (kept == 0 && m_lastReusedCount == 0))) {
         m_error = QStringLiteral("İndirme tamamlanamadı veya RPM doğrulaması başarısız. "
                                  "Ayrıntılar için terminalde SYSTEM UPDATE DOWNLOAD kayıtlarını kontrol edin.");
         emit changed();
