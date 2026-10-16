@@ -154,7 +154,7 @@ Item {
                         }
                         Label {
                             Layout.fillWidth: true
-                                text: updateCard.packageName
+                            text: updateCard.packageName
                                   + (updateCard.kernelUpdate ? "  ·  Kernel" : "")
                             font.family: metrics.systemFont.family
                             font.pixelSize: metrics.fontTitle
