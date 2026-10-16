@@ -20,6 +20,8 @@ class SystemUpdateCache : public QObject
     Q_PROPERTY(qulonglong bytes READ bytes NOTIFY changed)
     Q_PROPERTY(QString error READ error NOTIFY changed)
     Q_PROPERTY(bool downloading READ downloading NOTIFY changed)
+    Q_PROPERTY(QObject* packageTransactionManager READ packageTransactionManager WRITE setPackageTransactionManager NOTIFY changed)
+    Q_PROPERTY(bool transactionAvailable READ transactionAvailable NOTIFY changed)
     Q_PROPERTY(int maximumBatch READ maximumBatch CONSTANT)
     Q_PROPERTY(bool offlineCheckRunning READ offlineCheckRunning NOTIFY changed)
     Q_PROPERTY(QString offlineStatus READ offlineStatus NOTIFY changed)
@@ -41,6 +43,9 @@ public:
     qulonglong bytes() const { return m_bytes; }
     QString error() const { return m_error; }
     bool downloading() const { return m_downloading; }
+    QObject* packageTransactionManager() const { return m_transactionManager.data(); }
+    void setPackageTransactionManager(QObject* manager);
+    bool transactionAvailable() const;
     int maximumBatch() const { return 12; }
     bool offlineCheckRunning() const { return m_offlineCheckRunning; }
     QString offlineStatus() const { return m_offlineStatus; }
@@ -70,6 +75,8 @@ private:
     void completeDownload(bool cancelled, int exitCode);
     void appendDownloadOutput(const QByteArray &bytes);
     void pollStagingProgress();
+    void checkTransactionConflict();
+    QPointer<QObject> m_transactionManager;
     QString m_root;
     QPointer<QProcess> m_downloadProcess;
     std::unique_ptr<QTemporaryDir> m_staging;
