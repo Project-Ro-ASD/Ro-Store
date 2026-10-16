@@ -30,6 +30,8 @@ class SystemUpdateModel : public QAbstractListModel
     Q_PROPERTY(bool previewRunning READ previewRunning NOTIFY previewChanged)
     Q_PROPERTY(QString previewText READ previewText NOTIFY previewChanged)
     Q_PROPERTY(QString previewError READ previewError NOTIFY previewChanged)
+    Q_PROPERTY(int previewSelectionCount READ previewSelectionCount NOTIFY previewChanged)
+    Q_PROPERTY(bool previewAllUpdates READ previewAllUpdates NOTIFY previewChanged)
 
 public:
     enum Roles {
@@ -60,6 +62,8 @@ public:
     bool previewRunning() const { return m_previewRunning; }
     QString previewText() const { return m_previewText; }
     QString previewError() const { return m_previewError; }
+    int previewSelectionCount() const { return m_previewSelectionCount; }
+    bool previewAllUpdates() const { return m_previewAllUpdates; }
 
     // Read-only: queries enabled DNF5 repositories; never creates transactions.
     Q_INVOKABLE void refresh();
@@ -95,6 +99,8 @@ private:
     QString m_previewText;
     QString m_previewError;
     bool m_previewRunning = false;
+    int m_previewSelectionCount = 0;
+    bool m_previewAllUpdates = false;
     QByteArray m_stdout;
     QString m_error;
     QDateTime m_lastChecked;
