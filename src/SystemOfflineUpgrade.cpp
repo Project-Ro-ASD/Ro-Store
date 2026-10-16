@@ -13,7 +13,9 @@
 #include <QRegularExpression>
 #include <QSaveFile>
 #include <QStandardPaths>
+#include <QStorageInfo>
 #include <QDebug>
+#include <limits>
 
 SystemOfflineUpgrade::SystemOfflineUpgrade(QObject *parent) : QObject(parent)
 {
@@ -258,6 +260,28 @@ void SystemOfflineUpgrade::stageOffline()
         m_outcomeUnknown = true;
         m_message = QStringLiteral("Önceki çevrimdışı işlem güvenlik kaydı var. Yeni işlem engellendi.");
         emit changed();
+        return;
+    }
+    // Be conservative about disk space for downloads, dependency changes
+    // and offline transaction metadata. DNF5 still performs its own checks.
+    const QStorageInfo storage(QStringLiteral("/var"));
+    const qulonglong minimumReserve = 512ull * 1024ull * 1024ull;
+    const qulonglong extra = 300ull * 1024ull * 1024ull;
+    if (!storage.isValid() || !storage.isReady() || storage.isReadOnly()) {
+        fail(QStringLiteral("DNF5 indirme depolaması doğrulanamadı veya salt okunur; işlem başlatılmadı."));
+        return;
+    }
+    const qulonglong freeBytes = static_cast<qulonglong>(
+        qMax<qint64>(0, storage.bytesAvailable()));
+    const qulonglong required = qMax(minimumReserve,
+        m_planBytes <= (std::numeric_limits<qulonglong>::max() - extra) / 2
+            ? m_planBytes * 2 + extra
+            : std::numeric_limits<qulonglong>::max());
+    if (freeBytes < required) {
+        fail(QStringLiteral(
+            "Yeterli disk alanı doğrulanamadı. /var boş: %1 MiB, "
+            "güvenli hazırlık için yaklaşık %2 MiB gerekli.")
+            .arg(freeBytes / 1048576).arg(required / 1048576));
         return;
     }
     if (!writeJournal()) {
