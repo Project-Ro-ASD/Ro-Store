@@ -1007,7 +1007,11 @@ PackageTransactionManager::enqueue(
 {
     const QString cleanName = packageName.trimmed();
 
-    if (cleanName.isEmpty() || m_outcomeUncertain || m_externalOwner) {
+    const QString pendingOffline = QStandardPaths::writableLocation(
+        QStandardPaths::AppLocalDataLocation)
+        + QStringLiteral("/pending-offline-system-upgrade.json");
+    if (cleanName.isEmpty() || m_outcomeUncertain || m_externalOwner
+        || QFile::exists(pendingOffline)) {
         qWarning() << "TRANSACTION BLOCKED: unresolved previous DNF5 outcome";
         return nullptr;
     }
@@ -1091,8 +1095,11 @@ QObject *PackageTransactionManager::pendingTransaction(
 
 void PackageTransactionManager::startNext()
 {
+    const QString pendingOffline = QStandardPaths::writableLocation(
+        QStandardPaths::AppLocalDataLocation)
+        + QStringLiteral("/pending-offline-system-upgrade.json");
     if (m_activeTransaction || m_externalOwner || m_outcomeUncertain ||
-        m_queue.isEmpty()) {
+        QFile::exists(pendingOffline) || m_queue.isEmpty()) {
         return;
     }
 
