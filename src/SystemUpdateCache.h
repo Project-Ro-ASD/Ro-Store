@@ -22,6 +22,7 @@ class SystemUpdateCache : public QObject
     Q_PROPERTY(QString downloadStatus READ downloadStatus NOTIFY changed)
 public:
     explicit SystemUpdateCache(QObject *parent = nullptr);
+    ~SystemUpdateCache() override;
     QString path() const;
     int rpmCount() const { return m_count; }
     qulonglong bytes() const { return m_bytes; }
