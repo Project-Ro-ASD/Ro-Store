@@ -122,6 +122,26 @@ Item {
         }
     }
 
+    Dialog {
+        id: offlineRebootConfirmation
+        parent: Overlay.overlay
+        anchors.centerIn: parent
+        modal: true
+        width: Math.min(page.width - 24, 540)
+        title: "Yeniden başlat ve çevrimdışı güncellemeyi uygula"
+        standardButtons: Dialog.Yes | Dialog.No
+        onAccepted: offlineUpdate.requestConfirmedReboot()
+        Label {
+            width: parent.width
+            wrapMode: Text.WordWrap
+            text: "UYARI: Bu işlem yönetici onayı isteyebilir ve bilgisayarı hemen " +
+                  "yeniden başlatarak DNF5'in hazırladığı bütün RPM değişikliklerini " +
+                  "çevrimdışı uygulamaya başlayabilir. Bütün çalışmalarını kaydet, " +
+                  "güç ve internet bağlantını kontrol et. İşlem sırasında zorla " +
+                  "kapatma yapma. Yeniden başlatmayı şimdi başlatmak istiyor musun?"
+        }
+    }
+
     Component.onCompleted: updates.refresh()
 
     // The page itself scrolls independently of the packages ListView and
@@ -561,6 +581,19 @@ Item {
                         enabled: offlineUpdate.recoveryVerified
                         onClicked: recoveryConfirm.open()
                     }
+                }
+                ThemedActionButton {
+                    visible: offlineUpdate.offlineReady
+                    text: offlineUpdate.rebootRequestRunning
+                          ? "Yeniden başlatma isteği yürütülüyor..."
+                          : "Yeniden başlat ve güncellemeleri uygula"
+                    Layout.fillWidth: true
+                    Layout.preferredHeight: Math.max(38, metrics.fontPx(38))
+                    font.pixelSize: metrics.fontSmall
+                    enabled: offlineUpdate.offlineReady
+                             && !offlineUpdate.rebootRequestRunning
+                             && !offlineUpdate.outcomeUnknown
+                    onClicked: offlineRebootConfirmation.open()
                 }
                 Label {
                     Layout.fillWidth: true
