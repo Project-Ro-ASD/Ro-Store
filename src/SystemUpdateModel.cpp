@@ -287,8 +287,8 @@ void SystemUpdateModel::loadInstalledVersions()
 void SystemUpdateModel::applyInstalledVersions(const QByteArray &output)
 {
     QHash<QString, QString> versions;
-    for (const QByteArray &line : output.split('\\n')) {
-        const QList<QByteArray> parts = line.trimmed().split('\\t');
+    for (const QByteArray &line : output.split('\n')) {
+        const QList<QByteArray> parts = line.trimmed().split('\t');
         if (parts.size() != 3)
             continue;
         const QString name = QString::fromUtf8(parts.at(0));
