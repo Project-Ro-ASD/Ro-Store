@@ -513,6 +513,18 @@ Item {
 
                 Label {
                     Layout.fillWidth: true
+                    visible: updateCache.hasDownloadResult
+                    text: "Son indirme: " + updateCache.lastNewCount + " yeni RPM · "
+                          + updateCache.lastReusedCount + " önbellekten · "
+                          + updateCache.lastRejectedCount + " doğrulanamayan dosya"
+                    font.family: metrics.systemFont.family
+                    font.pixelSize: metrics.fontSmall
+                    font.bold: true
+                    color: palette.text
+                    wrapMode: Text.WordWrap
+                }
+                Label {
+                    Layout.fillWidth: true
                     visible: updateCache.downloadStatus.length > 0
                     text: updateCache.downloadStatus
                     font.family: metrics.systemFont.family
