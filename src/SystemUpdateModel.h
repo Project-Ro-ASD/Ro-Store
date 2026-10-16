@@ -14,7 +14,7 @@ struct SystemUpdateItem
     QString repository;
 };
 
-class SystemUpdateModel final : public QAbstractListModel
+class SystemUpdateModel : public QAbstractListModel
 {
     Q_OBJECT
     Q_PROPERTY(bool loading READ loading NOTIFY loadingChanged)
