@@ -53,10 +53,15 @@ Item {
         Label {
             width: parent.width
             wrapMode: Text.WordWrap
-            text: downloadConfirm.packageIds.length + " RPM adayı indirilecek. " +
-                  "Bu yalnızca indirme testidir; paket kurulmaz veya sistem güncellenmez. " +
-                  "İndirilen dosyalar doğrulanır, indirmeyi iptal edebilirsin. " +
-                  "İlk test en fazla 3 paket içindir."
+            text: downloadConfirm.packageIds.length + " RPM seçili; " +
+                  updateCache.countCached(downloadConfirm.packageIds) + " doğrulanmış RPM önbellekte, " +
+                  (downloadConfirm.packageIds.length -
+                   updateCache.countCached(downloadConfirm.packageIds)) + " RPM eksik. " +
+                  "Tahmini seçili paket toplamı: " +
+                  page.formatCacheBytes(updates.selectedDownloadBytes) +
+                  " (bağımlılıklar ve depo verisi hariç; gerçek trafik farklı olabilir). " +
+                  "Bu yalnızca indirme testidir; hiçbir RPM kurulmayacak. " +
+                  "Sınırlı internet kullanıyorsan toplamı incelemeden onaylama."
         }
     }
 
@@ -400,7 +405,7 @@ Item {
                         font.pixelSize: metrics.fontSmall
                         enabled: updateCache.downloading ||
                                  (!updates.loading && !updates.previewRunning
-                                  && updates.selectedCount > 0 && updates.selectedCount <= 3
+                                  && updates.selectedCount > 0 && updates.selectedCount <= updateCache.maximumBatch
                                   && updates.previewText.length > 0
                                   && updates.previewError.length === 0
                                   && updates.previewSelectionCount === updates.selectedCount
@@ -427,6 +432,17 @@ Item {
 
                 Label {
                     Layout.fillWidth: true
+                    visible: updates.selectedCount > 0
+                    text: "Seçimdeki doğrulanmış RPM: " +
+                          updateCache.countCached(updates.selectedNevras()) + " / " +
+                          updates.selectedCount + " · Eksik: " +
+                          (updates.selectedCount - updateCache.countCached(updates.selectedNevras()))
+                    font.pixelSize: metrics.fontSmall
+                    color: palette.text
+                    wrapMode: Text.WordWrap
+                }
+                Label {
+                    Layout.fillWidth: true
                     text: updateCache.rpmCount + " RPM · " + page.formatCacheBytes(updateCache.bytes)
                           + " · İndirme yalnızca onayla başlar; kurulum yapılmaz."
                     font.family: metrics.systemFont.family
@@ -441,9 +457,9 @@ Item {
                                   && updates.previewError.length === 0
                                   && updates.previewSelectionCount === updates.selectedCount
                                   && !updates.previewAllUpdates
-                                  && updates.selectedCount <= 3)
-                    text: updates.selectedCount > 3
-                          ? "İlk indirme testi için en fazla 3 paket seçin."
+                                  && updates.selectedCount <= updateCache.maximumBatch)
+                    text: updates.selectedCount > updateCache.maximumBatch
+                          ? "Toplu indirme testinde en fazla " + updateCache.maximumBatch + " paket seçin."
                           : "İndirme için önce seçili paketlerin planını inceleyin ve sorgunun bitmesini bekleyin."
                     font.family: metrics.systemFont.family
                     font.pixelSize: metrics.fontSmall
