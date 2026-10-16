@@ -103,6 +103,7 @@ Item {
                 id: updateCard
                 required property string packageName
                 required property string updateVersion
+                required property string installedVersion
                 required property string architecture
                 required property string repository
                 required property bool kernelUpdate
@@ -132,7 +133,9 @@ Item {
                     }
                     Label {
                         Layout.fillWidth: true
-                        text: "Yeni sürüm: " + updateCard.updateVersion
+                        text: "Kurulu: " + (updateCard.installedVersion.length > 0
+                              ? updateCard.installedVersion : "Bilinmiyor")
+                              + "  →  Yeni: " + updateCard.updateVersion
                         font.family: metrics.systemFont.family
                         font.pixelSize: metrics.fontBody
                         color: palette.text
