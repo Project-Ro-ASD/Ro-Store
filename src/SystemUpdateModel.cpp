@@ -66,6 +66,7 @@ QVariant SystemUpdateModel::data(const QModelIndex &index, int role) const
     case RepositoryRole: return update.repository;
     case KernelUpdateRole: return isKernelUpdate(update.name);
     case SelectedRole: return m_selected.contains(updateKey(update));
+    case DownloadBytesRole: return QVariant::fromValue(update.downloadBytes);
     default: return {};
     }
 }
@@ -79,7 +80,8 @@ QHash<int, QByteArray> SystemUpdateModel::roleNames() const
         { ArchitectureRole, "architecture" },
         { RepositoryRole, "repository" },
         { KernelUpdateRole, "kernelUpdate" },
-        { SelectedRole, "updateSelected" }
+        { SelectedRole, "updateSelected" },
+        { DownloadBytesRole, "downloadBytes" }
     };
 }
 
@@ -104,6 +106,22 @@ QStringList SystemUpdateModel::selectedNevras() const
             result.append(nevra);
     }
     return result;
+}
+
+qulonglong SystemUpdateModel::selectedDownloadBytes() const
+{
+    qulonglong total = 0;
+    for (const auto &item : m_updates)
+        if (m_selected.contains(updateKey(item))) total += item.downloadBytes;
+    return total;
+}
+
+int SystemUpdateModel::selectedUnknownSizes() const
+{
+    int count = 0;
+    for (const auto &item : m_updates)
+        if (m_selected.contains(updateKey(item)) && item.downloadBytes == 0) ++count;
+    return count;
 }
 
 int SystemUpdateModel::selectedKernelCount() const
@@ -341,7 +359,7 @@ void SystemUpdateModel::refresh()
         QStringLiteral("repoquery"),
         QStringLiteral("--upgrades"),
         QStringLiteral("--latest-limit=1"),
-        QStringLiteral("--queryformat=%{name}\t%{evr}\t%{arch}\t%{repoid}\\n")
+        QStringLiteral("--queryformat=%{name}\t%{evr}\t%{arch}\t%{repoid}\t%{downloadsize}\\n")
     });
     process->setProcessChannelMode(QProcess::SeparateChannels);
 
@@ -417,7 +435,7 @@ void SystemUpdateModel::parseUpdates(const QByteArray &output)
 
     for (const QByteArray &line : output.split('\n')) {
         const QList<QByteArray> columns = line.trimmed().split('\t');
-        if (columns.size() != 4)
+        if (columns.size() != 5)
             continue;
 
         SystemUpdateItem update {
@@ -425,7 +443,8 @@ void SystemUpdateModel::parseUpdates(const QByteArray &output)
             QString::fromUtf8(columns.at(1)).trimmed(),
             {},
             QString::fromUtf8(columns.at(2)).trimmed(),
-            QString::fromUtf8(columns.at(3)).trimmed()
+            QString::fromUtf8(columns.at(3)).trimmed(),
+            QString::fromUtf8(columns.at(4)).trimmed().toULongLong()
         };
         if (update.name.isEmpty() || update.version.isEmpty()
             || update.architecture.isEmpty() || update.repository.isEmpty())
