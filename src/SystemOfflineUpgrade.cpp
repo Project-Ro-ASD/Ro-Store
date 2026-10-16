@@ -142,7 +142,41 @@ void SystemOfflineUpgrade::resolve(const QStringList &selectedNevras)
     m_planCount = 0;
     m_message = QStringLiteral("DNF5 tüm seçilen RPM güncellemelerini tek işlemde çözüyor...");
     emit changed();
-    m_backend->resolveSystemUpdates(selectedNevras);
+    // Never overwrite an offline transaction prepared by DNF5, Discover,
+    // or another application. Query the authoritative daemon interface,
+    // not just the /system-update marker.
+    QDBusInterface offline(QStringLiteral("org.rpm.dnf.v0"),
+        QStringLiteral("/org/rpm/dnf/v0"),
+        QStringLiteral("org.rpm.dnf.v0.Offline"), QDBusConnection::systemBus());
+    if (!offline.isValid()) {
+        fail(QStringLiteral("DNF5 çevrimdışı işlem durumu doğrulanamadı; plan başlatılmadı."));
+        return;
+    }
+    auto *watcher = new QDBusPendingCallWatcher(
+        offline.asyncCall(QStringLiteral("get_status")), this);
+    connect(watcher, &QDBusPendingCallWatcher::finished, this,
+            [this, watcher, selectedNevras]() {
+        QDBusPendingReply<bool, QVariantMap> result = *watcher;
+        watcher->deleteLater();
+        if (!m_busy || m_outcomeUnknown)
+            return;
+        if (result.isError()) {
+            fail(QStringLiteral("DNF5 çevrimdışı durumu okunamadı: ")
+                 + result.error().message());
+            return;
+        }
+        const QString status = result.argumentAt<1>()
+            .value(QStringLiteral("status")).toString();
+        if (result.argumentAt<0>()
+            || status == QStringLiteral("ready")
+            || status == QStringLiteral("download-complete")) {
+            fail(QStringLiteral(
+                "Önceden hazırlanmış DNF5 çevrimdışı işlemi bulundu (")
+                + status + QStringLiteral("). Üzerine yeni işlem yazılmadı."));
+            return;
+        }
+        m_backend->resolveSystemUpdates(selectedNevras);
+    });
 }
 
 void SystemOfflineUpgrade::fail(const QString &error)
