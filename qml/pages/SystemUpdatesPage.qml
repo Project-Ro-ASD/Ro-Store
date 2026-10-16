@@ -142,6 +142,27 @@ Item {
         }
     }
 
+    Dialog {
+        id: discardOfflineConfirmation
+        parent: Overlay.overlay
+        anchors.centerIn: parent
+        modal: true
+        width: Math.min(page.width - 24, 530)
+        title: "Hazırlanmış çevrimdışı güncellemeyi iptal et"
+        standardButtons: Dialog.Yes | Dialog.No
+        onAccepted: offlineUpdate.discardPreparedOffline()
+        Label {
+            width: parent.width
+            wrapMode: Text.WordWrap
+            text: "DNF5 tarafından önceden hazırlanmış sistem güncellemesi " +
+                  "ve bu işleme ait indirilen DNF5 paket dosyaları temizlenecek. " +
+                  "Yeniden indirme gerekebilir. Ro-Store'un bağımsız RPM önbelleği " +
+                  "ve şu anda kurulu paketler etkilenmez. " +
+                  "Yalnızca temizleme sonucu DNF5 tarafından doğrulanırsa " +
+                  "güvenlik kaydı kaldırılır. İptal etmeyi onaylıyor musun?"
+        }
+    }
+
     Component.onCompleted: updates.refresh()
 
     // The page itself scrolls independently of the packages ListView and
@@ -584,6 +605,19 @@ Item {
                 }
                 ThemedActionButton {
                     visible: offlineUpdate.offlineReady
+                    text: offlineUpdate.clearingPrepared
+                          ? "Çevrimdışı hazırlık temizleniyor..."
+                          : "Hazırlanmış güncellemeyi iptal et"
+                    Layout.fillWidth: true
+                    Layout.preferredHeight: Math.max(38, metrics.fontPx(38))
+                    font.pixelSize: metrics.fontSmall
+                    enabled: !offlineUpdate.clearingPrepared
+                             && !offlineUpdate.rebootRequestRunning
+                             && !offlineUpdate.outcomeUnknown
+                    onClicked: discardOfflineConfirmation.open()
+                }
+                ThemedActionButton {
+                    visible: offlineUpdate.offlineReady
                     text: offlineUpdate.rebootRequestRunning
                           ? "Yeniden başlatma isteği yürütülüyor..."
                           : "Yeniden başlat ve güncellemeleri uygula"
@@ -593,6 +627,7 @@ Item {
                     enabled: offlineUpdate.offlineReady
                              && !offlineUpdate.rebootRequestRunning
                              && !offlineUpdate.outcomeUnknown
+                             && !offlineUpdate.clearingPrepared
                     onClicked: offlineRebootConfirmation.open()
                 }
                 Label {
