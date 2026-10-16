@@ -2,6 +2,7 @@
 #include <QObject>
 #include <QPointer>
 #include <QHash>
+#include <QProcess>
 #include <QVariantList>
 #include <QStringList>
 
@@ -26,6 +27,7 @@ class SystemOfflineUpgrade : public QObject {
     Q_PROPERTY(qulonglong downloadedBytes READ downloadedBytes NOTIFY changed)
     Q_PROPERTY(int progressPercent READ progressPercent NOTIFY changed)
     Q_PROPERTY(bool offlineReady READ offlineReady NOTIFY changed)
+    Q_PROPERTY(bool rebootRequestRunning READ rebootRequestRunning NOTIFY changed)
 public:
     explicit SystemOfflineUpgrade(QObject* parent = nullptr);
     ~SystemOfflineUpgrade() override;
@@ -37,6 +39,7 @@ public:
     bool outcomeUnknown() const { return m_outcomeUnknown; }
     bool recoveryVerified() const { return m_recoveryVerified; }
     bool offlineReady() const { return m_offlineReady; }
+    bool rebootRequestRunning() const { return m_rebootRequestRunning; }
     QString message() const { return m_message; }
     QString planText() const { return m_planText; }
     int planCount() const { return m_planCount; }
@@ -51,6 +54,7 @@ public:
     Q_INVOKABLE void requestCancellation();
     Q_INVOKABLE void recheckRecovery();
     Q_INVOKABLE void acknowledgeRecovery();
+    Q_INVOKABLE void requestConfirmedReboot();
     Q_INVOKABLE void invalidateIfSelectionChanged(const QStringList &selectedNevras);
 signals:
     void changed();
@@ -68,6 +72,8 @@ private:
     int m_planCount = 0;
     int m_removalCount = 0;
     bool m_kernelAffected = false;
+    bool m_rebootRequestRunning = false;
+    QPointer<QProcess> m_rebootProcess;
     qulonglong m_planBytes = 0;
     qulonglong m_downloadedBytes = 0;
     int m_progressPercent = 0;
