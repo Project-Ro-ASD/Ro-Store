@@ -2,6 +2,7 @@
 
 #include <QSet>
 #include <QTimer>
+#include <QHash>
 #include <algorithm>
 
 namespace {
@@ -58,6 +59,7 @@ QVariant SystemUpdateModel::data(const QModelIndex &index, int role) const
     switch (role) {
     case NameRole: return update.name;
     case VersionRole: return update.version;
+    case InstalledVersionRole: return update.installedVersion;
     case ArchitectureRole: return update.architecture;
     case RepositoryRole: return update.repository;
     case KernelUpdateRole: return isKernelUpdate(update.name);
@@ -70,6 +72,7 @@ QHash<int, QByteArray> SystemUpdateModel::roleNames() const
     return {
         { NameRole, "packageName" },
         { VersionRole, "updateVersion" },
+        { InstalledVersionRole, "installedVersion" },
         { ArchitectureRole, "architecture" },
         { RepositoryRole, "repository" },
         { KernelUpdateRole, "kernelUpdate" }
@@ -191,6 +194,7 @@ void SystemUpdateModel::parseUpdates(const QByteArray &output)
         SystemUpdateItem update {
             QString::fromUtf8(columns.at(0)).trimmed(),
             QString::fromUtf8(columns.at(1)).trimmed(),
+            {},
             QString::fromUtf8(columns.at(2)).trimmed(),
             QString::fromUtf8(columns.at(3)).trimmed()
         };
@@ -223,7 +227,90 @@ void SystemUpdateModel::parseUpdates(const QByteArray &output)
     m_checked = true;
     m_lastChecked = QDateTime::currentDateTime();
     emit updatesChanged();
+    loadInstalledVersions();
 
     qInfo() << "SYSTEM UPDATE CHECK FINISHED:" << m_updates.size()
             << "RPM upgrades, kernel:" << m_hasKernelUpdates;
+}
+
+void SystemUpdateModel::loadInstalledVersions()
+{
+    if (m_updates.isEmpty())
+        return;
+
+    // Query the local RPM database without refreshing repositories or
+    // performing transactions. Missing data is shown as "unknown".
+    auto *process = new QProcess(this);
+    process->setProgram(QStringLiteral("rpm"));
+    process->setArguments({
+        QStringLiteral("-qa"),
+        QStringLiteral("--qf"),
+        QStringLiteral("%{NAME}\\t%{EPOCHNUM}:%{VERSION}-%{RELEASE}\\t%{ARCH}\\n")
+    });
+    process->setProcessChannelMode(QProcess::SeparateChannels);
+
+    auto *output = new QByteArray();
+    connect(process, &QProcess::readyReadStandardOutput, this,
+            [process, output]() {
+        *output += process->readAllStandardOutput();
+        if (output->size() > MaxOutputBytes && process->state() != QProcess::NotRunning)
+            process->kill();
+    });
+
+    connect(process, &QProcess::errorOccurred, this,
+            [process](QProcess::ProcessError error) {
+        if (error == QProcess::FailedToStart)
+            qWarning() << "SYSTEM UPDATE LOCAL RPM QUERY FAILED:" << process->errorString();
+    });
+
+    connect(process, QOverload<int, QProcess::ExitStatus>::of(&QProcess::finished),
+            this, [this, process, output](int code, QProcess::ExitStatus status) {
+        *output += process->readAllStandardOutput();
+        if (status == QProcess::NormalExit && code == 0
+            && output->size() <= MaxOutputBytes)
+            applyInstalledVersions(*output);
+        else
+            qWarning() << "SYSTEM UPDATE LOCAL RPM QUERY UNAVAILABLE:"
+                       << process->errorString();
+        process->deleteLater();
+        delete output;
+    });
+
+    // No updates to apply: a hung rpm query is stopped after ten seconds.
+    QTimer::singleShot(10000, process, [process]() {
+        if (process->state() != QProcess::NotRunning)
+            process->kill();
+    });
+    process->start();
+}
+
+void SystemUpdateModel::applyInstalledVersions(const QByteArray &output)
+{
+    QHash<QString, QString> versions;
+    for (const QByteArray &line : output.split('\\n')) {
+        const QList<QByteArray> parts = line.trimmed().split('\\t');
+        if (parts.size() != 3)
+            continue;
+        const QString name = QString::fromUtf8(parts.at(0));
+        const QString arch = QString::fromUtf8(parts.at(2));
+        QString version = QString::fromUtf8(parts.at(1));
+        if (version.startsWith(QStringLiteral("0:")))
+            version.remove(0, 2);
+        const QString key = name + QChar('|') + arch;
+        if (!name.isEmpty() && !arch.isEmpty())
+            versions.insert(key, version);
+    }
+
+    bool changed = false;
+    for (SystemUpdateItem &update : m_updates) {
+        const QString key = update.name + QChar('|') + update.architecture;
+        const QString installed = versions.value(key);
+        if (update.installedVersion != installed) {
+            update.installedVersion = installed;
+            changed = true;
+        }
+    }
+    if (changed && !m_updates.isEmpty())
+        emit dataChanged(index(0, 0), index(m_updates.size() - 1, 0),
+                         {InstalledVersionRole});
 }
