@@ -409,7 +409,9 @@ Item {
                                   && updates.previewText.length > 0
                                   && updates.previewError.length === 0
                                   && updates.previewSelectionCount === updates.selectedCount
-                                  && !updates.previewAllUpdates)
+                                  && !updates.previewAllUpdates
+                                  && updates.selectedUnknownSizes === 0
+                                  && updates.selectedDownloadBytes <= 52428800)
                         onClicked: {
                             if (updateCache.downloading) {
                                 updateCache.cancelDownload()
@@ -439,6 +441,18 @@ Item {
                           (updates.selectedCount - updateCache.countCached(updates.selectedNevras()))
                     font.pixelSize: metrics.fontSmall
                     color: palette.text
+                    wrapMode: Text.WordWrap
+                }
+                Label {
+                    Layout.fillWidth: true
+                    visible: updates.selectedCount > 0
+                             && (updates.selectedUnknownSizes > 0
+                                 || updates.selectedDownloadBytes > 52428800)
+                    text: updates.selectedUnknownSizes > 0
+                          ? "Bazı seçili RPM dosyalarının boyutu bilinmiyor; güvenli indirme testi başlatılmayacak."
+                          : "Seçili RPM tahmini 50 MiB test sınırını aşıyor. Daha küçük bir grup seçin."
+                    color: palette.text
+                    font.pixelSize: metrics.fontSmall
                     wrapMode: Text.WordWrap
                 }
                 Label {
