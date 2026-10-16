@@ -109,10 +109,8 @@ void readOfflineStatus(QObject *owner,
 
 bool hasPreparedOfflineUpdate(bool pending, const QVariantMap &state)
 {
-    const QString status = state.value(QStringLiteral("status")).toString();
-    // A download-complete transaction may not yet be scheduled to reboot.
-    return pending || status == QStringLiteral("ready")
-           || status == QStringLiteral("download-complete");
+    // Incomplete/unknown records must also block overriding another tool.
+    return pending || !state.isEmpty();
 }
 } // namespace
 
@@ -139,12 +137,20 @@ SystemOfflineUpgrade::SystemOfflineUpgrade(QObject *parent) : QObject(parent)
         QStringList summary;
         int removals = 0;
         bool kernel = false;
+        bool unsafe = false;
         int unknownBytes = 0;
         for (const QVariant &row : items) {
             const QVariantMap item = row.toMap();
             const QVariantMap pkg = item.value(QStringLiteral("object")).toMap();
             const QString action = item.value(QStringLiteral("action")).toString();
             const QString name = pkg.value(QStringLiteral("name")).toString();
+            // For a first live system test, refuse unrecognized operations,
+            // removals, downgrades or missing package identities.
+            const QStringList allowed{QStringLiteral("Upgrade"), QStringLiteral("Install"),
+                QStringLiteral("Reinstall"), QStringLiteral("Replaced"),
+                QStringLiteral("Reason Change")};
+            if (name.isEmpty() || !allowed.contains(action))
+                unsafe = true;
             if (name.startsWith(QStringLiteral("kernel"), Qt::CaseInsensitive))
                 kernel = true;
             if (action == QStringLiteral("Remove"))
@@ -161,9 +167,13 @@ SystemOfflineUpgrade::SystemOfflineUpgrade(QObject *parent) : QObject(parent)
         }
         m_planText = summary.join(QChar('\n'));
         m_removalCount = removals;
+        m_unsafePlan = unsafe;
         m_kernelAffected = kernel;
-        m_ready = true;
-        m_message = QStringLiteral(
+        m_ready = !unsafe;
+        m_message = unsafe
+            ? QStringLiteral("Güvenlik engeli: Plan kaldırma, düşürme, bilinmeyen işlem "
+                             "veya eksik paket kimliği içeriyor. Hazırlama kapatıldı.")
+            : QStringLiteral(
             "Tek DNF5 işlem planı çözüldü: %1 değişiklik, %2 kaldırma. "
             "Yaklaşık indirme: %3 MiB; %4 paketin boyutu belirsiz. "
             "Bu toplam mevcut Ro-Store bağımsız RPM önbelleğini düşmez.")
@@ -277,6 +287,7 @@ void SystemOfflineUpgrade::resolve(const QStringList &selectedNevras)
     m_planBytes = 0;
     m_planCount = 0;
     m_removalCount = 0;
+    m_unsafePlan = false;
     m_kernelAffected = false;
     m_message = QStringLiteral("DNF5 tüm seçilen RPM güncellemelerini tek işlemde çözüyor...");
     emit changed();
@@ -342,7 +353,7 @@ bool SystemOfflineUpgrade::writeJournal()
 
 void SystemOfflineUpgrade::stageOffline()
 {
-    if (!m_ready || !m_busy || m_preparing || m_preflightRunning
+    if (!m_ready || m_unsafePlan || !m_busy || m_preparing || m_preflightRunning
         || m_outcomeUnknown || !m_locked)
         return;
     m_preflightRunning = true;
@@ -373,7 +384,7 @@ void SystemOfflineUpgrade::stageOffline()
 
 void SystemOfflineUpgrade::beginOfflineStage()
 {
-    if (!m_ready || !m_busy || m_preparing || m_preflightRunning
+    if (!m_ready || m_unsafePlan || !m_busy || m_preparing || m_preflightRunning
         || m_outcomeUnknown || !m_locked)
         return;
     if (QFile::exists(journalPath())) {
@@ -461,6 +472,7 @@ void SystemOfflineUpgrade::abandonPlan()
     m_planText.clear();
     m_planCount = 0;
     m_planBytes = 0;
+    m_unsafePlan = false;
     m_message = QStringLiteral("Plan iptal edildi; sistemde hiçbir RPM işlemi uygulanmadı.");
     releaseLock();
     emit changed();
@@ -573,10 +585,31 @@ void SystemOfflineUpgrade::invalidateIfSelectionChanged(const QStringList &selec
 
 void SystemOfflineUpgrade::requestConfirmedReboot()
 {
-    // This is reachable only after the user explicitly confirmed a completed,
-    // daemon-verified offline preparation and separately approved reboot.
+    // Do not reboot based solely on a stale in-memory state.
     if (!m_offlineReady || m_preparing || m_outcomeUnknown || m_rebootRequestRunning
-        || !QFile::exists(journalPath()))
+        || m_clearingPrepared || !QFile::exists(journalPath()))
+        return;
+    m_rebootRequestRunning = true;
+    emit changed();
+    readOfflineStatus(this, [this](const QString &error, bool pending,
+                                   const QVariantMap &state) {
+        if (!m_rebootRequestRunning)
+            return;
+        if (!error.isEmpty() || !pending ||
+            state.value(QStringLiteral("status")).toString() != QStringLiteral("ready")) {
+            m_rebootRequestRunning = false;
+            m_message = QStringLiteral("DNF5 güncellemesi yeniden başlatmaya hazır olarak "
+                                      "doğrulanamadı. Yeniden başlatma engellendi. ") + error;
+            emit changed();
+            return;
+        }
+        beginConfirmedReboot();
+    });
+}
+
+void SystemOfflineUpgrade::beginConfirmedReboot()
+{
+    if (!m_rebootRequestRunning || !m_offlineReady || !QFile::exists(journalPath()))
         return;
     if (!QFileInfo::exists(QStringLiteral("/usr/bin/pkexec"))
         || !QFileInfo::exists(QStringLiteral("/usr/bin/dnf5"))) {
@@ -588,7 +621,6 @@ void SystemOfflineUpgrade::requestConfirmedReboot()
     }
     auto *process = new QProcess(this);
     m_rebootProcess = process;
-    m_rebootRequestRunning = true;
     process->setProgram(QStringLiteral("/usr/bin/pkexec"));
     process->setArguments({QStringLiteral("/usr/bin/dnf5"),
                            QStringLiteral("-y"),
