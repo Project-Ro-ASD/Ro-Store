@@ -26,6 +26,10 @@ class SystemUpdateCache : public QObject
     Q_PROPERTY(int downloadPercent READ downloadPercent NOTIFY changed)
     Q_PROPERTY(qulonglong stagedBytes READ stagedBytes NOTIFY changed)
     Q_PROPERTY(int elapsedSeconds READ elapsedSeconds NOTIFY changed)
+    Q_PROPERTY(bool hasDownloadResult READ hasDownloadResult NOTIFY changed)
+    Q_PROPERTY(int lastNewCount READ lastNewCount NOTIFY changed)
+    Q_PROPERTY(int lastReusedCount READ lastReusedCount NOTIFY changed)
+    Q_PROPERTY(int lastRejectedCount READ lastRejectedCount NOTIFY changed)
 public:
     explicit SystemUpdateCache(QObject *parent = nullptr);
     ~SystemUpdateCache() override;
@@ -40,6 +44,10 @@ public:
     int downloadPercent() const { return m_downloadPercent; }
     qulonglong stagedBytes() const { return m_stagedBytes; }
     int elapsedSeconds() const { return m_elapsedSeconds; }
+    bool hasDownloadResult() const { return m_hasDownloadResult; }
+    int lastNewCount() const { return m_lastNewCount; }
+    int lastReusedCount() const { return m_lastReusedCount; }
+    int lastRejectedCount() const { return m_lastRejectedCount; }
 
     Q_INVOKABLE void refresh();
     Q_INVOKABLE void clear();
@@ -65,6 +73,11 @@ private:
     qulonglong m_stagedBytes = 0; // Files currently present in staging; not total network bytes.
     int m_elapsedSeconds = 0;
     bool m_seenPackageDownloads = false;
+    bool m_hasDownloadResult = false;
+    int m_reusedThisRun = 0;
+    int m_lastNewCount = 0;
+    int m_lastReusedCount = 0;
+    int m_lastRejectedCount = 0;
     bool m_downloading = false;
     QElapsedTimer m_elapsedTimer;
     QTimer m_progressTimer;
