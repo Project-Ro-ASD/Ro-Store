@@ -6,7 +6,7 @@
 
 // Persistent user-owned staging area. This component does NOT download,
 // install, or assume any RPM file is safe to execute.
-class SystemUpdateCache final : public QObject
+class SystemUpdateCache : public QObject
 {
     Q_OBJECT
     Q_PROPERTY(QString path READ path CONSTANT)
