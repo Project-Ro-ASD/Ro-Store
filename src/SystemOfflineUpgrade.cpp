@@ -595,11 +595,17 @@ void SystemOfflineUpgrade::requestConfirmedReboot()
                                    const QVariantMap &state) {
         if (!m_rebootRequestRunning)
             return;
-        if (!error.isEmpty() || !pending ||
-            state.value(QStringLiteral("status")).toString() != QStringLiteral("ready")) {
+        // DNF5 stores a successfully prepared transaction as
+        // "download-complete". "ready" is only set once scheduled for
+        // the next boot (which dnf5 offline reboot itself performs).
+        const QString status = state.value(QStringLiteral("status")).toString();
+        if (!error.isEmpty() ||
+            (status != QStringLiteral("download-complete")
+             && status != QStringLiteral("ready"))) {
             m_rebootRequestRunning = false;
-            m_message = QStringLiteral("DNF5 güncellemesi yeniden başlatmaya hazır olarak "
-                                      "doğrulanamadı. Yeniden başlatma engellendi. ") + error;
+            m_message = QStringLiteral("DNF5 işlem durumu yeniden başlatmaya uygun değil "
+                                      "(%1). Yeniden başlatma engellendi. %2")
+                            .arg(status, error);
             emit changed();
             return;
         }
