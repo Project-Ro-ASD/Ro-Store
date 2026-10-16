@@ -89,8 +89,11 @@ Item {
             width: parent.width
             wrapMode: Text.WordWrap
             text: "DNF5 tarafından çözülen TEK işlem planı: " +
-                  offlineUpdate.planCount + " işlem; yaklaşık " +
-                  page.formatCacheBytes(offlineUpdate.planBytes) + " indirme. " +
+                  offlineUpdate.planCount + " işlem; " +
+                  offlineUpdate.removalCount + " paket kaldırma; " +
+                  (offlineUpdate.kernelAffected ? "KERNEL DEĞİŞİKLİĞİ VAR. " : "") +
+                  "Yaklaşık " + page.formatCacheBytes(offlineUpdate.planBytes) +
+                  " indirme. " +
                   "Paket kaldırmaları dahil bütün DNF5 planını incelemiş olmalısın. " +
                   "İndirilen paketler çevrimdışı uygulama için hazırlanacak. " +
                   "Şimdi RPM KURULMAZ ve bilgisayar YENİDEN BAŞLATILMAZ. " +
