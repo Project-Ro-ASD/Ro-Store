@@ -363,7 +363,7 @@ void SystemUpdateCache::appendDownloadOutput(const QByteArray &bytes)
     const QStringList rows = m_pendingOutput.split(QChar('\n'));
     m_pendingOutput = rows.constLast().right(1000);
     static const QRegularExpression percentPattern(
-        QStringLiteral(R"(\b(100|[1-9]?[0-9])%\b?)"));
+        QStringLiteral(R"((?:^|\s)(100|[1-9]?[0-9])%)"));
     for (int i = 0; i + 1 < rows.size(); ++i) {
         const QString row = rows.at(i).trimmed();
         if (row.isEmpty())
