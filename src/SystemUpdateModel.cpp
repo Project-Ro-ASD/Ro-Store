@@ -3,6 +3,8 @@
 #include <QSet>
 #include <QTimer>
 #include <QHash>
+#include <QProcessEnvironment>
+#include <QRegularExpression>
 #include <algorithm>
 
 namespace {
@@ -109,6 +111,7 @@ void SystemUpdateModel::setSelected(const QString &name, const QString &arch, bo
             m_selected.insert(key);
         else
             m_selected.remove(key);
+        invalidatePreview();
         emit dataChanged(index(i, 0), index(i, 0), {SelectedRole});
         emit selectionChanged();
         return;
@@ -121,6 +124,7 @@ void SystemUpdateModel::selectAll()
         return;
     if (m_selected.size() == m_updates.size())
         return;
+    invalidatePreview();
     m_selected.clear();
     for (const SystemUpdateItem &item : m_updates)
         m_selected.insert(updateKey(item));
@@ -133,10 +137,151 @@ void SystemUpdateModel::clearSelection()
 {
     if (m_selected.isEmpty())
         return;
+    invalidatePreview();
     m_selected.clear();
     if (!m_updates.isEmpty())
         emit dataChanged(index(0, 0), index(m_updates.size() - 1, 0), {SelectedRole});
     emit selectionChanged();
+}
+
+void SystemUpdateModel::setPreviewRunning(bool value)
+{
+    if (m_previewRunning == value)
+        return;
+    m_previewRunning = value;
+    emit previewChanged();
+}
+
+void SystemUpdateModel::invalidatePreview()
+{
+    if (m_previewProcess) {
+        QProcess *previous = m_previewProcess;
+        m_previewProcess = nullptr;
+        retireUpdateQuery(previous);
+    }
+    m_previewBuffer.clear();
+    m_previewText.clear();
+    m_previewError.clear();
+    setPreviewRunning(false);
+    emit previewChanged();
+}
+
+void SystemUpdateModel::cancelPreview()
+{
+    if (!m_previewRunning)
+        return;
+    invalidatePreview();
+    m_previewError = QStringLiteral("Güncelleme planı incelemesi iptal edildi. Sistem paketleri değiştirilmedi.");
+    emit previewChanged();
+}
+
+void SystemUpdateModel::previewPlan()
+{
+    // One solver goal for the whole selection; never invoke a series of
+    // independent per-package RPM mutations. This command is deliberately
+    // non-privileged, cache-only and declines all transactions.
+    if (m_loading || !m_checked || m_selected.isEmpty() || m_previewRunning)
+        return;
+
+    static const QRegularExpression safeName(
+        QStringLiteral("^[A-Za-z0-9][A-Za-z0-9_.+\\-]{0,127}$"));
+    QStringList names;
+    names.reserve(m_selected.size());
+    const bool allSelected = m_selected.size() == m_updates.size();
+    if (!allSelected) {
+        for (const SystemUpdateItem &item : m_updates) {
+            if (!m_selected.contains(updateKey(item)))
+                continue;
+            if (!safeName.match(item.name).hasMatch()
+                || !safeName.match(item.architecture).hasMatch()) {
+                m_previewError = QStringLiteral("Güvenli DNF5 paket adı doğrulanamadı; plan oluşturulmadı.");
+                emit previewChanged();
+                return;
+            }
+            names.append(item.name + QChar('.') + item.architecture);
+        }
+        if (names.size() != m_selected.size()) {
+            m_previewError = QStringLiteral("Paket seçimi geçersiz; yeniden denetleyin.");
+            emit previewChanged();
+            return;
+        }
+    }
+
+    invalidatePreview();
+    auto *process = new QProcess(this);
+    m_previewProcess = process;
+    process->setProgram(QStringLiteral("dnf5"));
+    QStringList args {
+        QStringLiteral("--cacheonly"),
+        QStringLiteral("--assumeno"),
+        QStringLiteral("upgrade")
+    };
+    if (!allSelected)
+        args.append(names);
+    process->setArguments(args);
+    process->setProcessChannelMode(QProcess::MergedChannels);
+
+    QProcessEnvironment env = QProcessEnvironment::systemEnvironment();
+    env.insert(QStringLiteral("NO_COLOR"), QStringLiteral("1"));
+    env.insert(QStringLiteral("CLICOLOR"), QStringLiteral("0"));
+    process->setProcessEnvironment(env);
+
+    setPreviewRunning(true);
+    qInfo() << "SYSTEM UPDATE PLAN PREVIEW (cache-only, assumeno):"
+            << (allSelected ? QStringLiteral("all upgrades") : QString::number(names.size()));
+
+    connect(process, &QProcess::readyReadStandardOutput, this, [this, process]() {
+        if (m_previewProcess != process)
+            return;
+        m_previewBuffer += process->readAllStandardOutput();
+        if (m_previewBuffer.size() > MaxOutputBytes) {
+            invalidatePreview();
+            m_previewError = QStringLiteral("DNF5 plan çıktısı boyut sınırını aştı.");
+            emit previewChanged();
+        }
+    });
+    connect(process, &QProcess::errorOccurred, this,
+            [this, process](QProcess::ProcessError error) {
+        if (m_previewProcess != process || error != QProcess::FailedToStart)
+            return;
+        m_previewProcess = nullptr;
+        process->deleteLater();
+        setPreviewRunning(false);
+        m_previewError = QStringLiteral("DNF5 plan sorgusu başlatılamadı.");
+        emit previewChanged();
+    });
+    connect(process, QOverload<int, QProcess::ExitStatus>::of(&QProcess::finished),
+            this, [this, process](int code, QProcess::ExitStatus status) {
+        if (m_previewProcess != process)
+            return;
+        m_previewBuffer += process->readAllStandardOutput();
+        m_previewProcess = nullptr;
+        process->deleteLater();
+        setPreviewRunning(false);
+
+        if (m_previewBuffer.size() > MaxOutputBytes) {
+            m_previewError = QStringLiteral("DNF5 plan çıktısı boyut sınırını aştı.");
+        } else {
+            m_previewText = QString::fromLocal8Bit(m_previewBuffer).trimmed();
+            if (m_previewText.isEmpty())
+                m_previewError = QStringLiteral("DNF5 plan çıktısı boş. Herhangi bir işlem yapılmadı.");
+            // --assumeno commonly exits non-zero after declining the plan.
+            // Do not mistake that exit code for a successful installation.
+            else if (status != QProcess::NormalExit)
+                m_previewError = QStringLiteral("DNF5 plan sorgusu beklenmedik biçimde sonlandı.");
+            qInfo() << "SYSTEM UPDATE PLAN PREVIEW EXIT:" << code
+                    << "output bytes:" << m_previewBuffer.size();
+        }
+        emit previewChanged();
+    });
+    QTimer::singleShot(90000, process, [this, process]() {
+        if (m_previewProcess != process || process->state() == QProcess::NotRunning)
+            return;
+        invalidatePreview();
+        m_previewError = QStringLiteral("DNF5 plan sorgusu 90 saniyede tamamlanamadı. Önbellek ve depoları kontrol edin.");
+        emit previewChanged();
+    });
+    process->start();
 }
 
 void SystemUpdateModel::setLoading(bool value)
@@ -162,6 +307,7 @@ void SystemUpdateModel::refresh()
         return;
 
     setError({});
+    invalidatePreview();
     clearSelection(); // A refreshed dependency graph invalidates old selections.
     m_stdout.clear();
     setLoading(true);
