@@ -405,7 +405,7 @@ Item {
                         Layout.preferredWidth: Math.max(145, implicitWidth + 12)
                         font.pixelSize: metrics.fontSmall
                         enabled: updateCache.downloading ||
-                                 (!updates.loading && !updates.previewRunning
+                                 (updateCache.transactionAvailable && !updates.loading && !updates.previewRunning
                                   && updates.selectedCount > 0 && updates.selectedCount <= updateCache.maximumBatch
                                   && updates.previewText.length > 0
                                   && updates.previewError.length === 0
