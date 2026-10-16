@@ -193,24 +193,26 @@ Item {
                 text: "Geri"
                 themedIconName: "go-previous"
                 Layout.preferredHeight: Math.max(40, metrics.fontPx(40))
-                Layout.preferredWidth: Math.max(90, implicitWidth + 16)
+                Layout.preferredWidth: Math.min(Math.max(70, implicitWidth + 12), Math.max(65, parent.width * 0.21))
                 font.pixelSize: metrics.fontBody
                 onClicked: page.backRequested()
             }
             Label {
-                text: "Sistem Güncellemeleri"
+                text: pageContent.width < 530 ? "Güncellemeler" : "Sistem Güncellemeleri"
+                Accessible.name: "Sistem Güncellemeleri"
                 Layout.fillWidth: true
                 elide: Text.ElideRight
                 color: palette.windowText
                 font.family: metrics.systemFont.family
-                font.pixelSize: metrics.fontPageTitle
+                font.pixelSize: pageContent.width < 530 ? metrics.fontTitle : metrics.fontPageTitle
                 font.bold: true
             }
             ThemedIconButton {
-                text: "Yeniden denetle"
+                text: pageContent.width < 530 ? "Denetle" : "Yeniden denetle"
+                Accessible.name: "Yeniden denetle"
                 themedIconName: "view-refresh"
                 Layout.preferredHeight: Math.max(40, metrics.fontPx(40))
-                Layout.preferredWidth: Math.max(166, implicitWidth + 16)
+                Layout.preferredWidth: Math.min(Math.max(110, implicitWidth + 12), Math.max(95, parent.width * 0.32))
                 font.pixelSize: metrics.fontBody
                 enabled: !updates.loading
                 onClicked: updates.refresh()
@@ -267,22 +269,29 @@ Item {
             Layout.fillWidth: true
             spacing: metrics.spaceCompact
             ThemedActionButton {
+                wrapButtonText: true
                 text: "Tümünü seç"
-                Layout.preferredHeight: Math.max(36, metrics.fontPx(36))
+                Layout.preferredWidth: Math.min(Math.max(104, implicitWidth + 12), Math.max(80, parent.width * 0.42))
+                Layout.minimumWidth: 0
+                Layout.preferredHeight: Math.max(42, metrics.fontPx(42))
                 enabled: !updates.loading && updates.updateCount > 0
                 onClicked: updates.selectAll()
             }
             ThemedActionButton {
+                wrapButtonText: true
                 text: "Seçimi kaldır"
-                Layout.preferredHeight: Math.max(36, metrics.fontPx(36))
+                Layout.preferredWidth: Math.min(Math.max(112, implicitWidth + 12), Math.max(90, parent.width * 0.42))
+                Layout.minimumWidth: 0
+                Layout.preferredHeight: Math.max(42, metrics.fontPx(42))
                 enabled: !updates.loading && updates.selectedCount > 0
                 onClicked: updates.clearSelection()
             }
             Item { Layout.fillWidth: true }
         }
         ThemedActionButton {
+                wrapButtonText: true
             text: page.showAdvancedTools ? "Gelişmiş seçenekleri gizle" : "Gelişmiş seçenekler"
-            Layout.preferredHeight: Math.max(34, metrics.fontPx(34))
+            Layout.preferredHeight: Math.max(42, metrics.fontPx(42))
             Layout.alignment: Qt.AlignRight
             font.pixelSize: metrics.fontSmall
             onClicked: page.showAdvancedTools = !page.showAdvancedTools
@@ -328,18 +337,22 @@ Item {
                 Item { Layout.fillWidth: true }
 
                 ThemedActionButton {
+                wrapButtonText: true
                     text: "Tümünü seç"
-                    Layout.preferredWidth: Math.max(112, implicitWidth + 16)
-                    Layout.preferredHeight: Math.max(34, metrics.fontPx(34))
+                    Layout.preferredWidth: Math.min(Math.max(112, implicitWidth + 16), Math.max(80, parent.width * 0.22))
+                    Layout.minimumWidth: 0
+                    Layout.preferredHeight: Math.max(44, metrics.fontPx(44))
                     font.pixelSize: metrics.fontSmall
                     enabled: !updates.loading && updates.updateCount > 0
                     onClicked: updates.selectAll()
                 }
 
                 ThemedActionButton {
+                wrapButtonText: true
                     text: "Seçimi temizle"
-                    Layout.preferredWidth: Math.max(134, implicitWidth + 16)
-                    Layout.preferredHeight: Math.max(34, metrics.fontPx(34))
+                    Layout.preferredWidth: Math.min(Math.max(134, implicitWidth + 16), Math.max(95, parent.width * 0.26))
+                    Layout.minimumWidth: 0
+                    Layout.preferredHeight: Math.max(44, metrics.fontPx(44))
                     font.pixelSize: metrics.fontSmall
                     enabled: !updates.loading && updates.selectedCount > 0
                     onClicked: updates.clearSelection()
@@ -348,10 +361,12 @@ Item {
                 Item { Layout.preferredWidth: metrics.spaceMedium }
 
                 ThemedActionButton {
+                wrapButtonText: true
                     text: updates.previewRunning
                           ? "Plan sorgusunu iptal et" : "Seçilenlerin planını incele"
-                    Layout.preferredWidth: Math.max(214, implicitWidth + 16)
-                    Layout.preferredHeight: Math.max(34, metrics.fontPx(34))
+                    Layout.preferredWidth: Math.min(Math.max(214, implicitWidth + 16), Math.max(150, parent.width * 0.42))
+                    Layout.minimumWidth: 0
+                    Layout.preferredHeight: Math.max(44, metrics.fontPx(44))
                     font.pixelSize: metrics.fontSmall
                     enabled: updates.previewRunning
                              || (!updates.loading && updates.selectedCount > 0)
@@ -378,18 +393,22 @@ Item {
                     Item { Layout.fillWidth: true }
 
                     ThemedActionButton {
+                wrapButtonText: true
                         text: "Tümünü seç"
-                        Layout.preferredWidth: Math.max(112, implicitWidth + 16)
-                        Layout.preferredHeight: Math.max(34, metrics.fontPx(34))
+                        Layout.preferredWidth: Math.min(Math.max(112, implicitWidth + 16), Math.max(80, parent.width * 0.43))
+                        Layout.minimumWidth: 0
+                        Layout.preferredHeight: Math.max(44, metrics.fontPx(44))
                         font.pixelSize: metrics.fontSmall
                         enabled: !updates.loading && updates.updateCount > 0
                         onClicked: updates.selectAll()
                     }
 
                     ThemedActionButton {
+                wrapButtonText: true
                         text: "Seçimi temizle"
-                        Layout.preferredWidth: Math.max(134, implicitWidth + 16)
-                        Layout.preferredHeight: Math.max(34, metrics.fontPx(34))
+                        Layout.preferredWidth: Math.min(Math.max(134, implicitWidth + 16), Math.max(95, parent.width * 0.43))
+                        Layout.minimumWidth: 0
+                        Layout.preferredHeight: Math.max(44, metrics.fontPx(44))
                         font.pixelSize: metrics.fontSmall
                         enabled: !updates.loading && updates.selectedCount > 0
                         onClicked: updates.clearSelection()
@@ -401,10 +420,12 @@ Item {
                     Item { Layout.fillWidth: true }
 
                     ThemedActionButton {
+                wrapButtonText: true
                         text: updates.previewRunning
                               ? "Plan sorgusunu iptal et" : "Seçilenlerin planını incele"
-                        Layout.preferredWidth: Math.max(214, implicitWidth + 16)
-                        Layout.preferredHeight: Math.max(34, metrics.fontPx(34))
+                        Layout.preferredWidth: Math.min(Math.max(214, implicitWidth + 16), Math.max(145, parent.width * 0.8))
+                        Layout.minimumWidth: 0
+                        Layout.preferredHeight: Math.max(44, metrics.fontPx(44))
                         font.pixelSize: metrics.fontSmall
                         enabled: updates.previewRunning
                                  || (!updates.loading && updates.selectedCount > 0)
@@ -471,6 +492,7 @@ Item {
                     }
 
                     ThemedActionButton {
+                wrapButtonText: true
                         text: previewFrame.collapsed ? "Büyüt" : "Küçült"
                         Layout.preferredWidth: Math.max(100, implicitWidth + 16)
                         Layout.preferredHeight: Math.max(38, metrics.fontPx(38))
@@ -523,9 +545,12 @@ Item {
                 RowLayout {
                     Layout.fillWidth: true
                     ThemedActionButton {
+                wrapButtonText: true
                         text: offlineUpdate.busy ? "Plan hazırlanıyor..." : "Güncelleme planını oluştur"
-                        Layout.preferredWidth: Math.max(210, implicitWidth + 12)
-                        Layout.preferredHeight: Math.max(34, metrics.fontPx(34))
+                        Layout.fillWidth: true
+                        Layout.minimumWidth: 0
+                        Layout.preferredWidth: Math.min(Math.max(210, implicitWidth + 12), Math.max(115, parent.width * 0.62))
+                        Layout.preferredHeight: Math.max(50, metrics.fontPx(50))
                         font.pixelSize: metrics.fontSmall
                         enabled: !offlineUpdate.busy && !offlineUpdate.outcomeUnknown
                                  && !offlineUpdate.offlineReady
@@ -536,9 +561,11 @@ Item {
                         onClicked: offlineUpdate.resolve(updates.selectedNevras())
                     }
                     ThemedActionButton {
+                wrapButtonText: true
                         text: "Planı iptal et"
-                        Layout.preferredHeight: Math.max(34, metrics.fontPx(34))
-                        Layout.preferredWidth: Math.max(96, implicitWidth + 12)
+                        Layout.preferredHeight: Math.max(50, metrics.fontPx(50))
+                        Layout.minimumWidth: 0
+                        Layout.preferredWidth: Math.min(Math.max(96, implicitWidth + 12), Math.max(75, parent.width * 0.32))
                         font.pixelSize: metrics.fontSmall
                         enabled: offlineUpdate.ready && !offlineUpdate.preparing
                         onClicked: offlineUpdate.abandonPlan()
@@ -593,17 +620,22 @@ Item {
                     Layout.fillWidth: true
                     visible: offlineUpdate.ready || offlineUpdate.preparing
                     ThemedActionButton {
+                wrapButtonText: true
                         text: "Güncelleme dosyalarını hazırla"
-                        Layout.preferredHeight: Math.max(34, metrics.fontPx(34))
-                        Layout.preferredWidth: Math.max(230, implicitWidth + 12)
+                        Layout.fillWidth: true
+                        Layout.minimumWidth: 0
+                        Layout.preferredHeight: Math.max(50, metrics.fontPx(50))
+                        Layout.preferredWidth: Math.min(Math.max(230, implicitWidth + 12), Math.max(115, parent.width * 0.67))
                         font.pixelSize: metrics.fontSmall
                         enabled: offlineUpdate.ready && !offlineUpdate.preparing
                         onClicked: offlinePrepareConfirmation.open()
                     }
                     ThemedActionButton {
+                wrapButtonText: true
                         text: "İptal iste"
-                        Layout.preferredHeight: Math.max(34, metrics.fontPx(34))
-                        Layout.preferredWidth: Math.max(100, implicitWidth + 12)
+                        Layout.minimumWidth: 0
+                        Layout.preferredHeight: Math.max(50, metrics.fontPx(50))
+                        Layout.preferredWidth: Math.min(Math.max(100, implicitWidth + 12), Math.max(70, parent.width * 0.28))
                         font.pixelSize: metrics.fontSmall
                         enabled: offlineUpdate.preparing
                         onClicked: offlineUpdate.requestCancellation()
@@ -613,22 +645,25 @@ Item {
                     Layout.fillWidth: true
                     visible: offlineUpdate.outcomeUnknown
                     ThemedActionButton {
+                wrapButtonText: true
                         text: "Kurtarma durumunu denetle"
                         Layout.fillWidth: true
-                        Layout.preferredHeight: Math.max(34, metrics.fontPx(34))
+                        Layout.preferredHeight: Math.max(44, metrics.fontPx(44))
                         font.pixelSize: metrics.fontSmall
                         onClicked: offlineUpdate.recheckRecovery()
                     }
                     ThemedActionButton {
+                wrapButtonText: true
                         text: "Kaydı onayla ve kilidi kaldır"
                         Layout.fillWidth: true
-                        Layout.preferredHeight: Math.max(34, metrics.fontPx(34))
+                        Layout.preferredHeight: Math.max(44, metrics.fontPx(44))
                         font.pixelSize: metrics.fontSmall
                         enabled: offlineUpdate.recoveryVerified
                         onClicked: recoveryConfirm.open()
                     }
                 }
                 ThemedActionButton {
+                wrapButtonText: true
                     visible: offlineUpdate.offlineReady
                     text: offlineUpdate.clearingPrepared
                           ? "Çevrimdışı hazırlık temizleniyor..."
@@ -642,6 +677,7 @@ Item {
                     onClicked: discardOfflineConfirmation.open()
                 }
                 ThemedActionButton {
+                wrapButtonText: true
                     visible: offlineUpdate.offlineReady
                     text: offlineUpdate.rebootRequestRunning
                           ? "Yeniden başlatma isteği yürütülüyor..."
@@ -683,7 +719,8 @@ Item {
                     Layout.fillWidth: true
                     Label {
                         Layout.fillWidth: true
-                        text: "İndirme önbelleği (isteğe bağlı test aracı)"
+                        text: pageContent.width < 650 ? "RPM önbelleği" : "İndirme önbelleği (isteğe bağlı test aracı)"
+                        Accessible.name: "İndirme önbelleği (isteğe bağlı test aracı)"
                         font.family: metrics.systemFont.family
                         font.pixelSize: metrics.fontBody
                         font.bold: true
@@ -691,16 +728,24 @@ Item {
                         wrapMode: Text.WordWrap
                     }
                     ThemedActionButton {
-                        text: "Dosyaları kontrol et"
-                        Layout.preferredHeight: Math.max(32, metrics.fontPx(32))
-                        Layout.preferredWidth: Math.max(82, implicitWidth + 12)
+                wrapButtonText: true
+                        text: pageContent.width < 650 ? "Kontrol" : "Dosyaları kontrol et"
+                        Accessible.name: "Dosyaları kontrol et"
+                        Layout.minimumWidth: 0
+                        Layout.preferredHeight: Math.max(46, metrics.fontPx(46))
+                        Layout.preferredWidth: Math.min(Math.max(82, implicitWidth + 12), Math.max(52, parent.width * 0.21))
                         font.pixelSize: metrics.fontSmall
                         onClicked: updateCache.refresh()
                     }
                     ThemedActionButton {
-                        text: updateCache.downloading ? "İndirmeyi durdur" : "Yalnızca RPM dosyalarını indir"
-                        Layout.preferredHeight: Math.max(32, metrics.fontPx(32))
-                        Layout.preferredWidth: Math.max(145, implicitWidth + 12)
+                wrapButtonText: true
+                        text: updateCache.downloading
+                              ? (pageContent.width < 650 ? "Durdur" : "İndirmeyi durdur")
+                              : (pageContent.width < 650 ? "İndir" : "Yalnızca RPM dosyalarını indir")
+                        Accessible.name: updateCache.downloading ? "İndirmeyi durdur" : "Yalnızca RPM dosyalarını indir"
+                        Layout.minimumWidth: 0
+                        Layout.preferredHeight: Math.max(46, metrics.fontPx(46))
+                        Layout.preferredWidth: Math.min(Math.max(145, implicitWidth + 12), Math.max(52, parent.width * 0.27))
                         font.pixelSize: metrics.fontSmall
                         enabled: updateCache.downloading ||
                                  (updateCache.transactionAvailable && !updates.loading && !updates.previewRunning
@@ -722,9 +767,12 @@ Item {
                         }
                     }
                     ThemedActionButton {
-                        text: "İndirilen dosyaları sil"
-                        Layout.preferredHeight: Math.max(32, metrics.fontPx(32))
-                        Layout.preferredWidth: Math.max(90, implicitWidth + 12)
+                wrapButtonText: true
+                        text: pageContent.width < 650 ? "Sil" : "İndirilen dosyaları sil"
+                        Accessible.name: "İndirilen dosyaları sil"
+                        Layout.minimumWidth: 0
+                        Layout.preferredHeight: Math.max(46, metrics.fontPx(46))
+                        Layout.preferredWidth: Math.min(Math.max(90, implicitWidth + 12), Math.max(46, parent.width * 0.19))
                         font.pixelSize: metrics.fontSmall
                         enabled: updateCache.rpmCount > 0
                         onClicked: cacheClearConfirm.open()
@@ -799,8 +847,9 @@ Item {
                             color: palette.text
                         }
                         ThemedActionButton {
+                wrapButtonText: true
                             text: downloadDetails.expanded ? "Günlüğü gizle" : "Günlüğü göster"
-                            Layout.preferredHeight: Math.max(32, metrics.fontPx(32))
+                            Layout.preferredHeight: Math.max(42, metrics.fontPx(42))
                             Layout.preferredWidth: Math.max(142, implicitWidth + 12)
                             font.pixelSize: metrics.fontSmall
                             onClicked: downloadDetails.expanded = !downloadDetails.expanded
@@ -909,10 +958,12 @@ Item {
                         wrapMode: Text.WordWrap
                     }
                     ThemedActionButton {
+                wrapButtonText: true
                         text: updateCache.offlineCheckRunning ? "Denetleniyor..." : "Durumu denetle"
                         enabled: !updateCache.offlineCheckRunning && !updateCache.downloading
-                        Layout.preferredWidth: Math.max(150, implicitWidth + 14)
-                        Layout.preferredHeight: Math.max(32, metrics.fontPx(32))
+                        Layout.minimumWidth: 0
+                        Layout.preferredWidth: Math.min(Math.max(150, implicitWidth + 14), Math.max(100, parent.width * 0.45))
+                        Layout.preferredHeight: Math.max(44, metrics.fontPx(44))
                         font.pixelSize: metrics.fontSmall
                         onClicked: updateCache.checkOfflineStatus()
                     }
