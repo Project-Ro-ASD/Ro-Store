@@ -613,6 +613,7 @@ void SystemOfflineUpgrade::beginConfirmedReboot()
         return;
     if (!QFileInfo::exists(QStringLiteral("/usr/bin/pkexec"))
         || !QFileInfo::exists(QStringLiteral("/usr/bin/dnf5"))) {
+        m_rebootRequestRunning = false;
         m_message = QStringLiteral(
             "pkexec veya dnf5 bulunamadı. Yönetici olarak terminalden "
             "'sudo dnf5 offline reboot' komutunu ayrı onayla çalıştırabilirsiniz.");
