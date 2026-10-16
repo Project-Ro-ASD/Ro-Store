@@ -156,14 +156,36 @@ void SystemUpdateCache::clear()
 }
 
 
+int SystemUpdateCache::countCached(const QStringList &nevras) const
+{
+    int count = 0;
+    for (const QString &nevra : nevras) {
+        const QString file = QDir(m_root).filePath(nevra + QStringLiteral(".rpm"));
+        if (QFileInfo::exists(file) && verifyStagedRpm(file, nevra).valid)
+            ++count;
+    }
+    return count;
+}
+
+qulonglong SystemUpdateCache::cachedBytes(const QStringList &nevras) const
+{
+    qulonglong bytes = 0;
+    for (const QString &nevra : nevras) {
+        const QString file = QDir(m_root).filePath(nevra + QStringLiteral(".rpm"));
+        if (QFileInfo::exists(file) && verifyStagedRpm(file, nevra).valid)
+            bytes += static_cast<qulonglong>(QFileInfo(file).size());
+    }
+    return bytes;
+}
+
 void SystemUpdateCache::downloadSelected(const QStringList &nevras)
 {
     if (m_downloading || nevras.isEmpty()) {
         qWarning() << "SYSTEM UPDATE DOWNLOAD SKIPPED: active or empty selection";
         return;
     }
-    if (nevras.size() > 3) {
-        m_error = QStringLiteral("İlk güvenlik testinde en fazla 3 paket indirilebilir.");
+    if (nevras.size() > maximumBatch()) {
+        m_error = QStringLiteral("Bu güvenlik testinde en fazla %1 paket indirilebilir.").arg(maximumBatch());
         emit changed();
         return;
     }
