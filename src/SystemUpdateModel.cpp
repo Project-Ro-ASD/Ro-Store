@@ -63,6 +63,7 @@ QVariant SystemUpdateModel::data(const QModelIndex &index, int role) const
     case ArchitectureRole: return update.architecture;
     case RepositoryRole: return update.repository;
     case KernelUpdateRole: return isKernelUpdate(update.name);
+    case SelectedRole: return m_selected.contains(updateKey(update));
     default: return {};
     }
 }
@@ -75,8 +76,67 @@ QHash<int, QByteArray> SystemUpdateModel::roleNames() const
         { InstalledVersionRole, "installedVersion" },
         { ArchitectureRole, "architecture" },
         { RepositoryRole, "repository" },
-        { KernelUpdateRole, "kernelUpdate" }
+        { KernelUpdateRole, "kernelUpdate" },
+        { SelectedRole, "updateSelected" }
     };
+}
+
+QString SystemUpdateModel::updateKey(const SystemUpdateItem &item)
+{
+    return item.name + QChar('|') + item.architecture;
+}
+
+int SystemUpdateModel::selectedKernelCount() const
+{
+    int count = 0;
+    for (const SystemUpdateItem &item : m_updates) {
+        if (isKernelUpdate(item.name) && m_selected.contains(updateKey(item)))
+            ++count;
+    }
+    return count;
+}
+
+void SystemUpdateModel::setSelected(const QString &name, const QString &arch, bool selected)
+{
+    for (int i = 0; i < m_updates.size(); ++i) {
+        const SystemUpdateItem &item = m_updates.at(i);
+        if (item.name != name || item.architecture != arch)
+            continue;
+        const QString key = updateKey(item);
+        if (m_selected.contains(key) == selected)
+            return;
+        if (selected)
+            m_selected.insert(key);
+        else
+            m_selected.remove(key);
+        emit dataChanged(index(i, 0), index(i, 0), {SelectedRole});
+        emit selectionChanged();
+        return;
+    }
+}
+
+void SystemUpdateModel::selectAll()
+{
+    if (m_loading || !m_checked)
+        return;
+    if (m_selected.size() == m_updates.size())
+        return;
+    m_selected.clear();
+    for (const SystemUpdateItem &item : m_updates)
+        m_selected.insert(updateKey(item));
+    if (!m_updates.isEmpty())
+        emit dataChanged(index(0, 0), index(m_updates.size() - 1, 0), {SelectedRole});
+    emit selectionChanged();
+}
+
+void SystemUpdateModel::clearSelection()
+{
+    if (m_selected.isEmpty())
+        return;
+    m_selected.clear();
+    if (!m_updates.isEmpty())
+        emit dataChanged(index(0, 0), index(m_updates.size() - 1, 0), {SelectedRole});
+    emit selectionChanged();
 }
 
 void SystemUpdateModel::setLoading(bool value)
@@ -102,6 +162,7 @@ void SystemUpdateModel::refresh()
         return;
 
     setError({});
+    clearSelection(); // A refreshed dependency graph invalidates old selections.
     m_stdout.clear();
     setLoading(true);
 
@@ -220,6 +281,7 @@ void SystemUpdateModel::parseUpdates(const QByteArray &output)
         [](const SystemUpdateItem &item) { return isKernelUpdate(item.name); });
 
     beginResetModel();
+    m_selected.clear();
     m_updates = std::move(parsed);
     endResetModel();
 
