@@ -579,6 +579,49 @@ Item {
             }
         }
 
+        Frame {
+            Layout.fillWidth: true
+            ColumnLayout {
+                anchors.fill: parent
+                spacing: metrics.spaceCompact
+                RowLayout {
+                    Layout.fillWidth: true
+                    Label {
+                        Layout.fillWidth: true
+                        text: "Fedora çevrimdışı güncelleme durumu"
+                        font.family: metrics.systemFont.family
+                        font.pixelSize: metrics.fontBody
+                        font.bold: true
+                        color: palette.text
+                        wrapMode: Text.WordWrap
+                    }
+                    ThemedActionButton {
+                        text: updateCache.offlineCheckRunning ? "Denetleniyor..." : "Durumu denetle"
+                        enabled: !updateCache.offlineCheckRunning && !updateCache.downloading
+                        Layout.preferredWidth: Math.max(150, implicitWidth + 14)
+                        Layout.preferredHeight: Math.max(32, metrics.fontPx(32))
+                        font.pixelSize: metrics.fontSmall
+                        onClicked: updateCache.checkOfflineStatus()
+                    }
+                }
+                Label {
+                    Layout.fillWidth: true
+                    text: "Sistem paketleri ve kernel güncellemelerinin güvenli uygulanması için çevrimdışı DNF5 işlemi ayrıca hazırlanmalıdır. Bu alan yalnızca mevcut durumu okur; yeniden başlatmaz veya paket kurmaz."
+                    font.pixelSize: metrics.fontSmall
+                    color: palette.text
+                    wrapMode: Text.WordWrap
+                }
+                Label {
+                    Layout.fillWidth: true
+                    visible: updateCache.offlineStatus.length > 0
+                    text: updateCache.offlineStatus
+                    font.pixelSize: metrics.fontSmall
+                    color: palette.text
+                    wrapMode: Text.WordWrap
+                }
+            }
+        }
+
         ListView {
             id: updateList
             Layout.fillWidth: true
