@@ -12,6 +12,33 @@ Item {
     ThemeMetrics { id: metrics }
     SystemPalette { id: palette }
     SystemUpdateModel { id: updates }
+    SystemUpdateCache { id: updateCache }
+
+    function formatCacheBytes(bytes) {
+        if (bytes < 1048576)
+            return (bytes / 1024).toFixed(1) + " KB"
+        if (bytes < 1073741824)
+            return (bytes / 1048576).toFixed(1) + " MB"
+        return (bytes / 1073741824).toFixed(2) + " GB"
+    }
+
+    Dialog {
+        id: cacheClearConfirm
+        parent: Overlay.overlay
+        anchors.centerIn: parent
+        width: Math.min(page.width - 24, 440)
+        modal: true
+        title: "RPM indirme önbelleğini temizle"
+        standardButtons: Dialog.Yes | Dialog.No
+        onAccepted: updateCache.clear()
+        Label {
+            width: parent.width
+            wrapMode: Text.WordWrap
+            text: updateCache.rpmCount + " RPM dosyası silinecek. " +
+                  "Bu dosyalar daha sonra yeniden indirilmek zorunda kalabilir. " +
+                  "Sistem paketleri ve Fedora'nın DNF önbelleği etkilenmez."
+        }
+    }
 
     Component.onCompleted: updates.refresh()
 
@@ -305,6 +332,67 @@ Item {
                         font.family: "monospace"
                         font.pixelSize: metrics.fontSmall
                     }
+                }
+            }
+        }
+
+        Frame {
+            Layout.fillWidth: true
+            ColumnLayout {
+                anchors.fill: parent
+                spacing: metrics.spaceCompact
+
+                RowLayout {
+                    Layout.fillWidth: true
+                    Label {
+                        Layout.fillWidth: true
+                        text: "Güncelleme indirme önbelleği"
+                        font.family: metrics.systemFont.family
+                        font.pixelSize: metrics.fontBody
+                        font.bold: true
+                        color: palette.text
+                        wrapMode: Text.WordWrap
+                    }
+                    ThemedActionButton {
+                        text: "Yenile"
+                        Layout.preferredHeight: Math.max(32, metrics.fontPx(32))
+                        Layout.preferredWidth: Math.max(82, implicitWidth + 12)
+                        font.pixelSize: metrics.fontSmall
+                        onClicked: updateCache.refresh()
+                    }
+                    ThemedActionButton {
+                        text: "Temizle"
+                        Layout.preferredHeight: Math.max(32, metrics.fontPx(32))
+                        Layout.preferredWidth: Math.max(90, implicitWidth + 12)
+                        font.pixelSize: metrics.fontSmall
+                        enabled: updateCache.rpmCount > 0
+                        onClicked: cacheClearConfirm.open()
+                    }
+                }
+
+                Label {
+                    Layout.fillWidth: true
+                    text: updateCache.rpmCount + " RPM · " + page.formatCacheBytes(updateCache.bytes)
+                          + " · Şimdilik yalnızca önbellek hazırlığı, otomatik indirme yok."
+                    font.family: metrics.systemFont.family
+                    font.pixelSize: metrics.fontSmall
+                    color: palette.text
+                    wrapMode: Text.WordWrap
+                }
+                Label {
+                    Layout.fillWidth: true
+                    text: updateCache.path
+                    font.family: metrics.systemFont.family
+                    font.pixelSize: metrics.fontSmall
+                    color: palette.text
+                    elide: Text.ElideMiddle
+                }
+                Label {
+                    Layout.fillWidth: true
+                    visible: updateCache.error.length > 0
+                    text: updateCache.error
+                    color: palette.text
+                    wrapMode: Text.WordWrap
                 }
             }
         }
