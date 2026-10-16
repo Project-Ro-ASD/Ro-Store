@@ -540,19 +540,19 @@ Item {
                         onClicked: offlineUpdate.requestCancellation()
                     }
                 }
-                RowLayout {
+                ColumnLayout {
                     Layout.fillWidth: true
                     visible: offlineUpdate.outcomeUnknown
                     ThemedActionButton {
                         text: "Kurtarma durumunu denetle"
-                        Layout.preferredWidth: Math.max(205, implicitWidth + 12)
+                        Layout.fillWidth: true
                         Layout.preferredHeight: Math.max(34, metrics.fontPx(34))
                         font.pixelSize: metrics.fontSmall
                         onClicked: offlineUpdate.recheckRecovery()
                     }
                     ThemedActionButton {
                         text: "Kaydı onayla ve kilidi kaldır"
-                        Layout.preferredWidth: Math.max(220, implicitWidth + 12)
+                        Layout.fillWidth: true
                         Layout.preferredHeight: Math.max(34, metrics.fontPx(34))
                         font.pixelSize: metrics.fontSmall
                         enabled: offlineUpdate.recoveryVerified
