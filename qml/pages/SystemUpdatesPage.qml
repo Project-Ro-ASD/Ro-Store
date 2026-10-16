@@ -497,6 +497,29 @@ Item {
                         font.pixelSize: metrics.fontSmall
                     }
                 }
+                ColumnLayout {
+                    Layout.fillWidth: true
+                    visible: offlineUpdate.preparing
+                    spacing: metrics.spaceCompact
+                    ProgressBar {
+                        Layout.fillWidth: true
+                        from: 0
+                        to: 100
+                        value: offlineUpdate.progressPercent
+                        indeterminate: offlineUpdate.planBytes === 0
+                    }
+                    Label {
+                        Layout.fillWidth: true
+                        text: "DNF5 indirilen veri: " +
+                              page.formatCacheBytes(offlineUpdate.downloadedBytes) +
+                              " / tahmini " + page.formatCacheBytes(offlineUpdate.planBytes) +
+                              " (%" + offlineUpdate.progressPercent + "). " +
+                              "Gerçek aktarılan miktar DNF5'in bildirdiği değerlere dayanır."
+                        font.pixelSize: metrics.fontSmall
+                        color: palette.text
+                        wrapMode: Text.WordWrap
+                    }
+                }
                 RowLayout {
                     Layout.fillWidth: true
                     visible: offlineUpdate.ready || offlineUpdate.preparing
