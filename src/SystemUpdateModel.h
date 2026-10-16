@@ -4,6 +4,7 @@
 #include <QDateTime>
 #include <QPointer>
 #include <QProcess>
+#include <QSet>
 #include <QVector>
 
 struct SystemUpdateItem
@@ -24,6 +25,8 @@ class SystemUpdateModel : public QAbstractListModel
     Q_PROPERTY(bool hasKernelUpdates READ hasKernelUpdates NOTIFY updatesChanged)
     Q_PROPERTY(QString error READ error NOTIFY errorChanged)
     Q_PROPERTY(QDateTime lastChecked READ lastChecked NOTIFY updatesChanged)
+    Q_PROPERTY(int selectedCount READ selectedCount NOTIFY selectionChanged)
+    Q_PROPERTY(int selectedKernelCount READ selectedKernelCount NOTIFY selectionChanged)
 
 public:
     enum Roles {
@@ -32,7 +35,8 @@ public:
         InstalledVersionRole,
         ArchitectureRole,
         RepositoryRole,
-        KernelUpdateRole
+        KernelUpdateRole,
+        SelectedRole
     };
 
     explicit SystemUpdateModel(QObject *parent = nullptr);
@@ -48,14 +52,20 @@ public:
     bool hasKernelUpdates() const { return m_hasKernelUpdates; }
     QString error() const { return m_error; }
     QDateTime lastChecked() const { return m_lastChecked; }
+    int selectedCount() const { return m_selected.size(); }
+    int selectedKernelCount() const;
 
     // Read-only: queries enabled DNF5 repositories; never creates transactions.
     Q_INVOKABLE void refresh();
+    Q_INVOKABLE void setSelected(const QString &name, const QString &architecture, bool selected);
+    Q_INVOKABLE void selectAll();
+    Q_INVOKABLE void clearSelection();
 
 signals:
     void loadingChanged();
     void updatesChanged();
     void errorChanged();
+    void selectionChanged();
 
 private:
     void setLoading(bool value);
@@ -64,7 +74,10 @@ private:
     void loadInstalledVersions();
     void applyInstalledVersions(const QByteArray &output);
 
+    static QString updateKey(const SystemUpdateItem &item);
+
     QVector<SystemUpdateItem> m_updates;
+    QSet<QString> m_selected;
     QPointer<QProcess> m_process;
     QByteArray m_stdout;
     QString m_error;
