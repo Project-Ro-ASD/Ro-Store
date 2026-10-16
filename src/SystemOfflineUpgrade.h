@@ -20,6 +20,8 @@ class SystemOfflineUpgrade : public QObject {
     Q_PROPERTY(QString message READ message NOTIFY changed)
     Q_PROPERTY(QString planText READ planText NOTIFY changed)
     Q_PROPERTY(int planCount READ planCount NOTIFY changed)
+    Q_PROPERTY(int removalCount READ removalCount NOTIFY changed)
+    Q_PROPERTY(bool kernelAffected READ kernelAffected NOTIFY changed)
     Q_PROPERTY(qulonglong planBytes READ planBytes NOTIFY changed)
     Q_PROPERTY(qulonglong downloadedBytes READ downloadedBytes NOTIFY changed)
     Q_PROPERTY(int progressPercent READ progressPercent NOTIFY changed)
@@ -38,6 +40,8 @@ public:
     QString message() const { return m_message; }
     QString planText() const { return m_planText; }
     int planCount() const { return m_planCount; }
+    int removalCount() const { return m_removalCount; }
+    bool kernelAffected() const { return m_kernelAffected; }
     qulonglong planBytes() const { return m_planBytes; }
     qulonglong downloadedBytes() const { return m_downloadedBytes; }
     int progressPercent() const { return m_progressPercent; }
@@ -62,6 +66,8 @@ private:
     QString m_message;
     QString m_planText;
     int m_planCount = 0;
+    int m_removalCount = 0;
+    bool m_kernelAffected = false;
     qulonglong m_planBytes = 0;
     qulonglong m_downloadedBytes = 0;
     int m_progressPercent = 0;
