@@ -10,6 +10,9 @@ KeyboardActionButton {
 
     property bool accented: false
     property bool outlined: false
+    // Opt-in for pages with long localized action labels. Existing buttons
+    // elsewhere keep their original one-line behavior.
+    property bool wrapButtonText: false
 
     hoverEnabled: true
 
@@ -70,6 +73,7 @@ KeyboardActionButton {
         opacity: control.enabled ? 1 : 0.65
         horizontalAlignment: Text.AlignHCenter
         verticalAlignment: Text.AlignVCenter
-        elide: Text.ElideRight
+        wrapMode: control.wrapButtonText ? Text.WordWrap : Text.NoWrap
+        elide: control.wrapButtonText ? Text.ElideNone : Text.ElideRight
     }
 }
