@@ -40,6 +40,26 @@ Item {
         }
     }
 
+    Dialog {
+        id: downloadConfirm
+        property var packageIds: []
+        parent: Overlay.overlay
+        anchors.centerIn: parent
+        width: Math.min(page.width - 24, 460)
+        modal: true
+        title: "Seçilen RPM dosyalarını indir"
+        standardButtons: Dialog.Yes | Dialog.No
+        onAccepted: updateCache.downloadSelected(packageIds)
+        Label {
+            width: parent.width
+            wrapMode: Text.WordWrap
+            text: downloadConfirm.packageIds.length + " RPM adayı indirilecek. " +
+                  "Bu yalnızca indirme testidir; paket kurulmaz veya sistem güncellenmez. " +
+                  "İndirilen dosyalar doğrulanır, indirmeyi iptal edebilirsin. " +
+                  "İlk test en fazla 3 paket içindir."
+        }
+    }
+
     Component.onCompleted: updates.refresh()
 
     // The page itself scrolls independently of the packages ListView and
@@ -361,6 +381,24 @@ Item {
                         onClicked: updateCache.refresh()
                     }
                     ThemedActionButton {
+                        text: updateCache.downloading ? "İptal et" : "Seçilenleri indir"
+                        Layout.preferredHeight: Math.max(32, metrics.fontPx(32))
+                        Layout.preferredWidth: Math.max(145, implicitWidth + 12)
+                        font.pixelSize: metrics.fontSmall
+                        enabled: updateCache.downloading ||
+                                 (!updates.loading && !updates.previewRunning
+                                  && updates.selectedCount > 0 && updates.selectedCount <= 3)
+                        onClicked: {
+                            if (updateCache.downloading) {
+                                updateCache.cancelDownload()
+                            } else {
+                                downloadConfirm.packageIds = updates.selectedNevras()
+                                if (downloadConfirm.packageIds.length > 0)
+                                    downloadConfirm.open()
+                            }
+                        }
+                    }
+                    ThemedActionButton {
                         text: "Temizle"
                         Layout.preferredHeight: Math.max(32, metrics.fontPx(32))
                         Layout.preferredWidth: Math.max(90, implicitWidth + 12)
@@ -374,6 +412,15 @@ Item {
                     Layout.fillWidth: true
                     text: updateCache.rpmCount + " RPM · " + page.formatCacheBytes(updateCache.bytes)
                           + " · Şimdilik yalnızca önbellek hazırlığı, otomatik indirme yok."
+                    font.family: metrics.systemFont.family
+                    font.pixelSize: metrics.fontSmall
+                    color: palette.text
+                    wrapMode: Text.WordWrap
+                }
+                Label {
+                    Layout.fillWidth: true
+                    visible: updateCache.downloadStatus.length > 0
+                    text: updateCache.downloadStatus
                     font.family: metrics.systemFont.family
                     font.pixelSize: metrics.fontSmall
                     color: palette.text
