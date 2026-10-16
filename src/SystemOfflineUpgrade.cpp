@@ -68,6 +68,30 @@ SystemOfflineUpgrade::SystemOfflineUpgrade(QObject *parent) : QObject(parent)
     });
     connect(m_backend, &Dnf5Backend::systemUpdatesResolveFailed, this,
         [this](const QString &error) { fail(error); });
+    connect(m_backend, &Dnf5Backend::downloadStarted, this,
+        [this](const QString &id, const QString &, qlonglong) {
+            if (!m_preparing) return;
+            m_downloadById.insert(id, 0);
+            emit changed();
+        });
+    connect(m_backend, &Dnf5Backend::downloadProgressChanged, this,
+        [this](const QString &id, qlonglong, qlonglong downloaded) {
+            if (!m_preparing) return;
+            m_downloadById.insert(id, downloaded > 0
+                ? static_cast<qulonglong>(downloaded) : 0);
+            qulonglong total = 0;
+            for (auto it = m_downloadById.cbegin(); it != m_downloadById.cend(); ++it)
+                total += it.value();
+            m_downloadedBytes = total;
+            if (m_planBytes > 0)
+                m_progressPercent = static_cast<int>(
+                    qMin<qulonglong>(99, total * 100 / m_planBytes));
+            emit changed();
+        });
+    connect(m_backend, &Dnf5Backend::downloadFinished, this,
+        [this](const QString &, uint, const QString &) {
+            if (m_preparing) emit changed();
+        });
     connect(m_backend, &Dnf5Backend::transactionExecutionStarted, this,
         [this](bool) { m_message = QStringLiteral("DNF5 çevrimdışı işlem dosyalarını hazırlıyor. Yeniden başlatma yapılmayacak."); emit changed(); });
     connect(m_backend, &Dnf5Backend::transactionExecutionFinished, this,
@@ -234,6 +258,9 @@ void SystemOfflineUpgrade::stageOffline()
     }
     m_preparing = true;
     m_ready = false;
+    m_downloadedBytes = 0;
+    m_progressPercent = 0;
+    m_downloadById.clear();
     m_message = QStringLiteral(
         "Açık onay alındı. DNF5 işlem yalnızca çevrimdışı yürütme için hazırlanıyor; şimdi RPM kurulmaz.");
     emit changed();
