@@ -311,6 +311,7 @@ void SystemOfflineUpgrade::fail(const QString &error)
     m_ready = false;
     m_busy = false;
     m_preparing = false;
+    m_preflightRunning = false;
     releaseLock();
     emit changed();
 }
@@ -341,7 +342,39 @@ bool SystemOfflineUpgrade::writeJournal()
 
 void SystemOfflineUpgrade::stageOffline()
 {
-    if (!m_ready || !m_busy || m_preparing || m_outcomeUnknown || !m_locked)
+    if (!m_ready || !m_busy || m_preparing || m_preflightRunning
+        || m_outcomeUnknown || !m_locked)
+        return;
+    m_preflightRunning = true;
+    m_message = QStringLiteral("Mevcut çevrimdışı güncellemeler yeniden kontrol ediliyor...");
+    emit changed();
+    readOfflineStatus(this, [this](const QString &error, bool pending,
+                                   const QVariantMap &state) {
+        if (!m_preflightRunning)
+            return;
+        m_preflightRunning = false;
+        if (!error.isEmpty()) {
+            fail(QStringLiteral("Güncellemeyi hazırlamadan önce DNF5 durumu doğrulanamadı: ")
+                 + error);
+            return;
+        }
+        if (hasPreparedOfflineUpdate(pending, state)) {
+            fail(QStringLiteral("Başka bir çevrimdışı güncelleme hazır durumda. "
+                                "Mevcut işlem korunuyor; hazırlama başlatılmadı."));
+            return;
+        }
+        if (m_selectionInvalidated) {
+            fail(QStringLiteral("Seçim değişti; eski güncelleme planı geçersiz."));
+            return;
+        }
+        beginOfflineStage();
+    });
+}
+
+void SystemOfflineUpgrade::beginOfflineStage()
+{
+    if (!m_ready || !m_busy || m_preparing || m_preflightRunning
+        || m_outcomeUnknown || !m_locked)
         return;
     if (QFile::exists(journalPath())) {
         m_outcomeUnknown = true;
@@ -420,7 +453,7 @@ void SystemOfflineUpgrade::verifyOfflineStatus()
 
 void SystemOfflineUpgrade::abandonPlan()
 {
-    if (m_preparing || m_outcomeUnknown)
+    if (m_preparing || m_preflightRunning || m_outcomeUnknown)
         return;
     m_ready = false;
     m_busy = false;
@@ -520,6 +553,12 @@ void SystemOfflineUpgrade::invalidateIfSelectionChanged(const QStringList &selec
 {
     if (!m_busy || m_preparing || m_requested == selectedNevras)
         return;
+    if (m_preflightRunning) {
+        m_selectionInvalidated = true;
+        m_message = QStringLiteral("Seçim değişti. Hazırlama güvenlik kontrolünün sonucu kullanılmayacak.");
+        emit changed();
+        return;
+    }
     if (m_ready) {
         abandonPlan();
     } else {
