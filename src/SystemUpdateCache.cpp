@@ -178,6 +178,54 @@ qulonglong SystemUpdateCache::cachedBytes(const QStringList &nevras) const
     return bytes;
 }
 
+void SystemUpdateCache::checkOfflineStatus()
+{
+    if (m_offlineCheckRunning)
+        return;
+    m_offlineStatus = QStringLiteral("DNF5 çevrimdışı işlem durumu sorgulanıyor...");
+    m_offlineCheckRunning = true;
+    auto *process = new QProcess(this);
+    m_offlineQuery = process;
+    process->setProgram(QStringLiteral("dnf5"));
+    process->setArguments({QStringLiteral("offline"), QStringLiteral("status")});
+    process->setProcessChannelMode(QProcess::MergedChannels);
+
+    connect(process, &QProcess::finished, this,
+            [this, process](int code, QProcess::ExitStatus status) {
+        if (m_offlineQuery != process)
+            return;
+        const QString result = QString::fromLocal8Bit(process->readAllStandardOutput()).trimmed().left(3000);
+        m_offlineQuery = nullptr;
+        process->deleteLater();
+        m_offlineCheckRunning = false;
+        m_offlineStatus = result.isEmpty()
+            ? QStringLiteral("DNF5 çevrimdışı işlem durumu okunamadı (kod %1).").arg(code)
+            : result;
+        if (status != QProcess::NormalExit)
+            m_offlineStatus.prepend(QStringLiteral("Sorgu beklenmedik biçimde bitti. "));
+        qInfo() << "SYSTEM UPDATE OFFLINE STATUS:" << code << m_offlineStatus.left(200);
+        emit changed();
+    });
+    connect(process, &QProcess::errorOccurred, this,
+            [this, process](QProcess::ProcessError error) {
+        if (error != QProcess::FailedToStart || m_offlineQuery != process)
+            return;
+        m_offlineQuery = nullptr;
+        process->deleteLater();
+        m_offlineCheckRunning = false;
+        m_offlineStatus = QStringLiteral("DNF5 çevrimdışı durum sorgusu başlatılamadı.");
+        emit changed();
+    });
+    process->start();
+    QTimer::singleShot(15000, process, [this, process]() {
+        if (m_offlineQuery == process && process->state() != QProcess::NotRunning) {
+            m_offlineStatus = QStringLiteral("DNF5 çevrimdışı durum sorgusu zaman aşımına uğradı.");
+            process->kill();
+        }
+    });
+    emit changed();
+}
+
 void SystemUpdateCache::downloadSelected(const QStringList &nevras)
 {
     if (m_downloading || nevras.isEmpty()) {
