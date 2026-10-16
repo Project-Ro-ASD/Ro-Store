@@ -437,6 +437,80 @@ Item {
                     color: palette.text
                     wrapMode: Text.WordWrap
                 }
+                ColumnLayout {
+                    Layout.fillWidth: true
+                    visible: updateCache.downloading || updateCache.downloadLog.length > 0
+                    spacing: metrics.spaceCompact
+
+                    RowLayout {
+                        Layout.fillWidth: true
+                        Label {
+                            Layout.fillWidth: true
+                            text: updateCache.downloading ? "RPM indiriliyor" : "Son indirme"
+                            font.bold: true
+                            font.pixelSize: metrics.fontSmall
+                            color: palette.text
+                        }
+                        Label {
+                            text: updateCache.elapsedSeconds + " sn"
+                            font.pixelSize: metrics.fontSmall
+                            color: palette.text
+                        }
+                        ThemedActionButton {
+                            text: downloadDetails.expanded ? "Günlüğü gizle" : "Günlüğü göster"
+                            Layout.preferredHeight: Math.max(32, metrics.fontPx(32))
+                            Layout.preferredWidth: Math.max(142, implicitWidth + 12)
+                            font.pixelSize: metrics.fontSmall
+                            onClicked: downloadDetails.expanded = !downloadDetails.expanded
+                        }
+                    }
+
+                    Label {
+                        Layout.fillWidth: true
+                        text: updateCache.downloadFile.length > 0
+                              ? updateCache.downloadFile : "DNF5 hazırlığı / depo denetimi"
+                        font.pixelSize: metrics.fontSmall
+                        color: palette.text
+                        elide: Text.ElideMiddle
+                    }
+                    ProgressBar {
+                        Layout.fillWidth: true
+                        from: 0
+                        to: 100
+                        value: Math.max(0, updateCache.downloadPercent)
+                        indeterminate: updateCache.downloading && updateCache.downloadPercent < 0
+                    }
+                    Label {
+                        Layout.fillWidth: true
+                        text: (updateCache.downloadPercent >= 0
+                               ? "Son bildirilen RPM ilerlemesi: %" + updateCache.downloadPercent + " · "
+                               : "Toplam ilerleme henüz belirlenemiyor · ")
+                              + "Geçici dosyalar: " + page.formatCacheBytes(updateCache.stagedBytes)
+                        font.pixelSize: metrics.fontSmall
+                        color: palette.text
+                        wrapMode: Text.WordWrap
+                    }
+
+                    ColumnLayout {
+                        id: downloadDetails
+                        property bool expanded: false
+                        Layout.fillWidth: true
+                        visible: expanded
+                        ScrollView {
+                            Layout.fillWidth: true
+                            Layout.preferredHeight: 160
+                            TextArea {
+                                text: updateCache.downloadLog
+                                readOnly: true
+                                selectByMouse: true
+                                wrapMode: TextEdit.WrapAnywhere
+                                font.family: "monospace"
+                                font.pixelSize: metrics.fontSmall
+                            }
+                        }
+                    }
+                }
+
                 Label {
                     Layout.fillWidth: true
                     visible: updateCache.downloadStatus.length > 0
