@@ -60,7 +60,7 @@ public:
 
     Q_INVOKABLE void refresh();
     Q_INVOKABLE void clear();
-    Q_INVOKABLE void downloadSelected(const QStringList &nevras);
+    Q_INVOKABLE void downloadSelected(const QStringList &nevras, qulonglong estimatedBytes, int unknownSizeCount);
     Q_INVOKABLE void cancelDownload();
 
 signals:
