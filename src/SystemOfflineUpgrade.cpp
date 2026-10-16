@@ -198,6 +198,13 @@ bool SystemOfflineUpgrade::writeJournal()
     if (!file.open(QIODevice::WriteOnly))
         return false;
     QJsonObject obj;
+    QFile bootIdFile(QStringLiteral("/proc/sys/kernel/random/boot_id"));
+    if (!bootIdFile.open(QIODevice::ReadOnly))
+        return false;
+    const QString bootId = QString::fromLatin1(bootIdFile.readAll()).trimmed();
+    if (bootId.isEmpty())
+        return false;
+    obj.insert(QStringLiteral("boot_id"), bootId);
     obj.insert(QStringLiteral("started_utc"), QDateTime::currentDateTimeUtc().toString(Qt::ISODate));
     obj.insert(QStringLiteral("selection_count"), m_requested.size());
     obj.insert(QStringLiteral("plan_count"), m_planCount);
@@ -304,5 +311,94 @@ void SystemOfflineUpgrade::requestCancellation()
     m_message = QStringLiteral("DNF5 indirme aşamasında iptal isteği gönderildi. Sonuç bekleniyor...");
     // Never kill the daemon or an RPM transaction; DNF5 decides if safe.
     m_backend->cancelTransaction();
+    emit changed();
+}
+
+
+void SystemOfflineUpgrade::recheckRecovery()
+{
+    if (!m_outcomeUnknown || !QFile::exists(journalPath()))
+        return;
+    m_recoveryVerified = false;
+    QFile journal(journalPath());
+    if (!journal.open(QIODevice::ReadOnly)) {
+        m_message = QStringLiteral("Güvenlik kaydı okunamadı; kilit korunuyor.");
+        emit changed();
+        return;
+    }
+    const QJsonDocument json = QJsonDocument::fromJson(journal.readAll());
+    const QString previousBoot = json.object().value(QStringLiteral("boot_id")).toString();
+    QFile bootFile(QStringLiteral("/proc/sys/kernel/random/boot_id"));
+    if (!bootFile.open(QIODevice::ReadOnly) || previousBoot.isEmpty()) {
+        m_message = QStringLiteral("Önceki ve mevcut sistem açılışı doğrulanamadı; kilit korunuyor.");
+        emit changed();
+        return;
+    }
+    const QString nowBoot = QString::fromLatin1(bootFile.readAll()).trimmed();
+    if (nowBoot == previousBoot) {
+        m_message = QStringLiteral(
+            "Önceki işlemle aynı sistem açılışındasınız. "
+            "Çevrimdışı hazırlama sonucu kesin olarak doğrulanmadığı için "
+            "önce sistem günlüklerini kontrol edin; kilit korunuyor.");
+        emit changed();
+        return;
+    }
+    QDBusInterface offline(QStringLiteral("org.rpm.dnf.v0"),
+        QStringLiteral("/org/rpm/dnf/v0"),
+        QStringLiteral("org.rpm.dnf.v0.Offline"), QDBusConnection::systemBus());
+    if (!offline.isValid()) {
+        m_message = QStringLiteral("DNF5 çevrimdışı durum arayüzü kullanılamıyor; kilit korunuyor.");
+        emit changed();
+        return;
+    }
+    auto *watcher = new QDBusPendingCallWatcher(
+        offline.asyncCall(QStringLiteral("get_status")), this);
+    connect(watcher, &QDBusPendingCallWatcher::finished, this,
+            [this, watcher]() {
+        QDBusPendingReply<bool, QVariantMap> reply = *watcher;
+        watcher->deleteLater();
+        if (reply.isError()) {
+            m_message = QStringLiteral("DNF5 durumu okunamadı. Güvenlik kilidi korunuyor: ")
+                + reply.error().message();
+            emit changed();
+            return;
+        }
+        const QString status = reply.argumentAt<1>()
+            .value(QStringLiteral("status")).toString();
+        if (reply.argumentAt<0>()
+            || status == QStringLiteral("ready")
+            || status == QStringLiteral("download-complete")) {
+            m_message = QStringLiteral(
+                "DNF5 çevrimdışı işlemi hâlâ bekliyor (") + status
+                + QStringLiteral("). Kurtarma kilidi kaldırılmadı.");
+            emit changed();
+            return;
+        }
+        m_recoveryVerified = true;
+        m_message = QStringLiteral(
+            "Sistem yeniden başlatılmış ve bekleyen çevrimdışı işlem işareti kalmamış. "
+            "Bu, güncellemenin başarılı olduğunu kanıtlamaz. "
+            "DNF5 offline log ve history çıktısını inceleyin. "
+            "Sonucu kabul ediyorsanız güvenlik kaydını açık onayla temizleyebilirsiniz.");
+        emit changed();
+    });
+}
+
+void SystemOfflineUpgrade::acknowledgeRecovery()
+{
+    if (!m_recoveryVerified || !m_outcomeUnknown || !QFile::exists(journalPath()))
+        return;
+    if (!QFile::remove(journalPath())) {
+        m_message = QStringLiteral("Güvenlik kaydı silinemedi; kilit korunuyor.");
+        emit changed();
+        return;
+    }
+    m_outcomeUnknown = false;
+    m_offlineReady = false;
+    m_recoveryVerified = false;
+    m_message = QStringLiteral(
+        "Kullanıcı onayıyla kurtarma kaydı temizlendi. "
+        "Bu onay güncellemelerin başarıyla kurulduğu anlamına gelmez.");
+    releaseLock();
     emit changed();
 }
