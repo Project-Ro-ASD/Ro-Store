@@ -14,6 +14,7 @@ struct SystemUpdateItem
     QString installedVersion;
     QString architecture;
     QString repository;
+    qulonglong downloadBytes = 0;
 };
 
 class SystemUpdateModel : public QAbstractListModel
@@ -27,6 +28,8 @@ class SystemUpdateModel : public QAbstractListModel
     Q_PROPERTY(QDateTime lastChecked READ lastChecked NOTIFY updatesChanged)
     Q_PROPERTY(int selectedCount READ selectedCount NOTIFY selectionChanged)
     Q_PROPERTY(int selectedKernelCount READ selectedKernelCount NOTIFY selectionChanged)
+    Q_PROPERTY(qulonglong selectedDownloadBytes READ selectedDownloadBytes NOTIFY selectionChanged)
+    Q_PROPERTY(int selectedUnknownSizes READ selectedUnknownSizes NOTIFY selectionChanged)
     Q_PROPERTY(bool previewRunning READ previewRunning NOTIFY previewChanged)
     Q_PROPERTY(QString previewText READ previewText NOTIFY previewChanged)
     Q_PROPERTY(QString previewError READ previewError NOTIFY previewChanged)
@@ -41,7 +44,8 @@ public:
         ArchitectureRole,
         RepositoryRole,
         KernelUpdateRole,
-        SelectedRole
+        SelectedRole,
+        DownloadBytesRole
     };
 
     explicit SystemUpdateModel(QObject *parent = nullptr);
@@ -59,6 +63,8 @@ public:
     QDateTime lastChecked() const { return m_lastChecked; }
     int selectedCount() const { return m_selected.size(); }
     int selectedKernelCount() const;
+    qulonglong selectedDownloadBytes() const;
+    int selectedUnknownSizes() const;
     bool previewRunning() const { return m_previewRunning; }
     QString previewText() const { return m_previewText; }
     QString previewError() const { return m_previewError; }
