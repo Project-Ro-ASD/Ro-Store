@@ -112,8 +112,9 @@ Item {
             font.pixelSize: metrics.fontBody
         }
 
-        // Keep the count in a separate line so the actions are never
-        // squeezed by long text, especially at 400 px or increased KDE font.
+        // Compact buttons: selection actions next to each other,
+        // dependency preview on the far right. Preserve readable text
+        // on narrow windows by placing the preview on a second row.
         ColumnLayout {
             Layout.fillWidth: true
             spacing: metrics.spaceCompact
@@ -125,79 +126,44 @@ Item {
                          ? " · " + updates.selectedKernelCount + " kernel paketi" : "")
                 color: palette.text
                 font.family: metrics.systemFont.family
-                font.pixelSize: metrics.fontBody
+                font.pixelSize: metrics.fontSmall
                 wrapMode: Text.WordWrap
             }
 
-            // Right-aligned like v0.6's original action row. On narrow
-            // windows, stack controls at the right rather than eliding text.
             RowLayout {
+                id: wideActions
                 Layout.fillWidth: true
-                visible: pageContent.width >= metrics.fontPx(465)
-                spacing: metrics.spaceMedium
-
-                Item { Layout.fillWidth: true }
-
-                ThemedActionButton {
-                    text: "Tümünü seç"
-                    Layout.preferredWidth: Math.max(140, implicitWidth + 28)
-                    Layout.preferredHeight: Math.max(42, metrics.fontPx(42))
-                    font.pixelSize: metrics.fontBody
-                    enabled: !updates.loading && updates.updateCount > 0
-                    onClicked: updates.selectAll()
-                }
-
-                ThemedActionButton {
-                    text: "Seçimi temizle"
-                    Layout.preferredWidth: Math.max(170, implicitWidth + 28)
-                    Layout.preferredHeight: Math.max(42, metrics.fontPx(42))
-                    font.pixelSize: metrics.fontBody
-                    enabled: !updates.loading && updates.selectedCount > 0
-                    onClicked: updates.clearSelection()
-                }
-            }
-
-            ColumnLayout {
-                Layout.fillWidth: true
-                visible: pageContent.width < metrics.fontPx(465)
+                visible: pageContent.width >= Math.max(515, metrics.fontPx(515))
                 spacing: metrics.spaceCompact
 
+                Item { Layout.fillWidth: true }
+
                 ThemedActionButton {
                     text: "Tümünü seç"
-                    Layout.alignment: Qt.AlignRight
-                    Layout.preferredWidth: Math.max(170, implicitWidth + 28)
-                    Layout.preferredHeight: Math.max(42, metrics.fontPx(42))
-                    font.pixelSize: metrics.fontBody
+                    Layout.preferredWidth: Math.max(112, implicitWidth + 16)
+                    Layout.preferredHeight: Math.max(34, metrics.fontPx(34))
+                    font.pixelSize: metrics.fontSmall
                     enabled: !updates.loading && updates.updateCount > 0
                     onClicked: updates.selectAll()
                 }
 
                 ThemedActionButton {
                     text: "Seçimi temizle"
-                    Layout.alignment: Qt.AlignRight
-                    Layout.preferredWidth: Math.max(195, implicitWidth + 28)
-                    Layout.preferredHeight: Math.max(42, metrics.fontPx(42))
-                    font.pixelSize: metrics.fontBody
+                    Layout.preferredWidth: Math.max(134, implicitWidth + 16)
+                    Layout.preferredHeight: Math.max(34, metrics.fontPx(34))
+                    font.pixelSize: metrics.fontSmall
                     enabled: !updates.loading && updates.selectedCount > 0
                     onClicked: updates.clearSelection()
                 }
-            }
-        }
 
-        ColumnLayout {
-            Layout.fillWidth: true
-            spacing: metrics.spaceCompact
-
-            RowLayout {
-                Layout.fillWidth: true
-                Item { Layout.fillWidth: true }
+                Item { Layout.preferredWidth: metrics.spaceMedium }
 
                 ThemedActionButton {
                     text: updates.previewRunning
                           ? "Plan sorgusunu iptal et" : "Seçilenlerin planını incele"
-                    Layout.preferredWidth: Math.max(265, implicitWidth + 28)
-                    Layout.preferredHeight: Math.max(44, metrics.fontPx(44))
-                    font.pixelSize: metrics.fontBody
+                    Layout.preferredWidth: Math.max(214, implicitWidth + 16)
+                    Layout.preferredHeight: Math.max(34, metrics.fontPx(34))
+                    font.pixelSize: metrics.fontSmall
                     enabled: updates.previewRunning
                              || (!updates.loading && updates.selectedCount > 0)
                     onClicked: {
@@ -211,13 +177,67 @@ Item {
                 }
             }
 
+            ColumnLayout {
+                Layout.fillWidth: true
+                visible: !wideActions.visible
+                spacing: metrics.spaceCompact
+
+                RowLayout {
+                    Layout.fillWidth: true
+                    spacing: metrics.spaceCompact
+
+                    Item { Layout.fillWidth: true }
+
+                    ThemedActionButton {
+                        text: "Tümünü seç"
+                        Layout.preferredWidth: Math.max(112, implicitWidth + 16)
+                        Layout.preferredHeight: Math.max(34, metrics.fontPx(34))
+                        font.pixelSize: metrics.fontSmall
+                        enabled: !updates.loading && updates.updateCount > 0
+                        onClicked: updates.selectAll()
+                    }
+
+                    ThemedActionButton {
+                        text: "Seçimi temizle"
+                        Layout.preferredWidth: Math.max(134, implicitWidth + 16)
+                        Layout.preferredHeight: Math.max(34, metrics.fontPx(34))
+                        font.pixelSize: metrics.fontSmall
+                        enabled: !updates.loading && updates.selectedCount > 0
+                        onClicked: updates.clearSelection()
+                    }
+                }
+
+                RowLayout {
+                    Layout.fillWidth: true
+                    Item { Layout.fillWidth: true }
+
+                    ThemedActionButton {
+                        text: updates.previewRunning
+                              ? "Plan sorgusunu iptal et" : "Seçilenlerin planını incele"
+                        Layout.preferredWidth: Math.max(214, implicitWidth + 16)
+                        Layout.preferredHeight: Math.max(34, metrics.fontPx(34))
+                        font.pixelSize: metrics.fontSmall
+                        enabled: updates.previewRunning
+                                 || (!updates.loading && updates.selectedCount > 0)
+                        onClicked: {
+                            if (updates.previewRunning) {
+                                updates.cancelPreview()
+                            } else {
+                                previewFrame.collapsed = false
+                                updates.previewPlan()
+                            }
+                        }
+                    }
+                }
+            }
+
             Label {
                 Layout.fillWidth: true
                 visible: updates.previewRunning
                 text: "DNF5 bağımlılık planı hazırlanıyor..."
                 color: palette.text
                 font.family: metrics.systemFont.family
-                font.pixelSize: metrics.fontBody
+                font.pixelSize: metrics.fontSmall
                 wrapMode: Text.WordWrap
             }
         }
