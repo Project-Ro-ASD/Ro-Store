@@ -29,6 +29,10 @@ SystemOfflineUpgrade::SystemOfflineUpgrade(QObject *parent) : QObject(parent)
         [this](const QVariantList &items, qulonglong bytes) {
         if (!m_busy || m_preparing || m_outcomeUnknown)
             return;
+        if (m_selectionInvalidated) {
+            fail(QStringLiteral("Paket seçimi plan hazırlanırken değişti. DNF5 planını yeniden oluşturun."));
+            return;
+        }
         m_planCount = items.size();
         m_planBytes = bytes;
         QStringList summary;
@@ -137,6 +141,7 @@ void SystemOfflineUpgrade::resolve(const QStringList &selectedNevras)
     m_offlineReady = false;
     m_preparing = false;
     m_requested = selectedNevras;
+    m_selectionInvalidated = false;
     m_planText.clear();
     m_planBytes = 0;
     m_planCount = 0;
@@ -401,4 +406,20 @@ void SystemOfflineUpgrade::acknowledgeRecovery()
         "Bu onay güncellemelerin başarıyla kurulduğu anlamına gelmez.");
     releaseLock();
     emit changed();
+}
+
+
+void SystemOfflineUpgrade::invalidateIfSelectionChanged(const QStringList &selectedNevras)
+{
+    if (!m_busy || m_preparing || m_requested == selectedNevras)
+        return;
+    if (m_ready) {
+        abandonPlan();
+    } else {
+        // The solver is still running. Do not release the lock until it
+        // finishes; then discard the no-longer-approved goal.
+        m_selectionInvalidated = true;
+        m_message = QStringLiteral("Seçim değişti. Çözümleme bittiğinde bu plan kullanılmayacak.");
+        emit changed();
+    }
 }
