@@ -378,6 +378,9 @@ ApplicationWindow {
             onFedoraCatalogRequested: {
                 stackView.push(fedoraCatalogComponent)
             }
+            onSystemUpdatesRequested: {
+                stackView.push(systemUpdatesPageComponent)
+            }
 
             onAppSelected: function(title, summary, description, category, version, packageName, iconUrl) {
                 stackView.push(detailPageComponent, {
@@ -416,6 +419,13 @@ ApplicationWindow {
             onBackRequested: {
                 stackView.pop()
             }
+        }
+    }
+
+    Component {
+        id: systemUpdatesPageComponent
+        SystemUpdatesPage {
+            onBackRequested: stackView.pop()
         }
     }
 
