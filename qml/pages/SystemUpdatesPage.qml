@@ -15,10 +15,26 @@ Item {
 
     Component.onCompleted: updates.refresh()
 
-    ColumnLayout {
+    // The page itself scrolls independently of the packages ListView and
+    // the plan's text ScrollView, so controls remain reachable on short windows.
+    Flickable {
+        id: pageScroll
         anchors.fill: parent
-        anchors.margins: page.margin
-        spacing: metrics.spaceMedium
+        clip: true
+        contentWidth: width
+        contentHeight: pageContent.implicitHeight + page.margin * 2
+        flickableDirection: Flickable.VerticalFlick
+        boundsBehavior: Flickable.StopAtBounds
+        ScrollBar.vertical: ScrollBar {
+            policy: ScrollBar.AsNeeded
+        }
+
+        ColumnLayout {
+            id: pageContent
+            x: page.margin
+            y: page.margin
+            width: Math.max(0, pageScroll.width - page.margin * 2 - 12)
+            spacing: metrics.spaceMedium
 
         RowLayout {
             Layout.fillWidth: true
@@ -113,15 +129,18 @@ Item {
                 wrapMode: Text.WordWrap
             }
 
+            // Right-aligned like v0.6's original action row. On narrow
+            // windows, stack controls at the right rather than eliding text.
             RowLayout {
                 Layout.fillWidth: true
+                visible: pageContent.width >= metrics.fontPx(465)
                 spacing: metrics.spaceMedium
+
+                Item { Layout.fillWidth: true }
 
                 ThemedActionButton {
                     text: "Tümünü seç"
-                    Layout.fillWidth: true
-                    Layout.maximumWidth: 210
-                    Layout.minimumWidth: 0
+                    Layout.preferredWidth: Math.max(140, implicitWidth + 28)
                     Layout.preferredHeight: Math.max(42, metrics.fontPx(42))
                     font.pixelSize: metrics.fontBody
                     enabled: !updates.loading && updates.updateCount > 0
@@ -130,9 +149,33 @@ Item {
 
                 ThemedActionButton {
                     text: "Seçimi temizle"
-                    Layout.fillWidth: true
-                    Layout.maximumWidth: 210
-                    Layout.minimumWidth: 0
+                    Layout.preferredWidth: Math.max(170, implicitWidth + 28)
+                    Layout.preferredHeight: Math.max(42, metrics.fontPx(42))
+                    font.pixelSize: metrics.fontBody
+                    enabled: !updates.loading && updates.selectedCount > 0
+                    onClicked: updates.clearSelection()
+                }
+            }
+
+            ColumnLayout {
+                Layout.fillWidth: true
+                visible: pageContent.width < metrics.fontPx(465)
+                spacing: metrics.spaceCompact
+
+                ThemedActionButton {
+                    text: "Tümünü seç"
+                    Layout.alignment: Qt.AlignRight
+                    Layout.preferredWidth: Math.max(170, implicitWidth + 28)
+                    Layout.preferredHeight: Math.max(42, metrics.fontPx(42))
+                    font.pixelSize: metrics.fontBody
+                    enabled: !updates.loading && updates.updateCount > 0
+                    onClicked: updates.selectAll()
+                }
+
+                ThemedActionButton {
+                    text: "Seçimi temizle"
+                    Layout.alignment: Qt.AlignRight
+                    Layout.preferredWidth: Math.max(195, implicitWidth + 28)
                     Layout.preferredHeight: Math.max(42, metrics.fontPx(42))
                     font.pixelSize: metrics.fontBody
                     enabled: !updates.loading && updates.selectedCount > 0
@@ -145,22 +188,25 @@ Item {
             Layout.fillWidth: true
             spacing: metrics.spaceCompact
 
-            ThemedActionButton {
-                text: updates.previewRunning
-                      ? "Plan sorgusunu iptal et" : "Seçilenlerin planını incele"
+            RowLayout {
                 Layout.fillWidth: true
-                Layout.maximumWidth: 320
-                Layout.minimumWidth: 0
-                Layout.preferredHeight: Math.max(44, metrics.fontPx(44))
-                font.pixelSize: metrics.fontBody
-                enabled: updates.previewRunning
-                         || (!updates.loading && updates.selectedCount > 0)
-                onClicked: {
-                    if (updates.previewRunning) {
-                        updates.cancelPreview()
-                    } else {
-                        previewFrame.collapsed = false
-                        updates.previewPlan()
+                Item { Layout.fillWidth: true }
+
+                ThemedActionButton {
+                    text: updates.previewRunning
+                          ? "Plan sorgusunu iptal et" : "Seçilenlerin planını incele"
+                    Layout.preferredWidth: Math.max(265, implicitWidth + 28)
+                    Layout.preferredHeight: Math.max(44, metrics.fontPx(44))
+                    font.pixelSize: metrics.fontBody
+                    enabled: updates.previewRunning
+                             || (!updates.loading && updates.selectedCount > 0)
+                    onClicked: {
+                        if (updates.previewRunning) {
+                            updates.cancelPreview()
+                        } else {
+                            previewFrame.collapsed = false
+                            updates.previewPlan()
+                        }
                     }
                 }
             }
@@ -246,7 +292,9 @@ Item {
         ListView {
             id: updateList
             Layout.fillWidth: true
-            Layout.fillHeight: true
+            // Give the nested update list its own independent vertical range.
+            // Without a preferred height it would collapse inside the outer Flickable.
+            Layout.preferredHeight: Math.max(250, Math.min(400, page.height * 0.58))
             clip: true
             spacing: metrics.spaceCompact
             model: updates
@@ -326,6 +374,7 @@ Item {
                 horizontalAlignment: Text.AlignHCenter
                 wrapMode: Text.WordWrap
             }
+        }
         }
     }
 }
