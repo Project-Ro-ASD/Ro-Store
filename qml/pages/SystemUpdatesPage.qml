@@ -432,7 +432,7 @@ Item {
 
                 Label {
                     Layout.fillWidth: true
-                    visible: updates.selectedCount > 0
+                    visible: updates.selectedCount > 0 && updates.selectedCount <= updateCache.maximumBatch
                     text: "Seçimdeki doğrulanmış RPM: " +
                           updateCache.countCached(updates.selectedNevras()) + " / " +
                           updates.selectedCount + " · Eksik: " +
