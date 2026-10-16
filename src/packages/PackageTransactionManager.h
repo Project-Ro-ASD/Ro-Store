@@ -3,6 +3,7 @@
 #include <QObject>
 #include <QQueue>
 #include <QHash>
+#include <QPointer>
 #include <QElapsedTimer>
 #include <QString>
 
@@ -59,6 +60,8 @@ public:
 
     int queuedCount() const;
     bool busy() const;
+    Q_INVOKABLE bool acquireExternalOperation(QObject *owner);
+    Q_INVOKABLE void releaseExternalOperation(QObject *owner);
     bool outcomeUncertain() const;
     bool canCancelActive() const;
     QString recoveryDetails() const;
@@ -150,6 +153,7 @@ private:
     QQueue<PackageTransaction *> m_queue;
 
     PackageTransaction *m_activeTransaction = nullptr;
+    QPointer<QObject> m_externalOwner;
 
     QHash<QString, qulonglong> m_downloadedById;
     QHash<QString, qulonglong> m_downloadTotalById;
