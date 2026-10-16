@@ -10,6 +10,7 @@ struct SystemUpdateItem
 {
     QString name;
     QString version;
+    QString installedVersion;
     QString architecture;
     QString repository;
 };
@@ -28,6 +29,7 @@ public:
     enum Roles {
         NameRole = Qt::UserRole + 1,
         VersionRole,
+        InstalledVersionRole,
         ArchitectureRole,
         RepositoryRole,
         KernelUpdateRole
@@ -59,6 +61,8 @@ private:
     void setLoading(bool value);
     void setError(const QString &value);
     void parseUpdates(const QByteArray &output);
+    void loadInstalledVersions();
+    void applyInstalledVersions(const QByteArray &output);
 
     QVector<SystemUpdateItem> m_updates;
     QPointer<QProcess> m_process;
