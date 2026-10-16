@@ -4,6 +4,7 @@
 #include <QDateTime>
 #include <QDBusConnection>
 #include <QDBusInterface>
+#include <QDBusObjectPath>
 #include <QDBusPendingCallWatcher>
 #include <QDBusPendingReply>
 #include <QDir>
@@ -16,6 +17,104 @@
 #include <QStorageInfo>
 #include <QDebug>
 #include <limits>
+#include <functional>
+
+
+namespace {
+// DNF5 registers org.rpm.dnf.v0.Offline on a SESSION object, not on
+// /org/rpm/dnf/v0 (which only exports SessionManager).
+constexpr auto kDnfService = "org.rpm.dnf.v0";
+constexpr auto kDnfRoot = "/org/rpm/dnf/v0";
+constexpr auto kSessionManager = "org.rpm.dnf.v0.SessionManager";
+constexpr auto kOfflineInterface = "org.rpm.dnf.v0.Offline";
+
+void closeOfflineSession(const QString &path)
+{
+    if (path.isEmpty())
+        return;
+    QDBusInterface manager(QString::fromLatin1(kDnfService),
+        QString::fromLatin1(kDnfRoot), QString::fromLatin1(kSessionManager),
+        QDBusConnection::systemBus());
+    manager.asyncCall(QStringLiteral("close_session"),
+                      QVariant::fromValue(QDBusObjectPath(path)));
+}
+
+void withOfflineSession(QObject *owner,
+                        std::function<void(const QString &, const QString &)> callback)
+{
+    QDBusInterface manager(QString::fromLatin1(kDnfService),
+        QString::fromLatin1(kDnfRoot), QString::fromLatin1(kSessionManager),
+        QDBusConnection::systemBus());
+    if (!manager.isValid()) {
+        callback({}, QStringLiteral("DNF5 arka plan hizmetine bağlanılamadı."));
+        return;
+    }
+    // Only consult offline state: do not load RPM databases or repositories.
+    const QVariantMap options{
+        {QStringLiteral("load_system_repo"), false},
+        {QStringLiteral("load_available_repos"), false}
+    };
+    auto *watcher = new QDBusPendingCallWatcher(
+        manager.asyncCall(QStringLiteral("open_session"), options), owner);
+    QObject::connect(watcher, &QDBusPendingCallWatcher::finished, owner,
+                     [watcher, callback]() {
+        const QDBusPendingReply<QDBusObjectPath> result = *watcher;
+        watcher->deleteLater();
+        if (result.isError()) {
+            callback({}, QStringLiteral("DNF5 durum oturumu açılamadı: ")
+                         + result.error().message());
+            return;
+        }
+        const QString path = result.value().path();
+        if (path.isEmpty()) {
+            callback({}, QStringLiteral("DNF5 geçerli bir oturum döndürmedi."));
+            return;
+        }
+        callback(path, {});
+    });
+}
+
+void readOfflineStatus(QObject *owner,
+                       std::function<void(const QString &, bool, const QVariantMap &)> callback)
+{
+    withOfflineSession(owner, [owner, callback](const QString &path, const QString &error) {
+        if (!error.isEmpty()) {
+            callback(error, false, {});
+            return;
+        }
+        QDBusInterface offline(QString::fromLatin1(kDnfService), path,
+            QString::fromLatin1(kOfflineInterface), QDBusConnection::systemBus());
+        if (!offline.isValid()) {
+            closeOfflineSession(path);
+            callback(QStringLiteral("DNF5 çevrimdışı durum arayüzü bu sistemde kullanılamıyor."),
+                     false, {});
+            return;
+        }
+        auto *watcher = new QDBusPendingCallWatcher(
+            offline.asyncCall(QStringLiteral("get_status")), owner);
+        QObject::connect(watcher, &QDBusPendingCallWatcher::finished, owner,
+                         [watcher, callback, path]() {
+            const QDBusPendingReply<bool, QVariantMap> result = *watcher;
+            watcher->deleteLater();
+            closeOfflineSession(path);
+            if (result.isError()) {
+                callback(QStringLiteral("DNF5 çevrimdışı durumu okunamadı: ")
+                             + result.error().message(), false, {});
+                return;
+            }
+            callback({}, result.argumentAt<0>(), result.argumentAt<1>());
+        });
+    });
+}
+
+bool hasPreparedOfflineUpdate(bool pending, const QVariantMap &state)
+{
+    const QString status = state.value(QStringLiteral("status")).toString();
+    // A download-complete transaction may not yet be scheduled to reboot.
+    return pending || status == QStringLiteral("ready")
+           || status == QStringLiteral("download-complete");
+}
+} // namespace
 
 SystemOfflineUpgrade::SystemOfflineUpgrade(QObject *parent) : QObject(parent)
 {
@@ -181,41 +280,29 @@ void SystemOfflineUpgrade::resolve(const QStringList &selectedNevras)
     m_kernelAffected = false;
     m_message = QStringLiteral("DNF5 tüm seçilen RPM güncellemelerini tek işlemde çözüyor...");
     emit changed();
-    // Never overwrite an offline transaction prepared by DNF5, Discover,
-    // or another application. Query the authoritative daemon interface,
-    // not just the /system-update marker.
-    QDBusInterface offline(QStringLiteral("org.rpm.dnf.v0"),
-        QStringLiteral("/org/rpm/dnf/v0"),
-        QStringLiteral("org.rpm.dnf.v0.Offline"), QDBusConnection::systemBus());
-    if (!offline.isValid()) {
-        fail(QStringLiteral("DNF5 çevrimdışı işlem durumu doğrulanamadı; plan başlatılmadı."));
-        return;
-    }
-    auto *watcher = new QDBusPendingCallWatcher(
-        offline.asyncCall(QStringLiteral("get_status")), this);
-    connect(watcher, &QDBusPendingCallWatcher::finished, this,
-            [this, watcher, selectedNevras]() {
-        QDBusPendingReply<bool, QVariantMap> result = *watcher;
-        watcher->deleteLater();
+    // Check the authoritative Offline interface on a short-lived DNF5 session.
+    // A failed check must never allow a new transaction to be prepared.
+    readOfflineStatus(this, [this, selectedNevras](const QString &error, bool pending,
+                                                  const QVariantMap &state) {
         if (!m_busy || m_outcomeUnknown)
             return;
-        if (result.isError()) {
-            fail(QStringLiteral("DNF5 çevrimdışı durumu okunamadı: ")
-                 + result.error().message());
+        if (!error.isEmpty()) {
+            fail(error);
             return;
         }
-        const QString status = result.argumentAt<1>()
-            .value(QStringLiteral("status")).toString();
-        if (result.argumentAt<0>()
-            || status == QStringLiteral("ready")
-            || status == QStringLiteral("download-complete")) {
-            fail(QStringLiteral(
-                "Önceden hazırlanmış DNF5 çevrimdışı işlemi bulundu (")
-                + status + QStringLiteral("). Üzerine yeni işlem yazılmadı."));
+        const QString status = state.value(QStringLiteral("status")).toString();
+        if (hasPreparedOfflineUpdate(pending, state)) {
+            fail(QStringLiteral("Önceden hazırlanmış bir sistem güncellemesi var (%1). "
+                                "Güvenlik için üzerine yazılmadı.").arg(status));
+            return;
+        }
+        if (m_selectionInvalidated) {
+            fail(QStringLiteral("Paket seçimi değişti. Güncel seçim için tekrar plan oluşturun."));
             return;
         }
         m_backend->resolveSystemUpdates(selectedNevras);
     });
+
 }
 
 void SystemOfflineUpgrade::fail(const QString &error)
@@ -302,52 +389,30 @@ void SystemOfflineUpgrade::stageOffline()
 
 void SystemOfflineUpgrade::verifyOfflineStatus()
 {
-    QDBusInterface offline(QStringLiteral("org.rpm.dnf.v0"),
-        QStringLiteral("/org/rpm/dnf/v0"),
-        QStringLiteral("org.rpm.dnf.v0.Offline"), QDBusConnection::systemBus());
-    if (!offline.isValid()) {
-        m_outcomeUnknown = true;
+    readOfflineStatus(this, [this](const QString &error, bool pending,
+                                   const QVariantMap &state) {
         m_preparing = false;
-        m_message = QStringLiteral(
-            "DNF5 hazırlama tamamlandığını bildirdi fakat çevrimdışı durum arayüzü açılamadı. Güvenlik kaydı korundu.");
-        emit changed();
-        return;
-    }
-    auto *watcher = new QDBusPendingCallWatcher(
-        offline.asyncCall(QStringLiteral("get_status")), this);
-    connect(watcher, &QDBusPendingCallWatcher::finished, this, [this, watcher]() {
-        QDBusPendingReply<bool, QVariantMap> result = *watcher;
-        watcher->deleteLater();
-        m_preparing = false;
-        if (result.isError()) {
+        if (!error.isEmpty()) {
             m_outcomeUnknown = true;
-            m_message = QStringLiteral(
-                "Hazırlama sonucu çevrimdışı durum kaydıyla doğrulanamadı; otomatik tekrar engellendi: ")
-                + result.error().message();
+            m_message = QStringLiteral("Hazırlamanın sonucu doğrulanamadı. Güvenlik kaydı korundu: ")
+                        + error;
             emit changed();
             return;
         }
-        const QVariantMap state = result.argumentAt<1>();
         const QString status = state.value(QStringLiteral("status")).toString();
-        // A transaction can be downloaded but not scheduled for reboot yet.
-        const bool ready = result.argumentAt<0>()
-            || status == QStringLiteral("ready")
-            || status == QStringLiteral("download-complete");
-        if (!ready) {
+        if (!hasPreparedOfflineUpdate(pending, state)) {
             m_outcomeUnknown = true;
-            m_message = QStringLiteral(
-                "DNF5 işlemi döndü ancak çevrimdışı hazırlama durumu doğrulanamadı (")
-                + status + QStringLiteral("). Güvenlik kaydı korundu.");
+            m_message = QStringLiteral("DNF5 hazırlama sonucunu doğrulayamadı (%1). "
+                                      "Yeniden hazırlama engellendi.").arg(status);
             emit changed();
             return;
         }
         m_offlineReady = true;
         m_busy = false;
-        m_message = QStringLiteral(
-            "DNF5 çevrimdışı işlem dosyaları hazır (%1). "
-            "Ro-Store yeniden başlatmadı. Güncellemeleri uygulamak için "
-            "ayrı bir yeniden başlatma onayı gereklidir.").arg(status);
-        // Keep the journal until recovery checks after the next boot.
+        m_message = QStringLiteral("Güncelleme dosyaları hazır (%1). Paketler henüz kurulmadı. "
+                                  "Uygulamak için ayrıca yeniden başlatma onayı gerekir.")
+                    .arg(status);
+        // Keep the safety journal until post-boot recovery review.
         releaseLock();
         emit changed();
     });
@@ -407,45 +472,28 @@ void SystemOfflineUpgrade::recheckRecovery()
         emit changed();
         return;
     }
-    QDBusInterface offline(QStringLiteral("org.rpm.dnf.v0"),
-        QStringLiteral("/org/rpm/dnf/v0"),
-        QStringLiteral("org.rpm.dnf.v0.Offline"), QDBusConnection::systemBus());
-    if (!offline.isValid()) {
-        m_message = QStringLiteral("DNF5 çevrimdışı durum arayüzü kullanılamıyor; kilit korunuyor.");
-        emit changed();
-        return;
-    }
-    auto *watcher = new QDBusPendingCallWatcher(
-        offline.asyncCall(QStringLiteral("get_status")), this);
-    connect(watcher, &QDBusPendingCallWatcher::finished, this,
-            [this, watcher]() {
-        QDBusPendingReply<bool, QVariantMap> reply = *watcher;
-        watcher->deleteLater();
-        if (reply.isError()) {
-            m_message = QStringLiteral("DNF5 durumu okunamadı. Güvenlik kilidi korunuyor: ")
-                + reply.error().message();
+    readOfflineStatus(this, [this](const QString &error, bool pending,
+                                   const QVariantMap &state) {
+        if (!error.isEmpty()) {
+            m_message = QStringLiteral("DNF5 durumu denetlenemedi; güvenlik kilidi korunuyor: ")
+                + error;
             emit changed();
             return;
         }
-        const QString status = reply.argumentAt<1>()
-            .value(QStringLiteral("status")).toString();
-        if (reply.argumentAt<0>()
-            || status == QStringLiteral("ready")
-            || status == QStringLiteral("download-complete")) {
-            m_message = QStringLiteral(
-                "DNF5 çevrimdışı işlemi hâlâ bekliyor (") + status
-                + QStringLiteral("). Kurtarma kilidi kaldırılmadı.");
+        if (hasPreparedOfflineUpdate(pending, state)) {
+            m_message = QStringLiteral("DNF5 güncellemesi hâlâ bekliyor. "
+                                      "Güvenlik kilidi kaldırılamaz.");
             emit changed();
             return;
         }
         m_recoveryVerified = true;
-        m_message = QStringLiteral(
-            "Sistem yeniden başlatılmış ve bekleyen çevrimdışı işlem işareti kalmamış. "
-            "Bu, güncellemenin başarılı olduğunu kanıtlamaz. "
-            "DNF5 offline log ve history çıktısını inceleyin. "
-            "Sonucu kabul ediyorsanız güvenlik kaydını açık onayla temizleyebilirsiniz.");
+        m_message = QStringLiteral("Sistem yeniden başlatılmış ve bekleyen işlem bulunmamış. "
+                                  "Bu, güncellemenin başarılı olduğunu göstermez. "
+                                  "Önce 'dnf5 offline log' ve 'dnf5 history' kayıtlarını inceleyin; "
+                                  "sonra güvenlik kaydını kaldırmayı onaylayabilirsiniz.");
         emit changed();
     });
+
 }
 
 void SystemOfflineUpgrade::acknowledgeRecovery()
@@ -550,86 +598,66 @@ void SystemOfflineUpgrade::discardPreparedOffline()
     if (!m_offlineReady || m_preparing || m_outcomeUnknown || m_clearingPrepared
         || m_rebootRequestRunning || !QFile::exists(journalPath()))
         return;
-    QDBusInterface offline(QStringLiteral("org.rpm.dnf.v0"),
-        QStringLiteral("/org/rpm/dnf/v0"),
-        QStringLiteral("org.rpm.dnf.v0.Offline"), QDBusConnection::systemBus());
-    if (!offline.isValid()) {
-        m_message = QStringLiteral(
-            "DNF5 çevrimdışı arayüzüne ulaşılamadı. Hazırlanmış işlem ve güvenlik kaydı korunuyor.");
-        emit changed();
-        return;
-    }
     m_clearingPrepared = true;
-    m_message = QStringLiteral(
-        "Açık onayla DNF5 çevrimdışı işlem dosyalarının temizlenmesi istendi. "
-        "Bu işlem RPM'leri sisteme kurmaz.");
+    m_message = QStringLiteral("Hazırlanmış güncelleme dosyaları DNF5 ile temizleniyor...");
     emit changed();
-    auto *clean = new QDBusPendingCallWatcher(
-        offline.asyncCall(QStringLiteral("clean"),
-            QVariantMap{{QStringLiteral("interactive"), true}}), this);
-    connect(clean, &QDBusPendingCallWatcher::finished, this,
-            [this, clean]() {
-        QDBusPendingReply<bool, QString> result = *clean;
-        clean->deleteLater();
-        if (result.isError() || !result.argumentAt<0>()) {
+    withOfflineSession(this, [this](const QString &path, const QString &error) {
+        if (!error.isEmpty()) {
             m_clearingPrepared = false;
-            m_message = QStringLiteral("DNF5 çevrimdışı temizleme doğrulanamadı: ")
-                + (result.isError() ? result.error().message() : result.argumentAt<1>());
+            m_message = error + QStringLiteral(" Hazırlanmış işlem korunuyor.");
             emit changed();
             return;
         }
-        QDBusInterface offline(QStringLiteral("org.rpm.dnf.v0"),
-            QStringLiteral("/org/rpm/dnf/v0"),
-            QStringLiteral("org.rpm.dnf.v0.Offline"), QDBusConnection::systemBus());
+        QDBusInterface offline(QString::fromLatin1(kDnfService), path,
+            QString::fromLatin1(kOfflineInterface), QDBusConnection::systemBus());
         if (!offline.isValid()) {
+            closeOfflineSession(path);
             m_clearingPrepared = false;
-            m_outcomeUnknown = true;
-            m_message = QStringLiteral(
-                "DNF5 temizleme isteği bitti fakat son durum doğrulanamadı. Güvenlik kaydı korunuyor.");
+            m_message = QStringLiteral("DNF5 çevrimdışı arayüzü açılamadı. İşlem korunuyor.");
             emit changed();
             return;
         }
-        auto *verify = new QDBusPendingCallWatcher(
-            offline.asyncCall(QStringLiteral("get_status")), this);
-        connect(verify, &QDBusPendingCallWatcher::finished, this,
-                [this, verify]() {
-            QDBusPendingReply<bool, QVariantMap> statusReply = *verify;
-            verify->deleteLater();
-            m_clearingPrepared = false;
-            if (statusReply.isError()) {
-                m_outcomeUnknown = true;
-                m_message = QStringLiteral(
-                    "Çevrimdışı temizleme son durumu doğrulanamadı. Güvenlik kaydı korunuyor.");
+        auto *watcher = new QDBusPendingCallWatcher(
+            offline.asyncCall(QStringLiteral("clean"),
+                              QVariantMap{{QStringLiteral("interactive"), true}}), this);
+        connect(watcher, &QDBusPendingCallWatcher::finished, this,
+                [this, watcher, path]() {
+            const QDBusPendingReply<bool, QString> result = *watcher;
+            watcher->deleteLater();
+            closeOfflineSession(path);
+            if (result.isError() || !result.argumentAt<0>()) {
+                m_clearingPrepared = false;
+                m_message = QStringLiteral("DNF5 temizleme işlemi doğrulanamadı: ")
+                    + (result.isError() ? result.error().message() : result.argumentAt<1>());
                 emit changed();
                 return;
             }
-            const QString status = statusReply.argumentAt<1>()
-                .value(QStringLiteral("status")).toString();
-            if (statusReply.argumentAt<0>()
-                || status == QStringLiteral("ready")
-                || status == QStringLiteral("download-complete")) {
-                m_outcomeUnknown = true;
-                m_message = QStringLiteral(
-                    "DNF5 hâlâ çevrimdışı işlem bildiriyor. Kurtarma kaydı korunuyor: ") + status;
+            readOfflineStatus(this, [this](const QString &error, bool pending,
+                                           const QVariantMap &state) {
+                m_clearingPrepared = false;
+                if (!error.isEmpty() || hasPreparedOfflineUpdate(pending, state)) {
+                    m_outcomeUnknown = true;
+                    m_message = QStringLiteral("DNF5 son temizleme durumu kesin doğrulanamadı. "
+                                              "Güvenlik kaydı korundu. ") + error;
+                    emit changed();
+                    return;
+                }
+                if (!QFile::remove(journalPath())) {
+                    m_outcomeUnknown = true;
+                    m_message = QStringLiteral("DNF5 dosyaları temizlendi ama Ro-Store "
+                                              "güvenlik kaydı silinemedi.");
+                    emit changed();
+                    return;
+                }
+                m_offlineReady = false;
+                m_ready = false;
+                m_busy = false;
+                m_message = QStringLiteral("Hazırlanan güncelleme iptal edildi. "
+                                          "Kurulu sistem paketleri değiştirilmedi.");
+                releaseLock();
                 emit changed();
-                return;
-            }
-            if (!QFile::remove(journalPath())) {
-                m_outcomeUnknown = true;
-                m_message = QStringLiteral(
-                    "DNF5 hazırlığı temizlendi ancak Ro-Store güvenlik kaydı silinemedi.");
-                emit changed();
-                return;
-            }
-            m_offlineReady = false;
-            m_ready = false;
-            m_busy = false;
-            m_message = QStringLiteral(
-                "DNF5 çevrimdışı hazırlık iptal edildi ve güvenlik kaydı doğrulanarak temizlendi. "
-                "Bu işlem mevcut sistem paketlerini değiştirmedi; silinen resmi indirme önbelleği "
-                "gelecekte yeniden indirilebilir.");
-            releaseLock();
-            emit changed();
+            });
         });
     });
+
 }
