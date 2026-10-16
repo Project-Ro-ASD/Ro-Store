@@ -53,8 +53,11 @@ public:
         const QString &repositoryId
     );
 
+    void resolveSystemUpdates(const QStringList &exactNevras);
+
     void executeResolvedTransaction(
-        bool downloadOnly = false
+        bool downloadOnly = false,
+        bool offline = false
     );
     // Replace the approved remote goal with local RPM files. A second
     // resolve is checked against the original plan before execution.
@@ -67,6 +70,8 @@ public:
     void cancelTransaction();
 
 signals:
+    void systemUpdatesResolved(QVariantList resolvedItems, qulonglong totalDownloadBytes);
+    void systemUpdatesResolveFailed(QString error);
     void sessionOpenChanged();
     void sessionPathChanged();
     void lastErrorChanged();
