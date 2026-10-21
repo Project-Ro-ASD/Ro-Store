@@ -63,7 +63,12 @@ FlatpakManager::~FlatpakManager()
     releaseLock();
 }
 void FlatpakManager::setTransactionManager(QObject *manager) {
-    if (m_busy || m_loading || m_outcomeUnknown) return;
+    // The RPM coordinator must be bound even when a previous Flatpak
+    // transaction left a recovery journal. Otherwise acknowledging recovery
+    // leaves the next mutation permanently unable to acquire its lock.
+    // Never switch coordinator while a Flatpak transaction is active.
+    if (m_busy || m_loading || m_process) return;
+    if (m_transactionManager == manager) return;
     m_transactionManager = manager;
     emit changed();
 }
@@ -236,10 +241,13 @@ void FlatpakManager::addFlathubUser() {
     if (hasRemote(QStringLiteral("user"), QStringLiteral("flathub"))) {
         fail(QStringLiteral("Flathub kullanıcı deposu zaten kurulu.")); return;
     }
+    // flatpak remote-add does not accept --noninteractive. Use the official
+    // .flatpakrepo descriptor (which includes the GPG key); never turn off
+    // repository signature verification.
     startMutation(QStringLiteral("add-flathub"), QStringLiteral("user"), QStringLiteral("flathub"),
                   {QStringLiteral("--user"), QStringLiteral("remote-add"),
-                   QStringLiteral("--noninteractive"), QStringLiteral("--if-not-exists"),
-                   QStringLiteral("flathub"), QStringLiteral("https://flathub.org/repo/flathub.flatpakrepo")});
+                   QStringLiteral("--if-not-exists"),
+                   QStringLiteral("flathub"), QStringLiteral("https://dl.flathub.org/repo/flathub.flatpakrepo")});
 }
 void FlatpakManager::launch(const QString &scope, const QString &id) {
     if (!safeScope(scope) || !safeAppId(id) || !isInstalled(scope,id) || m_busy) return;
