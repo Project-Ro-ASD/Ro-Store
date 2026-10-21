@@ -50,9 +50,26 @@ Popup {
         imageViewport.contentY = Math.max(0, (imageViewport.contentHeight - imageViewport.height) / 2)
     }
 
-    function changeZoom(value) {
-        zoomFactor = Math.max(1.0, Math.min(4.0, Math.round(value * 100) / 100))
-        Qt.callLater(resetPosition)
+    function changeZoom(value, anchorX, anchorY) {
+        const nextZoom = Math.max(1.0, Math.min(4.0, Math.round(value * 100) / 100))
+        if (nextZoom === zoomFactor)
+            return
+
+        // Keep the point under the cursor in the same place while zooming.
+        // Toolbar and keyboard zoom stay anchored to the viewport center.
+        const focusX = anchorX === undefined ? imageViewport.width / 2 : anchorX
+        const focusY = anchorY === undefined ? imageViewport.height / 2 : anchorY
+        const oldWidth = Math.max(1, imageViewport.contentWidth)
+        const oldHeight = Math.max(1, imageViewport.contentHeight)
+        const relativeX = (imageViewport.contentX + focusX) / oldWidth
+        const relativeY = (imageViewport.contentY + focusY) / oldHeight
+        zoomFactor = nextZoom
+        imageViewport.contentX = Math.max(0, Math.min(
+            imageViewport.contentWidth - imageViewport.width,
+            relativeX * imageViewport.contentWidth - focusX))
+        imageViewport.contentY = Math.max(0, Math.min(
+            imageViewport.contentHeight - imageViewport.height,
+            relativeY * imageViewport.contentHeight - focusY))
     }
 
     function changeImage(offset) {
@@ -132,6 +149,32 @@ Popup {
             border.color: palette.mid
             clip: true
 
+            // Consume wheel events over the artwork, rather than allowing the
+            // inner Flickable to scroll. Mouse wheel and touchpad both zoom.
+            WheelHandler {
+                id: artworkWheel
+                target: null
+                orientation: Qt.Vertical
+                acceptedDevices: PointerDevice.Mouse | PointerDevice.TouchPad
+                acceptedModifiers: Qt.KeyboardModifierMask
+                blocking: true
+                enabled: viewer.opened && viewer.imageCount > 0
+                onWheel: function(event) {
+                    const angle = event.angleDelta.y
+                    const pixels = event.pixelDelta.y
+                    const steps = angle !== 0 ? angle / 120
+                                : (pixels !== 0 ? pixels / 80 : 0)
+                    if (steps === 0)
+                        return
+                    const focusX = Math.max(0, Math.min(imageViewport.width,
+                        artworkWheel.point.position.x - imageViewport.x))
+                    const focusY = Math.max(0, Math.min(imageViewport.height,
+                        artworkWheel.point.position.y - imageViewport.y))
+                    viewer.changeZoom(viewer.zoomFactor + steps * 0.25, focusX, focusY)
+                    event.accepted = true
+                }
+            }
+
             Flickable {
                 id: imageViewport
                 anchors.fill: parent
@@ -154,17 +197,6 @@ Popup {
                     asynchronous: true
                     cache: true
                     smooth: true
-                }
-
-                WheelHandler {
-                    target: null
-                    onWheel: function(event) {
-                        if (event.angleDelta.y !== 0) {
-                            viewer.changeZoom(viewer.zoomFactor +
-                                (event.angleDelta.y > 0 ? 0.25 : -0.25))
-                            event.accepted = true
-                        }
-                    }
                 }
 
                 ScrollBar.horizontal: ScrollBar {
@@ -217,6 +249,12 @@ Popup {
                 Layout.preferredHeight: Math.max(42, metrics.fontPx(42))
                 enabled: viewer.zoomFactor > 1
                 onClicked: viewer.changeZoom(viewer.zoomFactor - 0.25)
+            }
+            Label {
+                visible: viewer.width >= 760
+                text: "Tekerlek: yakınlaştır / uzaklaştır"
+                color: palette.windowText
+                font.pixelSize: metrics.fontCaption
             }
             Label {
                 text: Math.round(viewer.zoomFactor * 100) + "%"
