@@ -201,6 +201,15 @@ bool FlatpakManager::startMutation(const QString &kind, const QString &scope,
         return false;
     }
     m_busy = true;
+    m_verifying = false;
+    m_pendingKind = kind;
+    m_pendingScope = scope;
+    m_pendingId = id;
+    m_operationName = kind + QStringLiteral(" · ") + id;
+    m_operationStatus = QStringLiteral("Çalışıyor");
+    m_operationStage = QStringLiteral("İşlem başlatıldı");
+    m_operationProgress = 0;
+    m_progressAvailable = false;
     m_recoveryChecked = false;
     m_outcomeUnknown = true;
     m_operationLog.clear();
@@ -300,6 +309,16 @@ void FlatpakManager::consumeOutput(QProcess *process) {
     if (chunk.size() > remaining) m_truncated = true;
     if (m_current.mutation) {
         m_operationLog = clean(QString::fromUtf8(m_capture.right(12000)));
+        const QString normalized = QString::fromUtf8(m_capture.right(4096));
+        static const QRegularExpression percent(QStringLiteral("(?:^|[^0-9])([0-9]{1,3})%"));
+        auto it = percent.globalMatch(normalized);
+        while (it.hasNext()) {
+            const auto match = it.next();
+            const int value = match.captured(1).toInt();
+            if (value <= 100) { m_progressAvailable = true; m_operationProgress = value; }
+        }
+        const QStringList segments = normalized.split(QRegularExpression(QStringLiteral("[\\r\\n]")), Qt::SkipEmptyParts);
+        if (!segments.isEmpty()) m_operationStage = clean(segments.last()).left(160);
         emit changed();
     }
 }
@@ -315,6 +334,9 @@ void FlatpakManager::finishTask(QProcess *process, int code, QProcess::ExitStatu
     process->deleteLater();
     if (completed.mutation) {
         m_busy = false;
+        m_verifying = successful;
+        m_operationStatus = successful ? QStringLiteral("Doğrulanıyor") : QStringLiteral("Başarısız / sonuç belirsiz");
+        appendOperationLog(successful ? QStringLiteral("Flatpak komutu başarıyla tamamlandı; hedef durum doğrulanıyor.") : QStringLiteral("Flatpak komutu başarısız veya çıktı belirsiz; güvenlik kaydı korundu."));
         // Always re-check actual installed/source state before clearing the journal.
         m_message = successful
             ? QStringLiteral("Flatpak komutu tamamlandı; sonuç doğrulaması gerekiyor.")
@@ -363,6 +385,26 @@ void FlatpakManager::parseResponse(const QString &kind, const QByteArray &output
 }
 void FlatpakManager::completeReads() {
     m_loading = false;
+    if (m_verifying) {
+        m_verifying = false;
+        if (!m_recoveryReadFailed && verifiedTargetState()) {
+            if (QFile::remove(journalPath())) {
+                m_outcomeUnknown = false;
+                m_recoveryChecked = false;
+                m_operationStatus = QStringLiteral("Tamamlandı");
+                m_operationStage = QStringLiteral("Gerçek Flatpak durumu doğrulandı");
+                m_progressAvailable = true;
+                m_operationProgress = 100;
+                appendOperationLog(QStringLiteral("Doğrulama başarılı. Güvenlik kaydı otomatik kapatıldı."));
+            } else {
+                m_operationStatus = QStringLiteral("Doğrulandı, kayıt temizlenemedi");
+                appendOperationLog(QStringLiteral("Güvenlik kaydı silinemedi; manuel inceleme gerekiyor."));
+            }
+        } else {
+            m_operationStatus = QStringLiteral("Doğrulanamadı");
+            appendOperationLog(QStringLiteral("Hedef durum doğrulanamadı; güvenlik kilidi korunuyor."));
+        }
+    }
     if (m_outcomeUnknown) {
         m_recoveryChecked = !m_recoveryReadFailed;
         m_message = m_recoveryReadFailed
@@ -375,6 +417,26 @@ void FlatpakManager::completeReads() {
     }
     emit changed();
     emit inventoryChanged();
+}
+bool FlatpakManager::verifiedTargetState() const
+{
+    if (m_pendingScope != QStringLiteral("user") && m_pendingScope != QStringLiteral("system"))
+        return false;
+    if (m_pendingKind == QStringLiteral("install"))
+        return isInstalled(m_pendingScope, m_pendingId);
+    if (m_pendingKind == QStringLiteral("uninstall"))
+        return !isInstalled(m_pendingScope, m_pendingId);
+    if (m_pendingKind == QStringLiteral("add-flathub"))
+        return m_pendingScope == QStringLiteral("user")
+               && hasRemote(QStringLiteral("user"), QStringLiteral("flathub"));
+    // An app's presence does not prove an update was applied.
+    return false;
+}
+void FlatpakManager::appendOperationLog(const QString &line)
+{
+    if (!m_operationLog.isEmpty()) m_operationLog.append(QLatin1Char('\n'));
+    m_operationLog.append(line);
+    if (m_operationLog.size() > 12000) m_operationLog = m_operationLog.right(12000);
 }
 void FlatpakManager::checkRecovery() {
     if (m_busy || m_loading || m_process || !m_outcomeUnknown) return;
