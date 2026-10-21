@@ -65,6 +65,8 @@ public:
 
 signals:
     void changed();
+    // Inventory updates only: artwork/metadata must not reset the app list.
+    void inventoryChanged();
 
 private:
     struct Task {
