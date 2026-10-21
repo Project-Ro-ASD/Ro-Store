@@ -28,6 +28,12 @@ Item {
     ThemeMetrics { id: metrics }
     SystemPalette { id: palette }
 
+    FlatpakScreenshotViewer {
+        id: screenshotViewer
+        screenshotUrls: page.info.screenshots || []
+        applicationName: page.appData.name || page.appData.id || "Flatpak"
+    }
+
     Component.onCompleted: {
         if (flatpak && appData.id && appData.origin === "flathub")
             flatpak.requestMetadata(appData.id)
@@ -352,7 +358,7 @@ Item {
                 id: gallery
                 Layout.fillWidth: true
                 Layout.preferredHeight: Math.max(208, metrics.fontPx(230))
-                visible: page.info.screenshots && page.info.screenshots.length > 0
+                visible: !!page.info.screenshots && page.info.screenshots.length > 0
                 contentWidth: galleryRow.width
                 contentHeight: height
                 clip: true
@@ -367,6 +373,7 @@ Item {
                         model: page.info.screenshots || []
                         delegate: Rectangle {
                             required property string modelData
+                            required property int index
                             width: Math.max(240, Math.min(gallery.width - 10, 405))
                             height: galleryRow.height
                             radius: metrics.radiusPanel
@@ -379,6 +386,11 @@ Item {
                                 asynchronous: true
                                 fillMode: Image.PreserveAspectFit
                                 source: modelData
+                            }
+                            MouseArea {
+                                anchors.fill: parent
+                                cursorShape: Qt.PointingHandCursor
+                                onClicked: screenshotViewer.openAt(index)
                             }
                         }
                     }
