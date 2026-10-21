@@ -119,6 +119,7 @@ void FlatpakManager::refresh() {
     if (!m_available) { fail(QStringLiteral("Flatpak kurulu değil.")); return; }
     if (m_busy || m_loading || m_process) return;
     m_loading = true;
+    m_recoveryReadFailed = false;
     m_queue.clear();
     m_sources.clear();
     m_installed.clear();
@@ -302,6 +303,8 @@ void FlatpakManager::finishTask(QProcess *process, int code, QProcess::ExitStatu
     if (successful) {
         parseResponse(completed.kind, output);
     } else {
+        m_recoveryReadFailed = true;
+        m_recoveryChecked = false;
         m_message = QStringLiteral("Flatpak sorgusu başarısız: ") + clean(QString::fromUtf8(output.right(500)));
     }
     emit changed();
@@ -336,6 +339,7 @@ void FlatpakManager::parseResponse(const QString &kind, const QByteArray &output
 void FlatpakManager::completeReads() {
     m_loading = false;
     if (m_outcomeUnknown) {
+        if (m_recoveryReadFailed) m_recoveryChecked = false;
         m_message = QStringLiteral("Flatpak bilgileri yüklendi. Önceki işlem için sonucu kontrol edip güvenlik kaydını onaylayın.");
     } else {
         m_message = QStringLiteral("Flatpak bilgileri güncellendi.");
