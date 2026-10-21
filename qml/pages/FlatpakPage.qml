@@ -8,6 +8,7 @@ Item {
     id: page
     signal backRequested()
     property var packageTransactionManager: null
+    property var flatpak: null
     readonly property bool blocked: flatpak.busy || flatpak.loading || flatpak.outcomeUnknown
     property string selectedScope: "user"
     property string selectedRemote: "flathub"
@@ -65,10 +66,9 @@ Item {
             flatpak.addFlathubUser()
     }
 
-    FlatpakManager {
-        id: flatpak
-        transactionManager: page.packageTransactionManager
-        onChanged: page.updateRows()
+    Connections {
+        target: flatpak
+        function onChanged() { page.updateRows() }
     }
 
     Component.onCompleted: flatpak.refresh()
