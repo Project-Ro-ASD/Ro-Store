@@ -9,7 +9,7 @@
 #include <QTimer>
 #include <QVariantList>
 
-class FlatpakManager final : public QObject
+class FlatpakManager : public QObject
 {
     Q_OBJECT
     Q_PROPERTY(QObject* transactionManager READ transactionManager WRITE setTransactionManager NOTIFY changed)
