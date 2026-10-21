@@ -125,6 +125,7 @@ private:
     bool m_outcomeUnknown = false;
     bool m_recoveryChecked = false;
     bool m_recoveryReadFailed = false;
+    QSet<QString> m_successfulReadKinds;
     bool m_locked = false;
     bool m_verifying = false;
     bool m_progressAvailable = false;
@@ -135,6 +136,7 @@ private:
     QString m_pendingKind;
     QString m_pendingScope;
     QString m_pendingId;
+    QString m_pendingBeforeCommit;
     std::unique_ptr<QLockFile> m_crossProcessLock;
     QString m_message;
     QString m_operationLog;
