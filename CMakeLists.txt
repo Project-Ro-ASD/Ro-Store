@@ -108,6 +108,7 @@ qt_add_qml_module(ro-store
         qml/components/ThemedIconButton.qml
         qml/components/KeyboardActionButton.qml
         qml/components/FlatpakScreenshotViewer.qml
+        qml/components/FlatpakOperationPanel.qml
 )
 
 target_link_libraries(ro-store
