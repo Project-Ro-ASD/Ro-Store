@@ -410,15 +410,7 @@ Item {
                 font.pixelSize: metrics.fontSection
                 font.bold: true
             }
-            TextArea {
-                Layout.fillWidth: true
-                Layout.preferredHeight: 110
-                visible: flatpak && flatpak.operationLog.length > 0
-                readOnly: true
-                wrapMode: TextEdit.WrapAnywhere
-                text: flatpak ? flatpak.operationLog : ""
-                color: palette.text
-            }
+
             Item { Layout.fillWidth: true; Layout.preferredHeight: page.margin }
         }
     }
