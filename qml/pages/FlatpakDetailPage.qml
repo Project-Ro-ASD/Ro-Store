@@ -12,7 +12,13 @@ Item {
     property var appData: ({})
     property string pendingAction: ""
 
-    readonly property var info: flatpak ? flatpak.metadata(appData.id || "") : ({})
+    // Q_INVOKABLE metadata() itself has no QML change notification. Explicitly
+    // depend on the revision so late screenshot responses update this page.
+    readonly property int metadataRevision: flatpak ? flatpak.metadataRevision : 0
+    readonly property var info: {
+        var revision = metadataRevision
+        return flatpak ? flatpak.metadata(appData.id || "") : ({})
+    }
     readonly property bool installed: flatpak && flatpak.isInstalled(appData.scope || "", appData.id || "")
     readonly property bool updatable: flatpak && flatpak.hasUpdate(appData.scope || "", appData.id || "")
     readonly property bool blocked: !flatpak || flatpak.busy || flatpak.loading || flatpak.outcomeUnknown
@@ -21,12 +27,6 @@ Item {
 
     ThemeMetrics { id: metrics }
     SystemPalette { id: palette }
-
-    // The notify signal causes metadata and button state to refresh without copying any data.
-    Connections {
-        target: flatpak
-        function onChanged() { /* bound Q_PROPERTY NOTIFY changes refresh details */ }
-    }
 
     Component.onCompleted: {
         if (flatpak && appData.id && appData.origin === "flathub")
@@ -328,9 +328,24 @@ Item {
             Label {
                 Layout.fillWidth: true
                 visible: !page.info.screenshots || page.info.screenshots.length === 0
-                text: "Bu uygulama için ekran görüntüsü bulunamadı."
+                text: page.info.metadataStatus === "loading"
+                    ? "Ekran görüntüleri yükleniyor..."
+                    : page.info.metadataStatus === "error"
+                      ? "Flathub görsel bilgileri alınamadı. Daha sonra tekrar deneyin."
+                      : "Bu uygulamanın Flathub metadata kaydında gösterilebilir ekran görüntüsü bulunamadı."
                 color: palette.windowText
                 wrapMode: Text.WordWrap
+            }
+
+            ThemedActionButton {
+                Layout.preferredWidth: Math.max(160, metrics.fontPx(190))
+                Layout.preferredHeight: Math.max(42, metrics.fontPx(42))
+                visible: appData.origin === "flathub"
+                text: "Flathub sayfasını aç"
+                onClicked: {
+                    if (appData.id && /^[A-Za-z0-9][A-Za-z0-9_.-]{2,255}$/.test(appData.id))
+                        Qt.openUrlExternally("https://flathub.org/apps/" + encodeURIComponent(appData.id))
+                }
             }
 
             Flickable {
