@@ -220,8 +220,12 @@ void FlatpakManager::uninstall(const QString &scope, const QString &id) {
                    QStringLiteral("--assumeyes"), id});
 }
 void FlatpakManager::update(const QString &scope, const QString &id) {
-    if (!safeScope(scope) || !safeAppId(id) || !hasUpdate(scope, id)) {
-        fail(QStringLiteral("Seçilen uygulamanın doğrulanmış güncellemesi yok.")); return;
+    // remote-ls --updates also reports runtime/driver extensions (NVIDIA, VA-API).
+    // v0.7 only permits upgrading apps confirmed in the --app installation list.
+    // Runtime and driver updates remain read-only until separately reviewed.
+    if (!safeScope(scope) || !safeAppId(id) || !isInstalled(scope, id) || !hasUpdate(scope, id)) {
+        fail(QStringLiteral("Bu güncelleme kurulu bir uygulama olarak doğrulanamadı. Sürücü/çalışma ortamı güncellemeleri v0.7 test aşamasında engellenmiştir."));
+        return;
     }
     startMutation(QStringLiteral("update"), scope, id,
                   {scoped(scope), QStringLiteral("update"), QStringLiteral("--noninteractive"),
@@ -352,9 +356,13 @@ void FlatpakManager::completeReads() {
     m_loading = false;
     if (m_outcomeUnknown) {
         if (m_recoveryReadFailed) m_recoveryChecked = false;
-        m_message = QStringLiteral("Flatpak bilgileri yüklendi. Önceki işlem için sonucu kontrol edip güvenlik kaydını onaylayın.");
+        m_message = m_recoveryReadFailed
+            ? QStringLiteral("Flatpak sorgularından biri başarısız. Güvenlik kilidi korunuyor; tekrar deneyin.")
+            : QStringLiteral("Flatpak bilgileri yüklendi. Önceki işlem sonucunu ayrıca kontrol edip güvenlik kaydını onaylayın.");
     } else {
-        m_message = QStringLiteral("Flatpak bilgileri güncellendi.");
+        m_message = m_recoveryReadFailed
+            ? QStringLiteral("Bazı Flatpak bilgileri okunamadı; listeler eksik olabilir. Yeniden deneyin.")
+            : QStringLiteral("Flatpak bilgileri güncellendi.");
     }
     emit changed();
     emit inventoryChanged();
