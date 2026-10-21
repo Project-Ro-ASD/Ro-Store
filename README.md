@@ -10,7 +10,7 @@
 
 ## Türkçe
 
-## v0.7.0 — Flatpak / Flathub (sürüm adayı; henüz yayımlanmadı)
+## v0.7.0 — Flatpak / Flathub (sınırlı kapsam)
 
 Bu dal Fedora 44 için ayrı bir **Flatpak / Flathub** ekranı ekler: kullanıcı/sistem
 kapsamında kaynakları, kurulmuş uygulamaları ve güncelleme adaylarını gösterir;
@@ -23,11 +23,12 @@ Calculator kurma–kaldırma–yeniden kurma–çalıştırma. Durum düğmeleri
 çıkmadan yenilenir. Onaylanmış işlemlerde Flatpak güvenlik kaydı otomatik
 temizlenir. RPM/DNF5 uygulama yolu bağımsızdır.
 
-**Sınırlar:** Uygulama güncellemesi doğrulama korumaları içerir ancak gerçek
-güncelleme henüz test edilmemiştir. NVIDIA sürücüleri, Flatpak çalışma
-ortamları ve uzantıları bu akışla güncellenmez. Kesinti/yetki reddi/
-çoklu örnek kurtarma testleri henüz tamamlanmadığı için **v0.7.0 release
-veya mevcut Fedora sistemine RPM yükseltmesi önerilmiyor**. Test planı:
+**v0.7.0 güvenli kapsam:** Yalnızca kullanıcı kapsamındaki Flathub kaynağı
+ekleme, Flathub uygulamalarını kurma, kaldırma ve çalıştırma açıktır. Sistem
+kapsamında değiştirme ve bütün Flatpak güncelleme işlemleri kapatılmıştır;
+bu öğeler yalnızca görüntülenir. NVIDIA, codec ve Flatpak çalışma ortamları
+bu yolla değiştirilemez. Kesinti, yetki reddi, çoklu örnek ve gerçek
+güncelleme testleri gelecek sürüm yol haritasına ertelenmiştir. Test planı:
 [docs/testing/v0.7-flatpak.md](docs/testing/v0.7-flatpak.md).
 
 ### Geliştirme dalını kaynak koddan çalıştırma
