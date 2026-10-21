@@ -68,6 +68,7 @@ public:
     Q_INVOKABLE void loadCatalog(const QString &scope, const QString &remote);
     Q_INVOKABLE bool hasRemote(const QString &scope, const QString &remote) const;
     Q_INVOKABLE bool isInstalled(const QString &scope, const QString &appId) const;
+    Q_INVOKABLE bool isCatalogApp(const QString &scope, const QString &remote, const QString &appId) const;
     Q_INVOKABLE bool hasUpdate(const QString &scope, const QString &appId) const;
     Q_INVOKABLE void install(const QString &scope, const QString &remote, const QString &appId);
     Q_INVOKABLE void uninstall(const QString &scope, const QString &appId);
