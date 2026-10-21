@@ -197,6 +197,16 @@ bool FlatpakManager::startMutation(const QString &kind, const QString &scope,
     if (!m_available || !safeScope(scope) || m_busy || m_loading || m_process || m_outcomeUnknown
         || !m_queue.isEmpty() || QFile::exists(journalPath())) { fail(QStringLiteral("İşlem başlatılamadı: önceki işlem veya güvenlik kilidi var.")); return false; }
     if (!acquireLock()) { fail(QStringLiteral("RPM işlemi etkin veya güvenlik kilidi var; Flatpak işlemi engellendi.")); return false; }
+    // Resolve the pre-update commit BEFORE persisting a mutation journal.
+    // No Flatpak mutation has started yet: failure must not create a
+    // confusing journal or silently discard an unremovable journal.
+    const QString beforeCommit = kind == QStringLiteral("update")
+        ? installedCommit(scope, id) : QString();
+    if (kind == QStringLiteral("update") && beforeCommit.isEmpty()) {
+        releaseLock();
+        fail(QStringLiteral("Mevcut uygulama commit kimliği doğrulanamadı; güncelleme başlatılmadı."));
+        return false;
+    }
     if (!writeJournal(kind, scope, id)) {
         releaseLock();
         fail(QStringLiteral("Kalıcı Flatpak güvenlik kaydı yazılamadı; işlem başlatılmadı."));
@@ -207,17 +217,7 @@ bool FlatpakManager::startMutation(const QString &kind, const QString &scope,
     m_pendingKind = kind;
     m_pendingScope = scope;
     m_pendingId = id;
-    m_pendingBeforeCommit = kind == QStringLiteral("update") ? installedCommit(scope, id) : QString();
-    if (kind == QStringLiteral("update") && m_pendingBeforeCommit.isEmpty()) {
-        // Never run an update whose starting state cannot be independently established.
-        m_pendingKind.clear();
-        m_pendingId.clear();
-        QFile::remove(journalPath());
-        releaseLock();
-        m_busy = false;
-        fail(QStringLiteral("Mevcut uygulama commit kimliği doğrulanamadı; güncelleme başlatılmadı."));
-        return false;
-    }
+    m_pendingBeforeCommit = beforeCommit;
     m_operationName = kind + QStringLiteral(" · ") + id;
     m_operationStatus = QStringLiteral("Çalışıyor");
     m_operationStage = QStringLiteral("İşlem başlatıldı");
@@ -234,6 +234,9 @@ bool FlatpakManager::startMutation(const QString &kind, const QString &scope,
 void FlatpakManager::install(const QString &scope, const QString &remote, const QString &id) {
     if (!safeScope(scope) || !safeRemote(remote) || !safeAppId(id) || !hasRemote(scope, remote)) {
         fail(QStringLiteral("Geçersiz kapsam, uygulama kimliği veya depo.")); return;
+    }
+    if (isInstalled(scope, id)) {
+        fail(QStringLiteral("Uygulama bu kapsamda zaten kurulu. Yeniden kurma işlemi başlatılmadı.")); return;
     }
     startMutation(QStringLiteral("install"), scope, id,
                   {scoped(scope), QStringLiteral("install"), QStringLiteral("--noninteractive"),
