@@ -53,7 +53,7 @@ ApplicationWindow {
         if (root.exitingFromTray)
             return
         close.accepted = false
-        if (transactionManager.busy) {
+        if (transactionManager.busy || flatpakManager.busy) {
             exitConfirmation.open()
         } else if (TrayController.available) {
             root.hide()
@@ -224,6 +224,11 @@ ApplicationWindow {
         id: sourceManager
     }
 
+    FlatpakManager {
+        id: flatpakManager
+        transactionManager: transactionManager
+    }
+
     PackageTransactionManager {
         id: transactionManager
         onBusyChanged: TrayController.setBusy(busy)
@@ -381,6 +386,7 @@ ApplicationWindow {
             onSystemUpdatesRequested: {
                 stackView.push(systemUpdatesPageComponent)
             }
+            onFlatpakRequested: stackView.push(flatpakPageComponent)
 
             onAppSelected: function(title, summary, description, category, version, packageName, iconUrl) {
                 stackView.push(detailPageComponent, {
@@ -419,6 +425,14 @@ ApplicationWindow {
             onBackRequested: {
                 stackView.pop()
             }
+        }
+    }
+
+    Component {
+        id: flatpakPageComponent
+        FlatpakPage {
+            packageTransactionManager: transactionManager
+            onBackRequested: stackView.pop()
         }
     }
 
