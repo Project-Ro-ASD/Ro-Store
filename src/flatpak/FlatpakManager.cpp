@@ -94,11 +94,16 @@ bool FlatpakManager::writeJournal(const QString &action, const QString &scope, c
 bool FlatpakManager::acquireLock() {
     if (m_locked) return true;
     if (!m_transactionManager) return false;
+    m_crossProcessLock = std::make_unique<QLockFile>(journalPath() + QStringLiteral(".lock"));
+    if (!QDir().mkpath(QFileInfo(journalPath()).absolutePath()) || !m_crossProcessLock->tryLock(0)) {
+        m_crossProcessLock.reset();
+        return false;
+    }
     bool locked = false;
     if (!QMetaObject::invokeMethod(m_transactionManager.data(), "acquireExternalOperation",
                                    Qt::DirectConnection, Q_RETURN_ARG(bool, locked),
                                    Q_ARG(QObject*, this)) || !locked)
-        return false;
+        { m_crossProcessLock.reset(); return false; }
     m_locked = true;
     return true;
 }
@@ -107,6 +112,7 @@ void FlatpakManager::releaseLock() {
         QMetaObject::invokeMethod(m_transactionManager.data(), "releaseExternalOperation",
                                   Qt::DirectConnection, Q_ARG(QObject*, this));
     m_locked = false;
+    if (m_crossProcessLock) { m_crossProcessLock->unlock(); m_crossProcessLock.reset(); }
 }
 void FlatpakManager::fail(const QString &message) {
     m_message = message;
@@ -175,7 +181,7 @@ bool FlatpakManager::hasUpdate(const QString &scope, const QString &id) const {
 bool FlatpakManager::startMutation(const QString &kind, const QString &scope,
                                    const QString &id, const QStringList &args) {
     if (!m_available || !safeScope(scope) || m_busy || m_loading || m_process || m_outcomeUnknown
-        || !m_queue.isEmpty()) { fail(QStringLiteral("İşlem başlatılamadı: önceki işlem veya güvenlik kilidi var.")); return false; }
+        || !m_queue.isEmpty() || QFile::exists(journalPath())) { fail(QStringLiteral("İşlem başlatılamadı: önceki işlem veya güvenlik kilidi var.")); return false; }
     if (!acquireLock()) { fail(QStringLiteral("RPM işlemi etkin veya güvenlik kilidi var; Flatpak işlemi engellendi.")); return false; }
     if (!writeJournal(kind, scope, id)) {
         releaseLock();
