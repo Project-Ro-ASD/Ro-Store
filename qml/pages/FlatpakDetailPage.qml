@@ -290,7 +290,6 @@ Item {
                 ThemedActionButton {
                     width: Math.max(130, metrics.fontPx(130))
                     height: Math.max(44, metrics.fontPx(44))
-                    text: "Güncelle"
                     visible: page.updatable && page.installed
                     text: "Güncelleme (salt okunur)"
                     enabled: false
