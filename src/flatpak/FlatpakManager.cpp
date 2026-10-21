@@ -130,6 +130,7 @@ void FlatpakManager::refresh() {
     if (!m_available) { fail(QStringLiteral("Flatpak kurulu değil.")); return; }
     if (m_busy || m_loading || m_process) return;
     m_loading = true;
+    m_recoveryChecked = false;
     m_recoveryReadFailed = false;
     m_queue.clear();
     m_sources.clear();
@@ -355,7 +356,7 @@ void FlatpakManager::parseResponse(const QString &kind, const QByteArray &output
 void FlatpakManager::completeReads() {
     m_loading = false;
     if (m_outcomeUnknown) {
-        if (m_recoveryReadFailed) m_recoveryChecked = false;
+        m_recoveryChecked = !m_recoveryReadFailed;
         m_message = m_recoveryReadFailed
             ? QStringLiteral("Flatpak sorgularından biri başarısız. Güvenlik kilidi korunuyor; tekrar deneyin.")
             : QStringLiteral("Flatpak bilgileri yüklendi. Önceki işlem sonucunu ayrıca kontrol edip güvenlik kaydını onaylayın.");
@@ -372,8 +373,6 @@ void FlatpakManager::checkRecovery() {
     // Verification is user-assisted: a successful read does NOT prove the requested
     // mutation succeeded. The user must inspect the actual lists and operation log.
     refresh();
-    m_recoveryChecked = true;
-    emit changed();
 }
 void FlatpakManager::acknowledgeRecovery() {
     if (!m_outcomeUnknown || !m_recoveryChecked || m_busy || m_loading || m_process) return;
