@@ -154,7 +154,6 @@ Popup {
                     asynchronous: true
                     cache: true
                     smooth: true
-                    mipmap: true
                 }
 
                 WheelHandler {
