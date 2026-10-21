@@ -204,6 +204,15 @@ bool FlatpakManager::hasUpdate(const QString &scope, const QString &id) const {
 }
 bool FlatpakManager::startMutation(const QString &kind, const QString &scope,
                                    const QString &id, const QStringList &args) {
+    // v0.7.0 release gate: only user-scoped, Flathub app installs/removals
+    // and user Flathub remote-add are enabled. Do not allow internal or QML
+    // callers to bypass the release restriction.
+    if (scope != QStringLiteral("user")
+        || (kind != QStringLiteral("install") && kind != QStringLiteral("uninstall")
+            && kind != QStringLiteral("add-flathub"))) {
+        fail(QStringLiteral("v0.7.0: Sistem değişiklikleri ve Flatpak güncellemeleri bu sürümde salt okunurdur."));
+        return false;
+    }
     if (!m_available || !safeScope(scope) || m_busy || m_loading || m_process || m_outcomeUnknown
         || !m_queue.isEmpty() || QFile::exists(journalPath())) { fail(QStringLiteral("İşlem başlatılamadı: önceki işlem veya güvenlik kilidi var.")); return false; }
     if (!acquireLock()) { fail(QStringLiteral("RPM işlemi etkin veya güvenlik kilidi var; Flatpak işlemi engellendi.")); return false; }
@@ -252,6 +261,10 @@ bool FlatpakManager::startMutation(const QString &kind, const QString &scope,
     return true;
 }
 void FlatpakManager::install(const QString &scope, const QString &remote, const QString &id) {
+    if (scope != QStringLiteral("user") || remote != QStringLiteral("flathub")) {
+        fail(QStringLiteral("v0.7.0 yalnızca kullanıcı kapsamındaki Flathub uygulamalarını kurabilir."));
+        return;
+    }
     if (!safeScope(scope) || !safeRemote(remote) || !safeAppId(id) || !hasRemote(scope, remote) || !isCatalogApp(scope, remote, id)) {
         fail(QStringLiteral("Geçersiz kapsam, uygulama kimliği veya depo.")); return;
     }
@@ -263,6 +276,24 @@ void FlatpakManager::install(const QString &scope, const QString &remote, const 
                    QStringLiteral("--assumeyes"), remote, id});
 }
 void FlatpakManager::uninstall(const QString &scope, const QString &id) {
+    if (scope != QStringLiteral("user")) {
+        fail(QStringLiteral("Sistem kapsamındaki Flatpak uygulamalarını kaldırmak v0.7.0'da kapalıdır."));
+        return;
+    }
+    bool fromFlathub = false;
+    for (const QVariant &v : m_installed) {
+        const auto row = v.toMap();
+        if (row.value(QStringLiteral("scope")) == QStringLiteral("user")
+            && row.value(QStringLiteral("id")) == id
+            && row.value(QStringLiteral("origin")) == QStringLiteral("flathub")) {
+            fromFlathub = true;
+            break;
+        }
+    }
+    if (!fromFlathub) {
+        fail(QStringLiteral("v0.7.0 yalnızca kullanıcı kapsamındaki Flathub uygulamalarını kaldırabilir."));
+        return;
+    }
     if (!safeScope(scope) || !safeAppId(id) || !isInstalled(scope, id)) {
         fail(QStringLiteral("Seçilen uygulama bu kapsamda kurulu değil.")); return;
     }
@@ -271,16 +302,11 @@ void FlatpakManager::uninstall(const QString &scope, const QString &id) {
                    QStringLiteral("--assumeyes"), id});
 }
 void FlatpakManager::update(const QString &scope, const QString &id) {
-    // remote-ls --updates also reports runtime/driver extensions (NVIDIA, VA-API).
-    // v0.7 only permits upgrading apps confirmed in the --app installation list.
-    // Runtime and driver updates remain read-only until separately reviewed.
-    if (!safeScope(scope) || !safeAppId(id) || !isInstalled(scope, id) || !hasUpdate(scope, id)) {
-        fail(QStringLiteral("Bu güncelleme kurulu bir uygulama olarak doğrulanamadı. Sürücü/çalışma ortamı güncellemeleri v0.7 test aşamasında engellenmiştir."));
-        return;
-    }
-    startMutation(QStringLiteral("update"), scope, id,
-                  {scoped(scope), QStringLiteral("update"), QStringLiteral("--noninteractive"),
-                   QStringLiteral("--assumeyes"), id});
+    Q_UNUSED(scope)
+    Q_UNUSED(id)
+    // Flatpak app/driver/runtime updates require separate transactional
+    // fault-injection and real update QA. Keep the listing read-only in 0.7.
+    fail(QStringLiteral("Flatpak güncellemeleri v0.7.0'da salt okunurdur. Tam testler sonraki sürüm yol haritasındadır."));
 }
 void FlatpakManager::addFlathubUser() {
     if (hasRemote(QStringLiteral("user"), QStringLiteral("flathub"))) {
@@ -295,7 +321,19 @@ void FlatpakManager::addFlathubUser() {
                    QStringLiteral("flathub"), QStringLiteral("https://dl.flathub.org/repo/flathub.flatpakrepo")});
 }
 void FlatpakManager::launch(const QString &scope, const QString &id) {
-    if (!safeScope(scope) || !safeAppId(id) || !isInstalled(scope,id) || m_busy) return;
+    // Only Flathub applications under the active user were exercised in QA.
+    if (scope != QStringLiteral("user") || !safeAppId(id) || m_busy || m_loading || m_outcomeUnknown) return;
+    bool fromFlathub = false;
+    for (const QVariant &v : m_installed) {
+        const auto row = v.toMap();
+        if (row.value(QStringLiteral("scope")) == QStringLiteral("user")
+            && row.value(QStringLiteral("id")) == id
+            && row.value(QStringLiteral("origin")) == QStringLiteral("flathub")) {
+            fromFlathub = true;
+            break;
+        }
+    }
+    if (!fromFlathub) return;
     // Launch is user-initiated, detached, and does not run through a shell.
     const bool ok = QProcess::startDetached(QStringLiteral("/usr/bin/flatpak"),
                                 {scoped(scope), QStringLiteral("run"), id});
