@@ -152,9 +152,9 @@ void FlatpakManager::refresh() {
                      QStringLiteral("--columns=application,name,version,origin")}, 45000);
     }
     m_message = QStringLiteral("Flatpak kaynakları ve kurulu uygulamalar okunuyor...");
+    // The inventory is incomplete until all read commands finish. Do not
+    // signal a stable new revision for transiently cleared lists.
     emit changed();
-    ++m_inventoryRevision;
-    emit inventoryChanged();
     runNext();
 }
 void FlatpakManager::loadCatalog(const QString &scope, const QString &remote) {
@@ -416,6 +416,10 @@ void FlatpakManager::completeReads() {
             ? QStringLiteral("Bazı Flatpak bilgileri okunamadı; listeler eksik olabilir. Yeniden deneyin.")
             : QStringLiteral("Flatpak bilgileri güncellendi.");
     }
+    // This revision is consumed by QML install/update state bindings.
+    // Without a new revision here, reinstalling leaves the button at "Kur"
+    // even after the verified installed list is populated.
+    ++m_inventoryRevision;
     emit changed();
     emit inventoryChanged();
 }
