@@ -238,7 +238,18 @@ PackageTransactionManager::PackageTransactionManager(
                     return;
                 }
                 m_activeTransaction->appendTechnicalLog(QStringLiteral(
-                    "İndirme tamamlandı, şimdi RPM aşamasına geçiliyor."));
+                    "DNF5 daemon indirmesi tamamlandı. Onaylanan işlem planı kuruluma hazırlanıyor."));
+                // Download-only never mutates installed RPMs. Persist the
+                // recovery journal immediately before dispatching the RPM
+                // mutation, even if the downloads were already cached.
+                persistPendingExecution();
+                if (m_outcomeUncertain) {
+                    m_activeTransaction->appendTechnicalLog(QStringLiteral(
+                        "Güvenlik günlüğü oluşturulamadı; RPM aşaması başlatılmadı."));
+                    m_activeTransaction->markOutcomeUnknown(m_recoveryDetails);
+                    emit activeTransactionChanged();
+                    return;
+                }
                 m_rpmPhaseStarted = true;
                 m_activeTransaction->setState(PackageTransaction::State::Running);
                 m_backend->executeResolvedTransaction(false);
@@ -1374,7 +1385,7 @@ void PackageTransactionManager::executeActive()
     );
 
     m_activeTransaction->appendTechnicalLog(QStringLiteral(
-        "İndirme ayrı süreçte başlatılıyor. İptal, bu süreci anında durdurur."));
+        "Paketler mevcut DNF5 daemon oturumunda, yalnızca indirme modunda hazırlanıyor."));
     // Do not create the RPM-execution journal until downloaded packages
     // have passed the second verified, offline-only dependency resolution.
     m_downloadOnlyPhase = true;
@@ -1389,7 +1400,11 @@ void PackageTransactionManager::executeActive()
         m_activeTransaction->setState(PackageTransaction::State::Running);
         m_backend->executeResolvedTransaction(false);
     } else {
-        startControlledDownload();
+        // Do not launch a second, unprivileged dnf5 CLI: it has a separate
+        // repository-metadata/key trust state and may block indefinitely
+        // waiting for interactive GPG confirmation with no attached tty.
+        // Use the already resolved daemon Goal and its download progress.
+        m_backend->executeResolvedTransaction(true);
     }
 }
 
@@ -1443,15 +1458,11 @@ void PackageTransactionManager::cancelTransaction(QObject *transactionObject)
     m_cancelRequested = true;
     transaction->setCancelRequested(true);
     transaction->appendTechnicalLog(QStringLiteral(
-        "İptal edildi: indirme sürecine hemen sonlandırma sinyali gönderiliyor."));
-    if (m_controlledDownload && m_controlledDownload->state() != QProcess::NotRunning) {
-        m_controlledProcessKilled = true;
-        m_controlledDownload->kill();
-        return;
-    }
-    // A race with an already completed download is safe: local RPM
-    // execution has not yet begun, so cancellation still wins.
-    cancelActiveFinished();
+        "İptal isteği DNF5 daemon'a gönderildi; indirme aşamasının sonucu bekleniyor."));
+    // Never declare cancellation complete before the daemon responds.
+    // A successful cancel request means only that cancellation was accepted.
+    // do_transaction's definitive result remains authoritative.
+    m_backend->cancelTransaction();
 }
 
 
