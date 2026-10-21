@@ -156,7 +156,6 @@ Popup {
                 target: null
                 orientation: Qt.Vertical
                 acceptedDevices: PointerDevice.Mouse | PointerDevice.TouchPad
-                acceptedModifiers: Qt.KeyboardModifierMask
                 blocking: true
                 enabled: viewer.opened && viewer.imageCount > 0
                 onWheel: function(event) {
