@@ -28,6 +28,7 @@ Item {
         const revision = inventoryRevision
         return flatpak ? flatpak.hasUpdate(appData.scope || "", appData.id || "") : false
     }
+    readonly property bool installable: flatpak && flatpak.isCatalogApp(appData.scope || "", appData.origin || "", appData.id || "")
     readonly property bool blocked: !flatpak || flatpak.busy || flatpak.loading || flatpak.outcomeUnknown
     readonly property bool narrow: width < Math.max(660, metrics.fontPx(660))
     readonly property int margin: Math.max(12, Math.min(36, Math.floor(width / 17)))
@@ -56,13 +57,13 @@ Item {
     }
 
     function confirmAction(action) {
-        if (blocked || !appData.id) return
+        if (blocked || !appData.id || (action === "install" && !installable)) return
         pendingAction = action
         actionApproval.open()
     }
 
     function executeApproved() {
-        if (blocked || !appData.id) return
+        if (blocked || !appData.id || (pendingAction === "install" && !installable)) return
         if (pendingAction === "install")
             flatpak.install(appData.scope, appData.origin, appData.id)
         else if (pendingAction === "uninstall")
@@ -249,6 +250,14 @@ Item {
                 }
             }
 
+            Label {
+                Layout.fillWidth: true
+                visible: !page.installed && !page.installable
+                wrapMode: Text.WordWrap
+                color: palette.windowText
+                text: "Bu öğe seçili uygulama kataloğunda doğrulanmadı. Sürücü, codec ve çalışma ortamı uzantıları buradan kurulamaz."
+            }
+
             Flow {
                 Layout.fillWidth: true
                 width: parent.width
@@ -259,7 +268,7 @@ Item {
                     height: Math.max(44, metrics.fontPx(44))
                     text: page.installed ? "Kurulu" : "Kur"
                     accented: !page.installed
-                    visible: !page.installed
+                    visible: !page.installed && page.installable
                     enabled: !page.blocked
                     onClicked: page.confirmAction("install")
                 }
