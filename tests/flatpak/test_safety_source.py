@@ -64,6 +64,17 @@ class FlatpakSafetyGuards(unittest.TestCase):
         self.assertIn("--system", BACKEND)
         self.assertIn("m_outcomeUnknown", HEADER)
 
+    def test_app_install_requires_exact_catalog_membership(self):
+        install = method("install").split("void FlatpakManager::uninstall", 1)[0]
+        self.assertIn("isCatalogApp(scope, remote, id)", install)
+        catalog = method("isCatalogApp").split("bool FlatpakManager::isInstalled", 1)[0]
+        self.assertIn('QStringLiteral("scope")', catalog)
+        self.assertIn('QStringLiteral("origin")', catalog)
+        self.assertIn('QStringLiteral("id")', catalog)
+        detail = (ROOT / "qml/pages/FlatpakDetailPage.qml").read_text()
+        self.assertIn("page.installable", detail)
+        self.assertIn('action === "install" && !installable', detail)
+
     def test_tray_exit_guard(self):
         self.assertIn("transactionManager.busy || flatpakManager.busy || flatpakManager.verifying", WINDOW)
         self.assertIn("enabled: !flatpakManager.busy && !flatpakManager.verifying", WINDOW)
