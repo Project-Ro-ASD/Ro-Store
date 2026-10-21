@@ -23,6 +23,12 @@ class FlatpakManager : public QObject
     Q_PROPERTY(bool recoveryChecked READ recoveryChecked NOTIFY changed)
     Q_PROPERTY(QString message READ message NOTIFY changed)
     Q_PROPERTY(QString operationLog READ operationLog NOTIFY changed)
+    Q_PROPERTY(QString operationName READ operationName NOTIFY changed)
+    Q_PROPERTY(QString operationStatus READ operationStatus NOTIFY changed)
+    Q_PROPERTY(QString operationStage READ operationStage NOTIFY changed)
+    Q_PROPERTY(bool verifying READ verifying NOTIFY changed)
+    Q_PROPERTY(bool progressAvailable READ progressAvailable NOTIFY changed)
+    Q_PROPERTY(int operationProgress READ operationProgress NOTIFY changed)
     Q_PROPERTY(QVariantList sources READ sources NOTIFY changed)
     Q_PROPERTY(QVariantList installed READ installed NOTIFY changed)
     Q_PROPERTY(QVariantList updates READ updates NOTIFY changed)
@@ -42,6 +48,12 @@ public:
     bool recoveryChecked() const { return m_recoveryChecked; }
     QString message() const { return m_message; }
     QString operationLog() const { return m_operationLog; }
+    QString operationName() const { return m_operationName; }
+    QString operationStatus() const { return m_operationStatus; }
+    QString operationStage() const { return m_operationStage; }
+    bool verifying() const { return m_verifying; }
+    bool progressAvailable() const { return m_progressAvailable; }
+    int operationProgress() const { return m_operationProgress; }
     QVariantList sources() const { return m_sources; }
     QVariantList installed() const { return m_installed; }
     QVariantList updates() const { return m_updates; }
@@ -94,6 +106,8 @@ private:
                        const QString &id, const QStringList &args);
     void fail(const QString &message);
     void completeReads();
+    bool verifiedTargetState() const;
+    void appendOperationLog(const QString &line);
     void startNextMetadataRequest();
 
     QPointer<QObject> m_transactionManager;
@@ -110,6 +124,15 @@ private:
     bool m_recoveryChecked = false;
     bool m_recoveryReadFailed = false;
     bool m_locked = false;
+    bool m_verifying = false;
+    bool m_progressAvailable = false;
+    int m_operationProgress = 0;
+    QString m_operationName;
+    QString m_operationStatus;
+    QString m_operationStage;
+    QString m_pendingKind;
+    QString m_pendingScope;
+    QString m_pendingId;
     std::unique_ptr<QLockFile> m_crossProcessLock;
     QString m_message;
     QString m_operationLog;
