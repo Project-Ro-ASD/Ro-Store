@@ -126,228 +126,420 @@ Item {
         }
     }
 
-    ScrollView {
+
+    ThemeMetrics { id: metrics }
+    readonly property bool narrow: width < Math.max(760, Math.ceil(760 * metrics.fontScale))
+    readonly property int margin: Math.max(12, Math.min(34, width / 18))
+    property var selectedApp: null
+    property int metadataRefresh: flatpak.metadataRevision
+
+    function currentMetadata(id) {
+        var unused = metadataRefresh
+        return flatpak.metadata(id)
+    }
+
+    ColumnLayout {
         anchors.fill: parent
-        clip: true
-        contentWidth: availableWidth
-        ColumnLayout {
-            width: Math.max(0, parent.width)
-            spacing: 12
-            anchors.margins: 12
+        anchors.margins: page.margin
+        spacing: metrics.spaceMedium
 
-            RowLayout {
-                Layout.fillWidth: true
-                ThemedActionButton {
-                    text: "← Geri"
-                    onClicked: page.backRequested()
-                }
-                Label {
-                    text: "Flatpak / Flathub"
-                    font.bold: true
-                    font.pixelSize: 22
-                    Layout.fillWidth: true
-                    elide: Text.ElideRight
-                }
-            }
-
-            Label {
-                Layout.fillWidth: true
-                wrapMode: Text.WordWrap
-                text: flatpak.message
-                color: palette.windowText
+        RowLayout {
+            Layout.fillWidth: true
+            spacing: metrics.spaceMedium
+            ThemedIconButton {
+                text: "Geri"
+                themedIconName: "go-previous"
+                Layout.preferredHeight: Math.max(40, metrics.fontPx(40))
+                onClicked: page.backRequested()
             }
             Label {
                 Layout.fillWidth: true
-                visible: flatpak.outcomeUnknown
-                wrapMode: Text.WordWrap
+                text: "Flatpak / Flathub"
+                font.family: metrics.systemFont.family
+                font.pixelSize: metrics.fontPageTitle
                 font.bold: true
-                color: "#d97706"
-                text: "Güvenlik kilidi: Önceki Flatpak işleminin sonucu manuel doğrulanmalı. "
-                      + "Yeni Flatpak paket değişiklikleri engellendi."
+                color: palette.windowText
+                elide: Text.ElideRight
             }
-            RowLayout {
-                Layout.fillWidth: true
-                ThemedActionButton {
-                    text: "Yenile"
-                    enabled: !flatpak.busy && !flatpak.loading
-                    onClicked: flatpak.refresh()
-                }
-                ThemedActionButton {
-                    text: "Durumu yeniden kontrol et"
-                    visible: flatpak.outcomeUnknown
-                    enabled: !flatpak.loading && !flatpak.busy
-                    onClicked: flatpak.checkRecovery()
-                }
-                ThemedActionButton {
-                    text: "Kontrol ettim, kilidi kaldır"
-                    visible: flatpak.outcomeUnknown && flatpak.recoveryChecked
-                    enabled: !flatpak.loading && !flatpak.busy
-                    onClicked: recoveryConfirm.open()
-                }
+            ThemedIconButton {
+                text: "Yenile"
+                themedIconName: "view-refresh"
+                Layout.preferredHeight: Math.max(40, metrics.fontPx(40))
+                enabled: !flatpak.loading && !flatpak.busy
+                onClicked: flatpak.refresh()
             }
-            RowLayout {
-                Layout.fillWidth: true
-                Label { text: "Kurulum kapsamı:" }
-                ComboBox {
-                    id: scopeBox
+        }
+
+        Label {
+            Layout.fillWidth: true
+            text: flatpak.message
+            wrapMode: Text.WordWrap
+            font.pixelSize: metrics.fontSmall
+            color: palette.windowText
+        }
+
+        Rectangle {
+            Layout.fillWidth: true
+            visible: flatpak.outcomeUnknown
+            implicitHeight: recoveryColumn.implicitHeight + 20
+            radius: metrics.radiusPanel
+            color: palette.base
+            border.color: palette.mid
+            ColumnLayout {
+                id: recoveryColumn
+                x: 10
+                y: 10
+                width: parent.width - 20
+                spacing: 8
+                Label {
                     Layout.fillWidth: true
-                    model: ["Kullanıcı", "Sistem"]
-                    onActivated: page.selectedScope = currentIndex === 0 ? "user" : "system"
+                    font.bold: true
+                    wrapMode: Text.WordWrap
+                    text: "Güvenlik kilidi: Flatpak işlemi manuel doğrulama bekliyor."
                 }
-            }
-            RowLayout {
-                Layout.fillWidth: true
-                ThemedActionButton {
+                RowLayout {
                     Layout.fillWidth: true
-                    text: "Uygulama keşfi"
-                    onClicked: page.tab = "catalog"
-                }
-                ThemedActionButton {
-                    Layout.fillWidth: true
-                    text: "Kurulu"
-                    onClicked: page.tab = "installed"
-                }
-                ThemedActionButton {
-                    Layout.fillWidth: true
-                    text: "Güncellemeler"
-                    onClicked: page.tab = "updates"
-                }
-                ThemedActionButton {
-                    Layout.fillWidth: true
-                    text: "Kaynaklar"
-                    onClicked: page.tab = "sources"
-                }
-            }
-            RowLayout {
-                Layout.fillWidth: true
-                visible: page.tab === "catalog"
-                Label { text: "Kaynak:" }
-                ComboBox {
-                    id: remoteBox
-                    Layout.fillWidth: true
-                    model: {
-                        var matches = []
-                        for (var i = 0; i < flatpak.sources.length; ++i) {
-                            var r = flatpak.sources[i]
-                            if (r.scope === page.selectedScope)
-                                matches.push(r.name)
-                        }
-                        return matches
+                    spacing: 8
+                    ThemedActionButton {
+                        Layout.fillWidth: true
+                        Layout.preferredHeight: Math.max(42, metrics.fontPx(42))
+                        text: "Durumu kontrol et"
+                        enabled: !flatpak.busy && !flatpak.loading
+                        onClicked: flatpak.checkRecovery()
                     }
-                    onActivated: page.selectedRemote = currentText
-                }
-                ThemedActionButton {
-                    text: "Kataloğu yükle"
-                    enabled: !page.blocked
-                    onClicked: {
-                        page.selectedRemote = remoteBox.currentText
-                        flatpak.loadCatalog(page.selectedScope, page.selectedRemote)
+                    ThemedActionButton {
+                        Layout.fillWidth: true
+                        Layout.preferredHeight: Math.max(42, metrics.fontPx(42))
+                        text: "Kaydı onayla"
+                        enabled: flatpak.recoveryChecked && !flatpak.busy && !flatpak.loading
+                        onClicked: recoveryConfirm.open()
                     }
                 }
             }
-            TextField {
-                id: search
-                Layout.fillWidth: true
-                placeholderText: "Uygulama veya kimlik ara..."
-                onTextChanged: page.updateRows()
+        }
+
+        RowLayout {
+            Layout.fillWidth: true
+            spacing: metrics.spaceMedium
+            Label {
+                text: "Kapsam"
+                font.pixelSize: metrics.fontSmall
             }
-            ThemedActionButton {
-                visible: page.tab === "sources" && page.selectedScope === "user"
-                         && !flatpak.hasRemote("user", "flathub")
-                text: "Flathub kullanıcı deposunu ekle"
-                enabled: !page.blocked
-                onClicked: page.request("flathub", {scope:"user", name:"Flathub", origin:"flathub"})
+            ComboBox {
+                id: scopeBox
+                Layout.fillWidth: true
+                Layout.preferredHeight: Math.max(40, metrics.fontPx(40))
+                model: ["Kullanıcı", "Sistem"]
+                onActivated: page.selectedScope = currentIndex === 0 ? "user" : "system"
             }
             Label {
-                Layout.fillWidth: true
-                visible: !flatpak.available
-                wrapMode: Text.WordWrap
-                text: "Flatpak sistemde kurulu değil. Fedora paket yöneticisi üzerinden Flatpak'ı kurduktan sonra yenile."
+                text: "Kaynak"
+                visible: !page.narrow && page.tab === "catalog"
+                font.pixelSize: metrics.fontSmall
             }
-            Label {
+            ComboBox {
+                id: remoteBox
+                visible: !page.narrow && page.tab === "catalog"
                 Layout.fillWidth: true
-                visible: page.visibleRows.length === 0 && !flatpak.loading
-                wrapMode: Text.WordWrap
-                text: "Bu görünümde sonuç yok. Kaynakları yenile veya uygun depoyu seç."
+                Layout.preferredHeight: Math.max(40, metrics.fontPx(40))
+                model: {
+                    var items = []
+                    for (var i = 0; i < flatpak.sources.length; ++i)
+                        if (flatpak.sources[i].scope === page.selectedScope)
+                            items.push(flatpak.sources[i].name)
+                    return items
+                }
+                onActivated: page.selectedRemote = currentText
             }
+        }
+
+        RowLayout {
+            Layout.fillWidth: true
+            spacing: metrics.spaceCompact
             Repeater {
-                model: page.visibleRows
-                delegate: Rectangle {
+                model: [
+                    {key:"catalog", label:"Keşfet"},
+                    {key:"installed", label:"Kurulu"},
+                    {key:"updates", label:"Güncellemeler"},
+                    {key:"sources", label:"Kaynaklar"}
+                ]
+                delegate: ThemedActionButton {
                     required property var modelData
                     Layout.fillWidth: true
-                    implicitHeight: cardColumn.implicitHeight + 20
-                    radius: 9
+                    Layout.preferredHeight: Math.max(42, metrics.fontPx(42))
+                    text: modelData.label
+                    accented: page.tab === modelData.key
+                    onClicked: page.tab = modelData.key
+                }
+            }
+        }
+
+        RowLayout {
+            Layout.fillWidth: true
+            visible: page.tab === "catalog"
+            spacing: 8
+            ComboBox {
+                visible: page.narrow
+                Layout.fillWidth: true
+                Layout.preferredHeight: 40
+                model: remoteBox.model
+                onActivated: page.selectedRemote = currentText
+            }
+            ThemedActionButton {
+                Layout.fillWidth: page.narrow
+                Layout.minimumWidth: Math.max(152, metrics.fontPx(146))
+                Layout.preferredHeight: Math.max(42, metrics.fontPx(42))
+                text: "Kataloğu yükle"
+                enabled: !page.blocked
+                onClicked: flatpak.loadCatalog(page.selectedScope, page.selectedRemote)
+            }
+        }
+
+        TextField {
+            id: search
+            Layout.fillWidth: true
+            Layout.preferredHeight: Math.max(42, metrics.fontPx(42))
+            placeholderText: "Uygulama adı veya kimliği ara..."
+            onTextChanged: page.updateRows()
+        }
+        ThemedActionButton {
+            Layout.fillWidth: true
+            Layout.preferredHeight: Math.max(42, metrics.fontPx(42))
+            visible: page.tab === "sources" && page.selectedScope === "user"
+                     && !flatpak.hasRemote("user", "flathub")
+            enabled: !page.blocked
+            text: "Flathub kullanıcı deposunu ekle"
+            onClicked: page.request("flathub", {scope:"user", name:"Flathub", origin:"flathub"})
+        }
+
+        Label {
+            Layout.fillWidth: true
+            visible: !flatpak.available
+            wrapMode: Text.WordWrap
+            text: "Flatpak bulunamadı. Fedora paket yöneticisinden Flatpak kurduktan sonra yenileyin."
+        }
+
+        Label {
+            Layout.fillWidth: true
+            visible: !flatpak.loading && page.visibleRows.length === 0
+            text: "Sonuç yok. Kaynağı değiştirin veya listeyi yenileyin."
+            wrapMode: Text.WordWrap
+            color: palette.windowText
+        }
+
+        GridView {
+            id: appGrid
+            Layout.fillWidth: true
+            Layout.fillHeight: true
+            clip: true
+            visible: page.visibleRows.length > 0
+            cellWidth: Math.max(1, Math.floor(width / Math.max(1, Math.floor(width / Math.max(300, metrics.fontPx(330))))))
+            cellHeight: Math.max(225, metrics.fontPx(225))
+            model: page.visibleRows
+            boundsBehavior: Flickable.StopAtBounds
+            ScrollBar.vertical: ScrollBar { policy: ScrollBar.AsNeeded }
+
+            delegate: Item {
+                id: cell
+                required property var modelData
+                width: appGrid.cellWidth
+                height: appGrid.cellHeight
+                readonly property var info: page.currentMetadata(modelData.id || "")
+                Component.onCompleted: {
+                    if (page.tab !== "sources" && modelData.origin === "flathub")
+                        flatpak.requestMetadata(modelData.id)
+                }
+
+                Rectangle {
+                    anchors.fill: parent
+                    anchors.margins: 6
+                    radius: metrics.radiusCard
                     color: palette.base
                     border.color: palette.mid
+                    border.width: 1
+
                     ColumnLayout {
-                        id: cardColumn
-                        x: 10
-                        y: 10
-                        width: parent.width - 20
-                        spacing: 5
+                        anchors.fill: parent
+                        anchors.margins: 14
+                        spacing: 8
+                        RowLayout {
+                            Layout.fillWidth: true
+                            spacing: 12
+                            Rectangle {
+                                Layout.preferredWidth: 60
+                                Layout.preferredHeight: 60
+                                radius: metrics.radiusInner
+                                color: metrics.iconTileColor(palette.base, palette.text)
+                                border.color: metrics.iconTileBorderColor(palette.mid, palette.text)
+                                Image {
+                                    id: appIcon
+                                    anchors.centerIn: parent
+                                    width: 46
+                                    height: 46
+                                    fillMode: Image.PreserveAspectFit
+                                    asynchronous: true
+                                    source: cell.info.iconUrl || ""
+                                    visible: status === Image.Ready
+                                }
+                                Label {
+                                    anchors.centerIn: parent
+                                    visible: appIcon.status !== Image.Ready
+                                    text: (cell.modelData.name || cell.modelData.id || "?").slice(0,1).toUpperCase()
+                                    font.bold: true
+                                    font.pixelSize: metrics.fontPx(26)
+                                }
+                            }
+                            ColumnLayout {
+                                Layout.fillWidth: true
+                                Label {
+                                    Layout.fillWidth: true
+                                    text: cell.modelData.name || cell.modelData.id || cell.modelData.url || ""
+                                    font.pixelSize: metrics.fontTitle
+                                    font.bold: true
+                                    color: palette.text
+                                    elide: Text.ElideRight
+                                }
+                                Label {
+                                    Layout.fillWidth: true
+                                    text: cell.modelData.id || cell.modelData.url || ""
+                                    font.pixelSize: metrics.fontCaption
+                                    color: palette.windowText
+                                    elide: Text.ElideMiddle
+                                }
+                                Label {
+                                    Layout.fillWidth: true
+                                    text: page.scopeName(cell.modelData.scope)
+                                          + " · " + (cell.modelData.origin || cell.modelData.name || "—")
+                                    font.pixelSize: metrics.fontCaption
+                                    color: palette.windowText
+                                    elide: Text.ElideRight
+                                }
+                            }
+                        }
                         Label {
                             Layout.fillWidth: true
-                            text: modelData.name || modelData.id || modelData.url || ""
-                            font.bold: true
+                            Layout.fillHeight: true
+                            text: page.tab === "sources"
+                                  ? (cell.modelData.url || "Depo bilgisi")
+                                  : (cell.info.summary || cell.info.description || "Açıklama bilgisi mevcut değil.")
+                            wrapMode: Text.WordWrap
+                            maximumLineCount: 3
                             elide: Text.ElideRight
+                            font.pixelSize: metrics.fontBody
+                            color: palette.text
                         }
                         Label {
                             Layout.fillWidth: true
-                            text: (modelData.id || modelData.url || "") + "  ·  "
-                                  + (modelData.version || modelData.branch || "")
-                            wrapMode: Text.WrapAnywhere
-                            color: palette.windowText
-                        }
-                        Label {
-                            Layout.fillWidth: true
-                            text: page.scopeName(modelData.scope) + " · " + (modelData.origin || modelData.name || "")
+                            visible: page.tab !== "sources"
+                            text: cell.modelData.version
+                                  ? "Sürüm: " + cell.modelData.version
+                                  : "Sürüm bilgisi mevcut değil"
+                            font.pixelSize: metrics.fontCaption
                             color: palette.windowText
                         }
                         RowLayout {
                             Layout.fillWidth: true
-                            visible: page.tab !== "sources"
+                            spacing: 7
                             ThemedActionButton {
-                                visible: page.tab === "catalog" && !flatpak.isInstalled(modelData.scope, modelData.id)
-                                text: "Kur"
-                                enabled: !page.blocked
-                                onClicked: page.request("install", modelData)
+                                Layout.fillWidth: true
+                                Layout.preferredHeight: Math.max(40, metrics.fontPx(40))
+                                visible: page.tab === "catalog"
+                                text: flatpak.isInstalled(cell.modelData.scope, cell.modelData.id)
+                                        ? "Kurulu" : "Kur"
+                                enabled: !page.blocked && !flatpak.isInstalled(cell.modelData.scope, cell.modelData.id)
+                                accented: enabled
+                                onClicked: page.request("install", cell.modelData)
                             }
                             ThemedActionButton {
+                                Layout.fillWidth: true
+                                Layout.preferredHeight: Math.max(40, metrics.fontPx(40))
                                 visible: page.tab === "installed"
                                 text: "Çalıştır"
                                 enabled: !flatpak.busy
-                                onClicked: flatpak.launch(modelData.scope, modelData.id)
+                                onClicked: flatpak.launch(cell.modelData.scope, cell.modelData.id)
                             }
                             ThemedActionButton {
+                                Layout.fillWidth: true
+                                Layout.preferredHeight: Math.max(40, metrics.fontPx(40))
                                 visible: page.tab === "installed"
                                 text: "Kaldır"
                                 enabled: !page.blocked
-                                onClicked: page.request("uninstall", modelData)
+                                onClicked: page.request("uninstall", cell.modelData)
                             }
                             ThemedActionButton {
-                                visible: page.tab === "updates" || (page.tab === "installed"
-                                         && flatpak.hasUpdate(modelData.scope, modelData.id))
+                                Layout.fillWidth: true
+                                Layout.preferredHeight: Math.max(40, metrics.fontPx(40))
+                                visible: page.tab === "updates"
+                                         || (page.tab === "installed" && flatpak.hasUpdate(cell.modelData.scope, cell.modelData.id))
                                 text: "Güncelle"
                                 enabled: !page.blocked
-                                onClicked: page.request("update", modelData)
+                                onClicked: page.request("update", cell.modelData)
+                            }
+                            ThemedActionButton {
+                                Layout.fillWidth: true
+                                Layout.preferredHeight: Math.max(40, metrics.fontPx(40))
+                                visible: page.tab !== "sources"
+                                text: "Detay"
+                                onClicked: {
+                                    page.selectedApp = cell.modelData
+                                    details.open()
+                                    flatpak.requestMetadata(cell.modelData.id)
+                                }
                             }
                         }
                     }
                 }
             }
-            Label {
-                Layout.fillWidth: true
-                text: "Son işlem günlüğü"
-                font.bold: true
-                visible: flatpak.operationLog.length > 0
-            }
-            TextArea {
-                Layout.fillWidth: true
-                readOnly: true
-                visible: flatpak.operationLog.length > 0
-                text: flatpak.operationLog
-                wrapMode: TextEdit.WrapAnywhere
-                color: palette.text
+        }
+
+        TextArea {
+            Layout.fillWidth: true
+            Layout.preferredHeight: 92
+            visible: flatpak.operationLog.length > 0
+            readOnly: true
+            wrapMode: TextEdit.WrapAnywhere
+            text: flatpak.operationLog
+            color: palette.text
+        }
+    }
+
+    Dialog {
+        id: details
+        parent: Overlay.overlay
+        anchors.centerIn: parent
+        modal: true
+        title: page.selectedApp ? (page.selectedApp.name || page.selectedApp.id) : "Uygulama"
+        width: Math.min(730, page.width - 30)
+        height: Math.min(580, page.height - 30)
+        standardButtons: Dialog.Close
+        readonly property var info: page.selectedApp ? page.currentMetadata(page.selectedApp.id) : ({})
+        ScrollView {
+            anchors.fill: parent
+            clip: true
+            ColumnLayout {
+                width: Math.max(0, details.width - 48)
+                spacing: 12
+                Label {
+                    Layout.fillWidth: true
+                    text: page.selectedApp ? page.selectedApp.id : ""
+                    wrapMode: Text.WrapAnywhere
+                }
+                Label {
+                    Layout.fillWidth: true
+                    text: details.info.description || details.info.summary || "Bu uygulama için ek açıklama bulunamadı."
+                    wrapMode: Text.WordWrap
+                }
+                Repeater {
+                    model: details.info.screenshots || []
+                    delegate: Image {
+                        required property string modelData
+                        Layout.fillWidth: true
+                        Layout.preferredHeight: 210
+                        source: modelData
+                        fillMode: Image.PreserveAspectFit
+                        asynchronous: true
+                    }
+                }
             }
         }
     }
