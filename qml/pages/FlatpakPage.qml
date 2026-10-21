@@ -29,6 +29,7 @@ Item {
     property string requestedRemote: ""
     property string requestedScope: ""
     property string requestedName: ""
+    readonly property int inventoryRevision: flatpak ? flatpak.inventoryRevision : 0
     property var visibleRows: []
     property string tab: "catalog"
     property int visibleLimit: 48
@@ -422,6 +423,14 @@ Item {
                 width: Math.max(1, Math.floor(appGrid.width / appGrid.columns))
                 height: Math.max(225, metrics.fontPx(225))
                 readonly property var info: page.currentMetadata(modelData.id || "")
+                readonly property bool installed: {
+                    const revision = page.inventoryRevision
+                    return flatpak.isInstalled(modelData.scope, modelData.id)
+                }
+                readonly property bool updatable: {
+                    const revision = page.inventoryRevision
+                    return flatpak.hasUpdate(modelData.scope, modelData.id)
+                }
                 Component.onCompleted: {
                     if (page.tab !== "sources" && modelData.origin === "flathub")
                         flatpak.requestMetadata(modelData.id)
@@ -521,11 +530,15 @@ Item {
                                 Layout.fillWidth: true
                                 Layout.preferredHeight: Math.max(40, metrics.fontPx(40))
                                 visible: page.tab === "catalog"
-                                text: flatpak.isInstalled(cell.modelData.scope, cell.modelData.id)
-                                        ? "Kurulu" : "Kur"
-                                enabled: !page.blocked && !flatpak.isInstalled(cell.modelData.scope, cell.modelData.id)
+                                text: cell.installed ? "Çalıştır" : "Kur"
+                                enabled: !page.blocked || (cell.installed && !flatpak.busy)
                                 accented: enabled
-                                onClicked: page.request("install", cell.modelData)
+                                onClicked: {
+                                    if (cell.installed)
+                                        flatpak.launch(cell.modelData.scope, cell.modelData.id)
+                                    else
+                                        page.request("install", cell.modelData)
+                                }
                             }
                             ThemedActionButton {
                                 Layout.fillWidth: true
@@ -547,7 +560,7 @@ Item {
                                 Layout.fillWidth: true
                                 Layout.preferredHeight: Math.max(40, metrics.fontPx(40))
                                 visible: page.tab === "updates"
-                                         || (page.tab === "installed" && flatpak.hasUpdate(cell.modelData.scope, cell.modelData.id))
+                                         || (page.tab === "installed" && cell.updatable)
                                 text: flatpak.isInstalled(cell.modelData.scope, cell.modelData.id)
                                       ? "Güncelle" : "Uzantı (salt okunur)"
                                 enabled: !page.blocked
