@@ -321,7 +321,10 @@ void FlatpakManager::consumeOutput(QProcess *process) {
     if (remaining > 0) m_capture.append(chunk.left(remaining));
     if (chunk.size() > remaining) m_truncated = true;
     if (m_current.mutation) {
-        m_operationLog = clean(QString::fromUtf8(m_capture.right(12000)));
+        // Preserve the bounded live transaction log. clean() is intended for
+        // short labels and truncates at 1024 characters, so do not use it here.
+        m_operationLog = QString::fromUtf8(m_capture.right(12000));
+        m_operationLog.remove(QRegularExpression(QStringLiteral("[\\x00-\\x08\\x0B\\x0C\\x0E-\\x1F]")));
         const QString normalized = QString::fromUtf8(m_capture.right(4096));
         static const QRegularExpression percent(QStringLiteral("(?:^|[^0-9])([0-9]{1,3})%"));
         auto it = percent.globalMatch(normalized);
