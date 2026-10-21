@@ -7,6 +7,10 @@
 #include <QFileInfo>
 #include <QJsonDocument>
 #include <QJsonObject>
+#include <QJsonArray>
+#include <QNetworkReply>
+#include <QNetworkRequest>
+#include <QUrl>
 #include <QMetaObject>
 #include <QRegularExpression>
 #include <QSaveFile>
@@ -370,4 +374,83 @@ void FlatpakManager::acknowledgeRecovery() {
     m_recoveryChecked = false;
     m_message = QStringLiteral("Kullanıcı onayıyla Flatpak güvenlik kilidi kaldırıldı.");
     emit changed();
+}
+
+
+QVariantMap FlatpakManager::metadata(const QString &appId) const
+{
+    return m_metadataCache.value(appId);
+}
+
+void FlatpakManager::requestMetadata(const QString &appId)
+{
+    if (!safeAppId(appId) || m_metadataRequested.contains(appId)
+        || m_metadataRequested.size() >= 250)
+        return;
+    // Metadata is display-only, never trusted for a Flatpak command.
+    m_metadataRequested.insert(appId);
+    m_metadataQueue.enqueue(appId);
+    startNextMetadataRequest();
+}
+
+void FlatpakManager::startNextMetadataRequest()
+{
+    if (m_metadataActive >= 3 || m_metadataQueue.isEmpty())
+        return;
+    const QString id = m_metadataQueue.dequeue();
+    ++m_metadataActive;
+    const QUrl url(QStringLiteral("https://flathub.org/api/v2/appstream/")
+                   + QString::fromLatin1(QUrl::toPercentEncoding(id)));
+    QNetworkRequest request(url);
+    request.setHeader(QNetworkRequest::UserAgentHeader, QStringLiteral("Ro-Store/0.7"));
+    request.setTransferTimeout(12000);
+    auto *reply = m_metadataNetwork.get(request);
+    connect(reply, &QNetworkReply::finished, this, [this, reply, id]() {
+        --m_metadataActive;
+        const bool okay = reply->error() == QNetworkReply::NoError
+                        && reply->attribute(QNetworkRequest::HttpStatusCodeAttribute).toInt() == 200
+                        && reply->url().scheme() == QStringLiteral("https")
+                        && reply->bytesAvailable() <= 256 * 1024;
+        const QByteArray content = okay ? reply->readAll() : QByteArray();
+        QVariantMap meta;
+        if (!content.isEmpty()) {
+            const QJsonDocument document = QJsonDocument::fromJson(content);
+            const QJsonObject obj = document.object();
+            meta.insert(QStringLiteral("summary"), obj.value(QStringLiteral("summary")).toString().left(300));
+            QString desc = obj.value(QStringLiteral("description")).toString();
+            desc.remove(QRegularExpression(QStringLiteral("<[^>]*>")));
+            meta.insert(QStringLiteral("description"), desc.simplified().left(700));
+            const QJsonValue icon = obj.value(QStringLiteral("icon"));
+            QString iconUrl;
+            if (icon.isString()) iconUrl = icon.toString();
+            if (icon.isObject()) {
+                const QJsonObject icons = icon.toObject();
+                iconUrl = icons.value(QStringLiteral("128")).toString();
+                if (iconUrl.isEmpty()) iconUrl = icons.value(QStringLiteral("64")).toString();
+            }
+            if (iconUrl.startsWith(QStringLiteral("https://")))
+                meta.insert(QStringLiteral("iconUrl"), iconUrl);
+            const QJsonArray screenshots = obj.value(QStringLiteral("screenshots")).toArray();
+            QStringList images;
+            for (const QJsonValue &value : screenshots) {
+                if (images.size() >= 4) break;
+                QString src;
+                if (value.isString()) src = value.toString();
+                else if (value.isObject()) {
+                    const QJsonObject shot = value.toObject();
+                    src = shot.value(QStringLiteral("imgDesktopUrl")).toString();
+                    if (src.isEmpty()) src = shot.value(QStringLiteral("imgMobileUrl")).toString();
+                    if (src.isEmpty()) src = shot.value(QStringLiteral("url")).toString();
+                }
+                if (src.startsWith(QStringLiteral("https://"))) images.append(src);
+            }
+            meta.insert(QStringLiteral("screenshots"), images);
+        }
+        m_metadataCache.insert(id, meta);
+        ++m_metadataRevision;
+        emit changed();
+        reply->deleteLater();
+        startNextMetadataRequest();
+    });
+    startNextMetadataRequest();
 }
