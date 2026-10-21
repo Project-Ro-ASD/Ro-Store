@@ -4,6 +4,8 @@
 #include <QPointer>
 #include <QProcess>
 #include <QQueue>
+#include <QLockFile>
+#include <memory>
 #include <QTimer>
 #include <QVariantList>
 
@@ -98,6 +100,7 @@ private:
     bool m_recoveryChecked = false;
     bool m_recoveryReadFailed = false;
     bool m_locked = false;
+    std::unique_ptr<QLockFile> m_crossProcessLock;
     QString m_message;
     QString m_operationLog;
     QVariantList m_sources;
