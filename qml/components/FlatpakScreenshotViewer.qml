@@ -72,6 +72,25 @@ Popup {
             relativeY * imageViewport.contentHeight - focusY))
     }
 
+    // KDE/Qt may report Shift+wheel as either a vertical wheel delta or
+    // an already-converted horizontal delta. Normalize both directions.
+    function panHorizontally(event) {
+        const maxX = Math.max(0, imageViewport.contentWidth - imageViewport.width)
+        if (maxX <= 0) {
+            event.accepted = false
+            return
+        }
+        const px = event.pixelDelta.x !== 0 ? event.pixelDelta.x : event.pixelDelta.y
+        const angle = event.angleDelta.x !== 0 ? event.angleDelta.x : event.angleDelta.y
+        const distance = px !== 0 ? px : (angle / 120) * 80
+        if (distance === 0) {
+            event.accepted = false
+            return
+        }
+        imageViewport.contentX = Math.max(0, Math.min(maxX, imageViewport.contentX - distance))
+        event.accepted = true
+    }
+
     function changeImage(offset) {
         if (imageCount < 2)
             return
@@ -175,6 +194,28 @@ Popup {
                 }
             }
 
+            // Some devices preserve the vertical delta with Shift, while
+            // others convert it to horizontal before Qt Quick receives it.
+            // Support both without changing the unmodified wheel behavior.
+            WheelHandler {
+                target: null
+                orientation: Qt.Vertical
+                acceptedDevices: PointerDevice.Mouse | PointerDevice.TouchPad
+                acceptedModifiers: Qt.ShiftModifier
+                blocking: true
+                enabled: viewer.opened && viewer.zoomFactor > 1
+                onWheel: function(event) { viewer.panHorizontally(event) }
+            }
+            WheelHandler {
+                target: null
+                orientation: Qt.Horizontal
+                acceptedDevices: PointerDevice.Mouse | PointerDevice.TouchPad
+                acceptedModifiers: Qt.ShiftModifier
+                blocking: true
+                enabled: viewer.opened && viewer.zoomFactor > 1
+                onWheel: function(event) { viewer.panHorizontally(event) }
+            }
+
             Flickable {
                 id: imageViewport
                 anchors.fill: parent
@@ -252,7 +293,7 @@ Popup {
             }
             Label {
                 visible: viewer.width >= 760
-                text: "Ctrl + Tekerlek: yakınlaştır / uzaklaştır"
+                text: "Ctrl + Tekerlek: yakınlaştır   ·   Shift + Tekerlek: yatay gezin"
                 color: palette.windowText
                 font.pixelSize: metrics.fontCaption
             }
