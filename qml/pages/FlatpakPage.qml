@@ -7,6 +7,7 @@ import RoStore 1.0
 Item {
     id: page
     signal backRequested()
+    signal appDetailsRequested(var appData)
     property var packageTransactionManager: null
     property var flatpak: null
     readonly property bool blocked: flatpak.busy || flatpak.loading || flatpak.outcomeUnknown
@@ -19,6 +20,8 @@ Item {
     property string requestedName: ""
     property var visibleRows: []
     property string tab: "catalog"
+    property int visibleLimit: 48
+    onVisibleRowsChanged: visibleLimit = 48
 
     SystemPalette { id: palette }
 
@@ -138,9 +141,17 @@ Item {
         return flatpak.metadata(id)
     }
 
-    ColumnLayout {
+    ScrollView {
+        id: pageScroll
         anchors.fill: parent
-        anchors.margins: page.margin
+        clip: true
+        contentWidth: availableWidth
+        ScrollBar.vertical.policy: ScrollBar.AsNeeded
+
+        ColumnLayout {
+        width: Math.max(0, pageScroll.availableWidth - page.margin * 2)
+        x: page.margin
+        y: page.margin
         spacing: metrics.spaceMedium
 
         RowLayout {
@@ -330,12 +341,15 @@ Item {
         GridView {
             id: appGrid
             Layout.fillWidth: true
-            Layout.fillHeight: true
+            Layout.preferredHeight: Math.max(0, Math.ceil(Math.min(page.visibleRows.length, page.visibleLimit)
+                                    / Math.max(1, Math.floor(width / Math.max(300, metrics.fontPx(330)))))
+                                    * cellHeight)
             clip: true
+            interactive: false
             visible: page.visibleRows.length > 0
             cellWidth: Math.max(1, Math.floor(width / Math.max(1, Math.floor(width / Math.max(300, metrics.fontPx(330))))))
             cellHeight: Math.max(225, metrics.fontPx(225))
-            model: page.visibleRows
+            model: page.visibleRows.slice(0, page.visibleLimit)
             boundsBehavior: Flickable.StopAtBounds
             ScrollBar.vertical: ScrollBar { policy: ScrollBar.AsNeeded }
 
@@ -481,9 +495,7 @@ Item {
                                 visible: page.tab !== "sources"
                                 text: "Detay"
                                 onClicked: {
-                                    page.selectedApp = cell.modelData
-                                    details.open()
-                                    flatpak.requestMetadata(cell.modelData.id)
+                                    page.appDetailsRequested(cell.modelData)
                                 }
                             }
                         }
@@ -492,6 +504,14 @@ Item {
             }
         }
 
+        ThemedActionButton {
+            Layout.fillWidth: true
+            Layout.preferredHeight: Math.max(44, metrics.fontPx(44))
+            visible: page.visibleRows.length > page.visibleLimit
+            text: "Daha fazla göster (" + Math.min(page.visibleLimit, page.visibleRows.length)
+                  + " / " + page.visibleRows.length + ")"
+            onClicked: page.visibleLimit += 48
+        }
         TextArea {
             Layout.fillWidth: true
             Layout.preferredHeight: 92
@@ -501,46 +521,7 @@ Item {
             text: flatpak.operationLog
             color: palette.text
         }
-    }
-
-    Dialog {
-        id: details
-        parent: Overlay.overlay
-        anchors.centerIn: parent
-        modal: true
-        title: page.selectedApp ? (page.selectedApp.name || page.selectedApp.id) : "Uygulama"
-        width: Math.min(730, page.width - 30)
-        height: Math.min(580, page.height - 30)
-        standardButtons: Dialog.Close
-        readonly property var info: page.selectedApp ? page.currentMetadata(page.selectedApp.id) : ({})
-        ScrollView {
-            anchors.fill: parent
-            clip: true
-            ColumnLayout {
-                width: Math.max(0, details.width - 48)
-                spacing: 12
-                Label {
-                    Layout.fillWidth: true
-                    text: page.selectedApp ? page.selectedApp.id : ""
-                    wrapMode: Text.WrapAnywhere
-                }
-                Label {
-                    Layout.fillWidth: true
-                    text: details.info.description || details.info.summary || "Bu uygulama için ek açıklama bulunamadı."
-                    wrapMode: Text.WordWrap
-                }
-                Repeater {
-                    model: details.info.screenshots || []
-                    delegate: Image {
-                        required property string modelData
-                        Layout.fillWidth: true
-                        Layout.preferredHeight: 210
-                        source: modelData
-                        fillMode: Image.PreserveAspectFit
-                        asynchronous: true
-                    }
-                }
-            }
+        Item { Layout.fillWidth: true; Layout.preferredHeight: page.margin }
         }
     }
 
