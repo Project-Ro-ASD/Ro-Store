@@ -101,6 +101,7 @@ qt_add_qml_module(ro-store
         qml/pages/FedoraCatalogPage.qml
         qml/pages/SystemUpdatesPage.qml
         qml/pages/FlatpakPage.qml
+        qml/pages/FlatpakDetailPage.qml
         qml/components/AppCard.qml
         qml/components/ThemeMetrics.qml
         qml/components/ThemedActionButton.qml
