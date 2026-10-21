@@ -4,6 +4,9 @@
 #include <QPointer>
 #include <QProcess>
 #include <QQueue>
+#include <QHash>
+#include <QSet>
+#include <QNetworkAccessManager>
 #include <QLockFile>
 #include <memory>
 #include <QTimer>
@@ -24,6 +27,7 @@ class FlatpakManager : public QObject
     Q_PROPERTY(QVariantList installed READ installed NOTIFY changed)
     Q_PROPERTY(QVariantList updates READ updates NOTIFY changed)
     Q_PROPERTY(QVariantList catalog READ catalog NOTIFY changed)
+    Q_PROPERTY(int metadataRevision READ metadataRevision NOTIFY changed)
 
 public:
     explicit FlatpakManager(QObject *parent = nullptr);
@@ -42,6 +46,9 @@ public:
     QVariantList installed() const { return m_installed; }
     QVariantList updates() const { return m_updates; }
     QVariantList catalog() const { return m_catalog; }
+    int metadataRevision() const { return m_metadataRevision; }
+    Q_INVOKABLE QVariantMap metadata(const QString &appId) const;
+    Q_INVOKABLE void requestMetadata(const QString &appId);
 
     Q_INVOKABLE void refresh();
     Q_INVOKABLE void loadCatalog(const QString &scope, const QString &remote);
@@ -85,6 +92,7 @@ private:
                        const QString &id, const QStringList &args);
     void fail(const QString &message);
     void completeReads();
+    void startNextMetadataRequest();
 
     QPointer<QObject> m_transactionManager;
     QPointer<QProcess> m_process;
@@ -107,4 +115,10 @@ private:
     QVariantList m_installed;
     QVariantList m_updates;
     QVariantList m_catalog;
+    QNetworkAccessManager m_metadataNetwork;
+    QHash<QString, QVariantMap> m_metadataCache;
+    QSet<QString> m_metadataRequested;
+    QQueue<QString> m_metadataQueue;
+    int m_metadataActive = 0;
+    int m_metadataRevision = 0;
 };
