@@ -559,12 +559,8 @@ Item {
                                 Layout.preferredHeight: Math.max(40, metrics.fontPx(40))
                                 visible: page.tab === "updates"
                                          || (page.tab === "installed" && cell.updatable)
-                                text: flatpak.isInstalled(cell.modelData.scope, cell.modelData.id)
-                                      ? "Güncelle" : "Uzantı (salt okunur)"
-                                enabled: !page.blocked
-                                         && flatpak.isInstalled(cell.modelData.scope, cell.modelData.id)
-                                         && flatpak.hasUpdate(cell.modelData.scope, cell.modelData.id)
-                                onClicked: page.request("update", cell.modelData)
+                                text: "Güncelleme (salt okunur)"
+                                enabled: false
                             }
                             ThemedActionButton {
                                 Layout.fillWidth: true
