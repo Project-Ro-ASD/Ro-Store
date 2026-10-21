@@ -53,7 +53,7 @@ ApplicationWindow {
         if (root.exitingFromTray)
             return
         close.accepted = false
-        if (transactionManager.busy || flatpakManager.busy) {
+        if (transactionManager.busy || flatpakManager.busy || flatpakManager.verifying) {
             exitConfirmation.open()
         } else if (TrayController.available) {
             root.hide()
@@ -72,7 +72,9 @@ ApplicationWindow {
             root.requestActivate()
         }
         function onQuitRequested() {
-            if (transactionManager.busy) {
+            // Tray quit must honor the same Flatpak transaction and
+            // verification guard as the window close button.
+            if (transactionManager.busy || flatpakManager.busy || flatpakManager.verifying) {
                 root.show()
                 root.raise()
                 root.requestActivate()
@@ -99,7 +101,9 @@ ApplicationWindow {
             Label {
                 width: parent.width
                 wrapMode: Text.WordWrap
-                text: "Paket işlemi veya sistem güncelleme planı / çevrimdışı hazırlığı sürüyor. Uygulamadan tamamen çıkmak DNF5 işlem sonucunu belirsiz bırakabilir. Devam etmek istediğinize emin misiniz?"
+                text: flatpakManager.busy || flatpakManager.verifying
+                      ? "Flatpak işlemi veya sonuç doğrulaması devam ediyor. İşlemi yarıda bırakmamak için uygulamayı açık tutun ya da arka planda sürdürün."
+                      : "Paket işlemi veya sistem güncelleme planı / çevrimdışı hazırlığı sürüyor. Uygulamadan tamamen çıkmak DNF5 işlem sonucunu belirsiz bırakabilir. Devam etmek istediğinize emin misiniz?"
             }
             Column {
                 width: parent.width
@@ -125,7 +129,7 @@ ApplicationWindow {
                     width: parent.width
                     height: Math.max(38, implicitHeight)
                     text: "Yine de çık (işlem kesilebilir)"
-                    enabled: !flatpakManager.busy
+                    enabled: !flatpakManager.busy && !flatpakManager.verifying
                     onClicked: {
                         exitConfirmation.close()
                         root.exitingFromTray = true
