@@ -435,6 +435,17 @@ ApplicationWindow {
             packageTransactionManager: transactionManager
             flatpak: flatpakManager
             onBackRequested: stackView.pop()
+            onAppDetailsRequested: function(appData) {
+                stackView.push(flatpakDetailPageComponent, {appData: appData})
+            }
+        }
+    }
+
+    Component {
+        id: flatpakDetailPageComponent
+        FlatpakDetailPage {
+            flatpak: flatpakManager
+            onBackRequested: stackView.pop()
         }
     }
 
