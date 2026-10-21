@@ -438,7 +438,9 @@ void FlatpakManager::startNextMetadataRequest()
                 if (value.isString()) src = value.toString();
                 else if (value.isObject()) {
                     const QJsonObject shot = value.toObject();
-                    src = shot.value(QStringLiteral("imgDesktopUrl")).toString();
+                    src = shot.value(QStringLiteral("624x351")).toString();
+                    if (src.isEmpty()) src = shot.value(QStringLiteral("1248x702")).toString();
+                    if (src.isEmpty()) src = shot.value(QStringLiteral("imgDesktopUrl")).toString();
                     if (src.isEmpty()) src = shot.value(QStringLiteral("imgMobileUrl")).toString();
                     if (src.isEmpty()) src = shot.value(QStringLiteral("url")).toString();
                 }
