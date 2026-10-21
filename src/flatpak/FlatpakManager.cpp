@@ -197,6 +197,16 @@ bool FlatpakManager::startMutation(const QString &kind, const QString &scope,
     if (!m_available || !safeScope(scope) || m_busy || m_loading || m_process || m_outcomeUnknown
         || !m_queue.isEmpty() || QFile::exists(journalPath())) { fail(QStringLiteral("İşlem başlatılamadı: önceki işlem veya güvenlik kilidi var.")); return false; }
     if (!acquireLock()) { fail(QStringLiteral("RPM işlemi etkin veya güvenlik kilidi var; Flatpak işlemi engellendi.")); return false; }
+    // The journal may have been created by another Ro-Store instance while
+    // this one was waiting for the cross-process lock. Recheck under lock
+    // before writing: never overwrite another operation's recovery record.
+    if (QFile::exists(journalPath())) {
+        releaseLock();
+        fail(QStringLiteral("Başka bir Flatpak işleminin güvenlik kaydı bulundu; işlem engellendi."));
+        m_outcomeUnknown = true;
+        emit changed();
+        return false;
+    }
     // Resolve the pre-update commit BEFORE persisting a mutation journal.
     // No Flatpak mutation has started yet: failure must not create a
     // confusing journal or silently discard an unremovable journal.
