@@ -220,6 +220,11 @@ Item {
                 }
             }
 
+            FlatpakOperationPanel {
+                Layout.fillWidth: true
+                manager: flatpak
+            }
+
             Rectangle {
                 Layout.fillWidth: true
                 visible: flatpak && flatpak.outcomeUnknown
