@@ -125,6 +125,7 @@ ApplicationWindow {
                     width: parent.width
                     height: Math.max(38, implicitHeight)
                     text: "Yine de çık (işlem kesilebilir)"
+                    enabled: !flatpakManager.busy
                     onClicked: {
                         exitConfirmation.close()
                         root.exitingFromTray = true
