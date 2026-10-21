@@ -34,6 +34,7 @@ class FlatpakManager : public QObject
     Q_PROPERTY(QVariantList updates READ updates NOTIFY changed)
     Q_PROPERTY(QVariantList catalog READ catalog NOTIFY changed)
     Q_PROPERTY(int metadataRevision READ metadataRevision NOTIFY changed)
+    Q_PROPERTY(int inventoryRevision READ inventoryRevision NOTIFY inventoryChanged)
 
 public:
     explicit FlatpakManager(QObject *parent = nullptr);
@@ -59,6 +60,7 @@ public:
     QVariantList updates() const { return m_updates; }
     QVariantList catalog() const { return m_catalog; }
     int metadataRevision() const { return m_metadataRevision; }
+    int inventoryRevision() const { return m_inventoryRevision; }
     Q_INVOKABLE QVariantMap metadata(const QString &appId) const;
     Q_INVOKABLE void requestMetadata(const QString &appId);
 
@@ -146,4 +148,5 @@ private:
     QQueue<QString> m_metadataQueue;
     int m_metadataActive = 0;
     int m_metadataRevision = 0;
+    int m_inventoryRevision = 0;
 };
