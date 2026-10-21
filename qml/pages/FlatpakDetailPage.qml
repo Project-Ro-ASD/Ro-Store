@@ -19,8 +19,15 @@ Item {
         var revision = metadataRevision
         return flatpak ? flatpak.metadata(appData.id || "") : ({})
     }
-    readonly property bool installed: flatpak && flatpak.isInstalled(appData.scope || "", appData.id || "")
-    readonly property bool updatable: flatpak && flatpak.hasUpdate(appData.scope || "", appData.id || "")
+    readonly property int inventoryRevision: flatpak ? flatpak.inventoryRevision : 0
+    readonly property bool installed: {
+        const revision = inventoryRevision
+        return flatpak ? flatpak.isInstalled(appData.scope || "", appData.id || "") : false
+    }
+    readonly property bool updatable: {
+        const revision = inventoryRevision
+        return flatpak ? flatpak.hasUpdate(appData.scope || "", appData.id || "") : false
+    }
     readonly property bool blocked: !flatpak || flatpak.busy || flatpak.loading || flatpak.outcomeUnknown
     readonly property bool narrow: width < Math.max(660, metrics.fontPx(660))
     readonly property int margin: Math.max(12, Math.min(36, Math.floor(width / 17)))
