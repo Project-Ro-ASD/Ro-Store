@@ -75,6 +75,21 @@ class FlatpakSafetyGuards(unittest.TestCase):
         self.assertIn("page.installable", detail)
         self.assertIn('action === "install" && !installable', detail)
 
+    def test_release_scope_is_read_only_outside_user_flathub(self):
+        start = method("startMutation").split("void FlatpakManager::install", 1)[0]
+        self.assertIn('scope != QStringLiteral("user")', start)
+        self.assertIn('kind != QStringLiteral("add-flathub")', start)
+        install = method("install").split("void FlatpakManager::uninstall", 1)[0]
+        self.assertIn('remote != QStringLiteral("flathub")', install)
+        uninstall = method("uninstall").split("void FlatpakManager::update", 1)[0]
+        self.assertIn('scope != QStringLiteral("user")', uninstall)
+        update = method("update").split("void FlatpakManager::addFlathubUser", 1)[0]
+        self.assertNotIn("startMutation(", update)
+        page = (ROOT / "qml/pages/FlatpakPage.qml").read_text()
+        detail = (ROOT / "qml/pages/FlatpakDetailPage.qml").read_text()
+        self.assertIn('enabled: false', page)
+        self.assertIn('enabled: false', detail)
+
     def test_tray_exit_guard(self):
         self.assertIn("transactionManager.busy || flatpakManager.busy || flatpakManager.verifying", WINDOW)
         self.assertIn("enabled: !flatpakManager.busy && !flatpakManager.verifying", WINDOW)
