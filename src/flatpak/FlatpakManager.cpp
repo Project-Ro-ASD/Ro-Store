@@ -178,6 +178,16 @@ bool FlatpakManager::hasRemote(const QString &scope, const QString &remote) cons
     }
     return false;
 }
+bool FlatpakManager::isCatalogApp(const QString &scope, const QString &remote, const QString &id) const {
+    if (!safeScope(scope) || !safeRemote(remote) || !safeAppId(id)) return false;
+    for (const QVariant &v : m_catalog) {
+        const auto row = v.toMap();
+        if (row.value(QStringLiteral("scope")) == scope
+            && row.value(QStringLiteral("origin")) == remote
+            && row.value(QStringLiteral("id")) == id) return true;
+    }
+    return false;
+}
 bool FlatpakManager::isInstalled(const QString &scope, const QString &id) const {
     for (const QVariant &v : m_installed) {
         const auto row = v.toMap();
@@ -242,7 +252,7 @@ bool FlatpakManager::startMutation(const QString &kind, const QString &scope,
     return true;
 }
 void FlatpakManager::install(const QString &scope, const QString &remote, const QString &id) {
-    if (!safeScope(scope) || !safeRemote(remote) || !safeAppId(id) || !hasRemote(scope, remote)) {
+    if (!safeScope(scope) || !safeRemote(remote) || !safeAppId(id) || !hasRemote(scope, remote) || !isCatalogApp(scope, remote, id)) {
         fail(QStringLiteral("Geçersiz kapsam, uygulama kimliği veya depo.")); return;
     }
     if (isInstalled(scope, id)) {
