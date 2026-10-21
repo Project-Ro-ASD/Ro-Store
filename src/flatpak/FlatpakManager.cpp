@@ -153,6 +153,7 @@ void FlatpakManager::refresh() {
     }
     m_message = QStringLiteral("Flatpak kaynakları ve kurulu uygulamalar okunuyor...");
     emit changed();
+    ++m_inventoryRevision;
     emit inventoryChanged();
     runNext();
 }
