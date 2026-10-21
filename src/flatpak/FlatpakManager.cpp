@@ -147,6 +147,7 @@ void FlatpakManager::refresh() {
     }
     m_message = QStringLiteral("Flatpak kaynakları ve kurulu uygulamalar okunuyor...");
     emit changed();
+    emit inventoryChanged();
     runNext();
 }
 void FlatpakManager::loadCatalog(const QString &scope, const QString &remote) {
@@ -356,6 +357,7 @@ void FlatpakManager::completeReads() {
         m_message = QStringLiteral("Flatpak bilgileri güncellendi.");
     }
     emit changed();
+    emit inventoryChanged();
 }
 void FlatpakManager::checkRecovery() {
     if (m_busy || m_loading || m_process || !m_outcomeUnknown) return;
@@ -444,28 +446,44 @@ void FlatpakManager::startNextMetadataRequest()
                 meta.insert(QStringLiteral("iconUrl"), iconUrl);
             const QJsonArray screenshots = obj.value(QStringLiteral("screenshots")).toArray();
             QStringList images;
+            auto usableImage = [](const QString &urlString) {
+                const QUrl url(urlString);
+                return url.isValid() && url.scheme() == QStringLiteral("https")
+                       && !url.host().isEmpty() && url.userInfo().isEmpty()
+                       && url.port(-1) == -1;
+            };
             for (const QJsonValue &value : screenshots) {
                 if (images.size() >= 4) break;
-                QString src;
-                if (value.isString()) src = value.toString();
-                else if (value.isObject()) {
+                QStringList candidates;
+                if (value.isString()) {
+                    candidates.append(value.toString());
+                } else if (value.isObject()) {
                     const QJsonObject shot = value.toObject();
-                    const QJsonObject sizes = shot.value(QStringLiteral("sizes")).toObject();
-                    src = sizes.value(QStringLiteral("624x351")).toString();
-                    if (src.isEmpty()) src = sizes.value(QStringLiteral("1248x702")).toString();
-                    if (src.isEmpty()) src = shot.value(QStringLiteral("624x351")).toString();
-                    if (src.isEmpty()) src = shot.value(QStringLiteral("1248x702")).toString();
-                    if (src.isEmpty()) src = shot.value(QStringLiteral("imgDesktopUrl")).toString();
-                    if (src.isEmpty()) src = shot.value(QStringLiteral("imgMobileUrl")).toString();
-                    if (src.isEmpty()) src = shot.value(QStringLiteral("url")).toString();
-                    if (src.isEmpty()) src = shot.value(QStringLiteral("source")).toString();
-                    if (src.isEmpty()) src = shot.value(QStringLiteral("image")).toString();
+                    // Flathub API v2 uses screenshots[].sizes[] with {width,height,src}.
+                    const QJsonValue sizesValue = shot.value(QStringLiteral("sizes"));
+                    if (sizesValue.isArray()) {
+                        const QJsonArray sizes = sizesValue.toArray();
+                        for (const QJsonValue &sizeValue : sizes) {
+                            const QJsonObject variant = sizeValue.toObject();
+                            candidates.append(variant.value(QStringLiteral("src")).toString());
+                        }
+                    } else if (sizesValue.isObject()) {
+                        const QJsonObject sizes = sizesValue.toObject();
+                        candidates.append(sizes.value(QStringLiteral("624x351")).toString());
+                        candidates.append(sizes.value(QStringLiteral("1248x702")).toString());
+                    }
+                    for (const QString &key : {QStringLiteral("624x351"), QStringLiteral("1248x702"),
+                                               QStringLiteral("imgDesktopUrl"), QStringLiteral("url"),
+                                               QStringLiteral("src"), QStringLiteral("source")}) {
+                        candidates.append(shot.value(key).toString());
+                    }
                 }
-                const QUrl imageLink(src);
-                if (imageLink.scheme() == QStringLiteral("https")
-                    && (imageLink.host() == QStringLiteral("dl.flathub.org")
-                        || imageLink.host() == QStringLiteral("flathub.org")
-                        || imageLink.host() == QStringLiteral("images.flathub.org"))) images.append(src);
+                for (const QString &candidate : candidates) {
+                    if (usableImage(candidate) && !images.contains(candidate)) {
+                        images.append(candidate);
+                        break;
+                    }
+                }
             }
             meta.insert(QStringLiteral("screenshots"), images);
         }
