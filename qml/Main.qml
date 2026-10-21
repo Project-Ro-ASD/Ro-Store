@@ -432,6 +432,7 @@ ApplicationWindow {
         id: flatpakPageComponent
         FlatpakPage {
             packageTransactionManager: transactionManager
+            flatpak: flatpakManager
             onBackRequested: stackView.pop()
         }
     }
