@@ -71,7 +71,7 @@ Item {
 
     Connections {
         target: flatpak
-        function onChanged() { page.updateRows() }
+        function onInventoryChanged() { page.updateRows() }
     }
 
     Component.onCompleted: flatpak.refresh()
@@ -338,26 +338,20 @@ Item {
             color: palette.windowText
         }
 
-        GridView {
+        Grid {
             id: appGrid
             Layout.fillWidth: true
-            Layout.preferredHeight: Math.max(0, Math.ceil(Math.min(page.visibleRows.length, page.visibleLimit)
-                                    / Math.max(1, Math.floor(width / Math.max(300, metrics.fontPx(330)))))
-                                    * cellHeight)
-            clip: true
-            interactive: false
             visible: page.visibleRows.length > 0
-            cellWidth: Math.max(1, Math.floor(width / Math.max(1, Math.floor(width / Math.max(300, metrics.fontPx(330))))))
-            cellHeight: Math.max(225, metrics.fontPx(225))
+            columns: Math.max(1, Math.floor(width / Math.max(300, metrics.fontPx(330))))
+            columnSpacing: 0
+            rowSpacing: 0
+            Repeater {
             model: page.visibleRows.slice(0, page.visibleLimit)
-            boundsBehavior: Flickable.StopAtBounds
-            ScrollBar.vertical: ScrollBar { policy: ScrollBar.AsNeeded }
-
             delegate: Item {
                 id: cell
                 required property var modelData
-                width: appGrid.cellWidth
-                height: appGrid.cellHeight
+                width: Math.max(1, Math.floor(appGrid.width / appGrid.columns))
+                height: Math.max(225, metrics.fontPx(225))
                 readonly property var info: page.currentMetadata(modelData.id || "")
                 Component.onCompleted: {
                     if (page.tab !== "sources" && modelData.origin === "flathub")
@@ -501,6 +495,7 @@ Item {
                         }
                     }
                 }
+            }
             }
         }
 
