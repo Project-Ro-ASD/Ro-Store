@@ -77,7 +77,7 @@ Item {
         page.visibleRows = output
     }
     function request(action, row) {
-        if (page.blocked) return
+        if (page.blocked || action === "update" || ((action === "install" || action === "uninstall") && (row.scope !== "user" || (row.origin || "") !== "flathub"))) return
         requestedAction = action
         requestedScope = row.scope || selectedScope
         requestedId = row.id || ""
@@ -90,8 +90,6 @@ Item {
             flatpak.install(requestedScope, requestedRemote, requestedId)
         else if (requestedAction === "uninstall")
             flatpak.uninstall(requestedScope, requestedId)
-        else if (requestedAction === "update")
-            flatpak.update(requestedScope, requestedId)
         else if (requestedAction === "flathub")
             flatpak.addFlathubUser()
     }
@@ -531,7 +529,7 @@ Item {
                                 Layout.preferredHeight: Math.max(40, metrics.fontPx(40))
                                 visible: page.tab === "catalog"
                                 text: cell.installed ? "Çalıştır" : "Kur"
-                                enabled: cell.installed ? !flatpak.busy : (!page.blocked && flatpak.isCatalogApp(cell.modelData.scope, cell.modelData.origin, cell.modelData.id))
+                                enabled: cell.modelData.scope === "user" && cell.modelData.origin === "flathub" && (cell.installed ? !flatpak.busy : (!page.blocked && flatpak.isCatalogApp(cell.modelData.scope, cell.modelData.origin, cell.modelData.id)))
                                 accented: enabled
                                 onClicked: {
                                     if (cell.installed)
@@ -545,7 +543,7 @@ Item {
                                 Layout.preferredHeight: Math.max(40, metrics.fontPx(40))
                                 visible: page.tab === "installed"
                                 text: "Çalıştır"
-                                enabled: !flatpak.busy
+                                enabled: !flatpak.busy && cell.modelData.scope === "user" && cell.modelData.origin === "flathub"
                                 onClicked: flatpak.launch(cell.modelData.scope, cell.modelData.id)
                             }
                             ThemedActionButton {
@@ -553,7 +551,7 @@ Item {
                                 Layout.preferredHeight: Math.max(40, metrics.fontPx(40))
                                 visible: page.tab === "installed"
                                 text: "Kaldır"
-                                enabled: !page.blocked
+                                enabled: !page.blocked && cell.modelData.scope === "user" && cell.modelData.origin === "flathub"
                                 onClicked: page.request("uninstall", cell.modelData)
                             }
                             ThemedActionButton {
