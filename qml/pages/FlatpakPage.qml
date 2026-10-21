@@ -579,15 +579,7 @@ Item {
                   + " / " + page.visibleRows.length + ")"
             onClicked: page.visibleLimit += 48
         }
-        TextArea {
-            Layout.fillWidth: true
-            Layout.preferredHeight: 92
-            visible: flatpak.operationLog.length > 0
-            readOnly: true
-            wrapMode: TextEdit.WrapAnywhere
-            text: flatpak.operationLog
-            color: palette.text
-        }
+
         Item { Layout.fillWidth: true; Layout.preferredHeight: page.margin }
         }
     }
