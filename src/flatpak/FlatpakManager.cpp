@@ -137,6 +137,7 @@ void FlatpakManager::refresh() {
     m_loading = true;
     m_recoveryChecked = false;
     m_recoveryReadFailed = false;
+    m_successfulReadKinds.clear();
     m_queue.clear();
     m_sources.clear();
     m_installed.clear();
@@ -206,6 +207,17 @@ bool FlatpakManager::startMutation(const QString &kind, const QString &scope,
     m_pendingKind = kind;
     m_pendingScope = scope;
     m_pendingId = id;
+    m_pendingBeforeCommit = kind == QStringLiteral("update") ? installedCommit(scope, id) : QString();
+    if (kind == QStringLiteral("update") && m_pendingBeforeCommit.isEmpty()) {
+        // Never run an update whose starting state cannot be independently established.
+        m_pendingKind.clear();
+        m_pendingId.clear();
+        QFile::remove(journalPath());
+        releaseLock();
+        m_busy = false;
+        fail(QStringLiteral("Mevcut uygulama commit kimliği doğrulanamadı; güncelleme başlatılmadı."));
+        return false;
+    }
     m_operationName = kind + QStringLiteral(" · ") + id;
     m_operationStatus = QStringLiteral("Çalışıyor");
     m_operationStage = QStringLiteral("İşlem başlatıldı");
@@ -349,6 +361,7 @@ void FlatpakManager::finishTask(QProcess *process, int code, QProcess::ExitStatu
         return;
     }
     if (successful) {
+        m_successfulReadKinds.insert(completed.kind);
         parseResponse(completed.kind, output);
     } else {
         m_recoveryReadFailed = true;
@@ -388,7 +401,7 @@ void FlatpakManager::completeReads() {
     m_loading = false;
     if (m_verifying) {
         m_verifying = false;
-        if (!m_recoveryReadFailed && verifiedTargetState()) {
+        if (verifiedTargetState()) {
             if (QFile::remove(journalPath())) {
                 m_outcomeUnknown = false;
                 m_recoveryChecked = false;
@@ -427,15 +440,41 @@ bool FlatpakManager::verifiedTargetState() const
 {
     if (m_pendingScope != QStringLiteral("user") && m_pendingScope != QStringLiteral("system"))
         return false;
+    const QString installedRead = QStringLiteral("installed:") + m_pendingScope;
+    const QString remoteRead = QStringLiteral("remotes:") + m_pendingScope;
     if (m_pendingKind == QStringLiteral("install"))
-        return isInstalled(m_pendingScope, m_pendingId);
+        return m_successfulReadKinds.contains(installedRead) && isInstalled(m_pendingScope, m_pendingId);
     if (m_pendingKind == QStringLiteral("uninstall"))
-        return !isInstalled(m_pendingScope, m_pendingId);
+        return m_successfulReadKinds.contains(installedRead) && !isInstalled(m_pendingScope, m_pendingId);
     if (m_pendingKind == QStringLiteral("add-flathub"))
-        return m_pendingScope == QStringLiteral("user")
+        return m_pendingScope == QStringLiteral("user") && m_successfulReadKinds.contains(remoteRead)
                && hasRemote(QStringLiteral("user"), QStringLiteral("flathub"));
-    // An app's presence does not prove an update was applied.
+    if (m_pendingKind == QStringLiteral("update")) {
+        if (!m_successfulReadKinds.contains(installedRead) || !isInstalled(m_pendingScope, m_pendingId)
+            || m_pendingBeforeCommit.isEmpty()) return false;
+        const QString after = installedCommit(m_pendingScope, m_pendingId);
+        return !after.isEmpty() && after != m_pendingBeforeCommit;
+    }
     return false;
+}
+QString FlatpakManager::installedCommit(const QString &scope, const QString &appId) const
+{
+    if (!safeScope(scope) || !safeAppId(appId)) return {};
+    QProcess check;
+    check.setProgram(QStringLiteral("/usr/bin/flatpak"));
+    check.setArguments({scoped(scope), QStringLiteral("info"), QStringLiteral("--show-commit"), appId});
+    check.setStandardInputFile(QProcess::nullDevice());
+    check.start();
+    if (!check.waitForStarted(2000)) return {};
+    if (!check.waitForFinished(6000)) {
+        check.kill();
+        check.waitForFinished(1000);
+        return {};
+    }
+    if (check.exitStatus() != QProcess::NormalExit || check.exitCode() != 0) return {};
+    const QString hash = QString::fromUtf8(check.readAllStandardOutput()).trimmed();
+    static const QRegularExpression validHash(QStringLiteral("^[0-9a-fA-F]{40,64}$"));
+    return validHash.match(hash).hasMatch() ? hash : QString();
 }
 void FlatpakManager::appendOperationLog(const QString &line)
 {
