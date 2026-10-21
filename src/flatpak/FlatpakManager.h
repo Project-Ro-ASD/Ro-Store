@@ -96,6 +96,7 @@ private:
     bool m_busy = false;
     bool m_outcomeUnknown = false;
     bool m_recoveryChecked = false;
+    bool m_recoveryReadFailed = false;
     bool m_locked = false;
     QString m_message;
     QString m_operationLog;
