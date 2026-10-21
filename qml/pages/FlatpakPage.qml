@@ -11,6 +11,17 @@ Item {
     property var packageTransactionManager: null
     property var flatpak: null
     readonly property bool blocked: flatpak.busy || flatpak.loading || flatpak.outcomeUnknown
+    // Depend on the observable source list rather than a Q_INVOKABLE call
+    // alone so that visibility and enabled state refresh after each scan.
+    readonly property bool userFlathubReady: {
+        if (!flatpak) return false
+        const allSources = flatpak.sources
+        for (let i = 0; i < allSources.length; ++i) {
+            if (allSources[i].scope === "user" && allSources[i].name === "flathub")
+                return true
+        }
+        return false
+    }
     property string selectedScope: "user"
     property string selectedRemote: "flathub"
     property string requestedAction: ""
@@ -24,6 +35,21 @@ Item {
     onVisibleRowsChanged: visibleLimit = 48
 
     SystemPalette { id: palette }
+
+    function remotesForScope(scope) {
+        var result = []
+        if (!flatpak) return result
+        const rows = flatpak.sources
+        for (var i = 0; i < rows.length; ++i)
+            if (rows[i].scope === scope)
+                result.push(rows[i].name)
+        return result
+    }
+    function syncSelectedRemote() {
+        const names = remotesForScope(selectedScope)
+        if (names.indexOf(selectedRemote) === -1)
+            selectedRemote = names.length > 0 ? names[0] : ""
+    }
 
     function scopeName(value) {
         return value === "user" ? "Kullanıcı" : "Sistem"
@@ -71,11 +97,17 @@ Item {
 
     Connections {
         target: flatpak
-        function onInventoryChanged() { page.updateRows() }
+        function onInventoryChanged() {
+            page.syncSelectedRemote()
+            page.updateRows()
+        }
     }
 
     Component.onCompleted: flatpak.refresh()
-    onSelectedScopeChanged: updateRows()
+    onSelectedScopeChanged: {
+        syncSelectedRemote()
+        updateRows()
+    }
     onSelectedRemoteChanged: updateRows()
     onTabChanged: updateRows()
 
@@ -241,6 +273,7 @@ Item {
                 Layout.fillWidth: true
                 Layout.preferredHeight: Math.max(40, metrics.fontPx(40))
                 model: ["Kullanıcı", "Sistem"]
+                currentIndex: page.selectedScope === "user" ? 0 : 1
                 onActivated: page.selectedScope = currentIndex === 0 ? "user" : "system"
             }
             Label {
@@ -253,13 +286,8 @@ Item {
                 visible: !page.narrow && page.tab === "catalog"
                 Layout.fillWidth: true
                 Layout.preferredHeight: Math.max(40, metrics.fontPx(40))
-                model: {
-                    var items = []
-                    for (var i = 0; i < flatpak.sources.length; ++i)
-                        if (flatpak.sources[i].scope === page.selectedScope)
-                            items.push(flatpak.sources[i].name)
-                    return items
-                }
+                model: page.remotesForScope(page.selectedScope)
+                currentIndex: Math.max(0, model.indexOf(page.selectedRemote))
                 onActivated: page.selectedRemote = currentText
             }
         }
@@ -313,14 +341,50 @@ Item {
             placeholderText: "Uygulama adı veya kimliği ara..."
             onTextChanged: page.updateRows()
         }
-        ThemedActionButton {
+        Rectangle {
             Layout.fillWidth: true
-            Layout.preferredHeight: Math.max(42, metrics.fontPx(42))
             visible: page.tab === "sources" && page.selectedScope === "user"
-                     && !flatpak.hasRemote("user", "flathub")
-            enabled: !page.blocked
-            text: "Flathub kullanıcı deposunu ekle"
-            onClicked: page.request("flathub", {scope:"user", name:"Flathub", origin:"flathub"})
+            implicitHeight: userRemoteColumn.implicitHeight + metrics.spaceLarge * 2
+            radius: metrics.radiusPanel
+            color: palette.base
+            border.color: palette.mid
+
+            ColumnLayout {
+                id: userRemoteColumn
+                x: metrics.spaceLarge
+                y: metrics.spaceLarge
+                width: Math.max(0, parent.width - metrics.spaceLarge * 2)
+                spacing: metrics.spaceNormal
+
+                Label {
+                    Layout.fillWidth: true
+                    font.bold: true
+                    font.pixelSize: metrics.fontTitle
+                    color: palette.text
+                    text: "Kullanıcı Flatpak kaynakları"
+                }
+                Label {
+                    Layout.fillWidth: true
+                    wrapMode: Text.WordWrap
+                    color: palette.windowText
+                    text: page.userFlathubReady
+                          ? "Flathub bu kullanıcı için zaten ekli. Yeni depo eklemeye gerek yok."
+                          : "Bu kullanıcı hesabında Flathub kaynağı bulunamadı. "
+                            + "Aşağıdaki düğme yalnızca kullanıcı kapsamına Flathub ekler; "
+                            + "sistem kapsamındaki Fedora ve Flathub depolarına dokunmaz."
+                }
+                ThemedActionButton {
+                    Layout.fillWidth: true
+                    Layout.preferredHeight: Math.max(44, metrics.fontPx(44))
+                    text: page.userFlathubReady
+                          ? "Flathub kullanıcı deposu zaten mevcut"
+                          : "Flathub kullanıcı deposunu ekle"
+                    accented: !page.userFlathubReady
+                    enabled: !page.blocked && !page.userFlathubReady
+                    onClicked: page.request("flathub",
+                        {scope:"user", name:"Flathub", origin:"flathub"})
+                }
+            }
         }
 
         Label {
