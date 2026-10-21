@@ -8,6 +8,7 @@
 #include <QJsonDocument>
 #include <QJsonObject>
 #include <QJsonArray>
+#include <QXmlStreamReader>
 #include <QNetworkReply>
 #include <QNetworkRequest>
 #include <QUrl>
@@ -389,6 +390,9 @@ void FlatpakManager::requestMetadata(const QString &appId)
         return;
     // Metadata is display-only, never trusted for a Flatpak command.
     m_metadataRequested.insert(appId);
+    m_metadataCache.insert(appId, QVariantMap{{QStringLiteral("metadataStatus"), QStringLiteral("loading")}});
+    ++m_metadataRevision;
+    emit changed();
     m_metadataQueue.enqueue(appId);
     startNextMetadataRequest();
 }
@@ -420,7 +424,11 @@ void FlatpakManager::startNextMetadataRequest()
             const QJsonObject obj = document.object();
             meta.insert(QStringLiteral("summary"), obj.value(QStringLiteral("summary")).toString().left(300));
             QString desc = obj.value(QStringLiteral("description")).toString();
-            desc.remove(QRegularExpression(QStringLiteral("<[^>]*>")));
+            desc.replace(QRegularExpression(QStringLiteral("<[^>]*>")), QStringLiteral(" "));
+            desc.replace(QStringLiteral("&amp;"), QStringLiteral("&"));
+            desc.replace(QStringLiteral("&lt;"), QStringLiteral("<"));
+            desc.replace(QStringLiteral("&gt;"), QStringLiteral(">"));
+            desc.replace(QStringLiteral("&quot;"), QStringLiteral("\\\""));
             meta.insert(QStringLiteral("description"), desc.simplified().left(700));
             const QJsonValue icon = obj.value(QStringLiteral("icon"));
             QString iconUrl;
@@ -442,18 +450,26 @@ void FlatpakManager::startNextMetadataRequest()
                 if (value.isString()) src = value.toString();
                 else if (value.isObject()) {
                     const QJsonObject shot = value.toObject();
-                    src = shot.value(QStringLiteral("624x351")).toString();
+                    const QJsonObject sizes = shot.value(QStringLiteral("sizes")).toObject();
+                    src = sizes.value(QStringLiteral("624x351")).toString();
+                    if (src.isEmpty()) src = sizes.value(QStringLiteral("1248x702")).toString();
+                    if (src.isEmpty()) src = shot.value(QStringLiteral("624x351")).toString();
                     if (src.isEmpty()) src = shot.value(QStringLiteral("1248x702")).toString();
                     if (src.isEmpty()) src = shot.value(QStringLiteral("imgDesktopUrl")).toString();
                     if (src.isEmpty()) src = shot.value(QStringLiteral("imgMobileUrl")).toString();
                     if (src.isEmpty()) src = shot.value(QStringLiteral("url")).toString();
+                    if (src.isEmpty()) src = shot.value(QStringLiteral("source")).toString();
+                    if (src.isEmpty()) src = shot.value(QStringLiteral("image")).toString();
                 }
                 const QUrl imageLink(src);
                 if (imageLink.scheme() == QStringLiteral("https")
-                    && imageLink.host() == QStringLiteral("dl.flathub.org")) images.append(src);
+                    && (imageLink.host() == QStringLiteral("dl.flathub.org")
+                        || imageLink.host() == QStringLiteral("flathub.org")
+                        || imageLink.host() == QStringLiteral("images.flathub.org"))) images.append(src);
             }
             meta.insert(QStringLiteral("screenshots"), images);
         }
+        meta.insert(QStringLiteral("metadataStatus"), content.isEmpty() ? QStringLiteral("error") : QStringLiteral("ready"));
         m_metadataCache.insert(id, meta);
         ++m_metadataRevision;
         emit changed();
