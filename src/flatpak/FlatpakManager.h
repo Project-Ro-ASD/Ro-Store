@@ -109,6 +109,7 @@ private:
     void fail(const QString &message);
     void completeReads();
     bool verifiedTargetState() const;
+    QString installedCommit(const QString &scope, const QString &appId) const;
     void appendOperationLog(const QString &line);
     void startNextMetadataRequest();
 
