@@ -149,13 +149,14 @@ Popup {
             border.color: palette.mid
             clip: true
 
-            // Consume wheel events over the artwork, rather than allowing the
-            // inner Flickable to scroll. Mouse wheel and touchpad both zoom.
+            // Ctrl + wheel zooms around the pointer. Unmodified wheel events
+            // are left to the Flickable for normal vertical/horizontal panning.
             WheelHandler {
                 id: artworkWheel
                 target: null
                 orientation: Qt.Vertical
                 acceptedDevices: PointerDevice.Mouse | PointerDevice.TouchPad
+                acceptedModifiers: Qt.ControlModifier
                 blocking: true
                 enabled: viewer.opened && viewer.imageCount > 0
                 onWheel: function(event) {
@@ -251,7 +252,7 @@ Popup {
             }
             Label {
                 visible: viewer.width >= 760
-                text: "Tekerlek: yakınlaştır / uzaklaştır"
+                text: "Ctrl + Tekerlek: yakınlaştır / uzaklaştır"
                 color: palette.windowText
                 font.pixelSize: metrics.fontCaption
             }
