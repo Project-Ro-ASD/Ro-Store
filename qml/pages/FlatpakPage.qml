@@ -531,7 +531,7 @@ Item {
                                 Layout.preferredHeight: Math.max(40, metrics.fontPx(40))
                                 visible: page.tab === "catalog"
                                 text: cell.installed ? "Çalıştır" : "Kur"
-                                enabled: !page.blocked || (cell.installed && !flatpak.busy)
+                                enabled: cell.installed ? !flatpak.busy : (!page.blocked && flatpak.isCatalogApp(cell.modelData.scope, cell.modelData.origin, cell.modelData.id))
                                 accented: enabled
                                 onClicked: {
                                     if (cell.installed)
