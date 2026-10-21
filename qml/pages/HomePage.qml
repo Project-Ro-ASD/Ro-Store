@@ -60,6 +60,7 @@ Item {
     signal downloadsRequested()
     signal fedoraCatalogRequested()
     signal systemUpdatesRequested()
+    signal flatpakRequested()
     signal repositoryActionRequested()
 
     StackView.onActivated: {
@@ -285,6 +286,14 @@ Item {
                 height: Math.max(42, metrics.fontPx(42))
                 text: "Sistem Güncellemelerini Denetle  →"
                 onClicked: page.systemUpdatesRequested()
+            }
+
+            ThemedActionButton {
+                x: page.sideMargin
+                width: page.contentWidth
+                height: Math.max(42, metrics.fontPx(42))
+                text: "Flatpak / Flathub mağazasını keşfet  →"
+                onClicked: page.flatpakRequested()
             }
 
             // RO-ASD REPOSITORY DURUMU

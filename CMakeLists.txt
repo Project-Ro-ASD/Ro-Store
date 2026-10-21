@@ -1,7 +1,7 @@
 cmake_minimum_required(VERSION 3.21)
 
 project(RoStore
-    VERSION 0.6.0
+    VERSION 0.7.0
     DESCRIPTION "Ro-ASD application store"
     HOMEPAGE_URL "https://github.com/Project-Ro-ASD/Ro-Store"
     LANGUAGES CXX
@@ -44,6 +44,8 @@ qt_add_executable(ro-store
     src/SystemUpdateCache.cpp
     src/SystemOfflineUpgrade.h
     src/SystemOfflineUpgrade.cpp
+    src/flatpak/FlatpakManager.h
+    src/flatpak/FlatpakManager.cpp
     src/PackageStatus.h
     src/PackageStatus.cpp
     src/packages/PackageTransaction.h
@@ -98,11 +100,15 @@ qt_add_qml_module(ro-store
         qml/pages/DownloadsPage.qml
         qml/pages/FedoraCatalogPage.qml
         qml/pages/SystemUpdatesPage.qml
+        qml/pages/FlatpakPage.qml
+        qml/pages/FlatpakDetailPage.qml
         qml/components/AppCard.qml
         qml/components/ThemeMetrics.qml
         qml/components/ThemedActionButton.qml
         qml/components/ThemedIconButton.qml
         qml/components/KeyboardActionButton.qml
+        qml/components/FlatpakScreenshotViewer.qml
+        qml/components/FlatpakOperationPanel.qml
 )
 
 target_link_libraries(ro-store

@@ -21,6 +21,7 @@
 #include "SystemUpdateModel.h"
 #include "SystemUpdateCache.h"
 #include "SystemOfflineUpgrade.h"
+#include "flatpak/FlatpakManager.h"
 #include "PackageStatus.h"
 #include "AppLauncher.h"
 #include "SystemFontMonitor.h"
@@ -139,6 +140,7 @@ int main(int argc, char *argv[])
     qmlRegisterType<SystemUpdateModel>("RoStore", 1, 0, "SystemUpdateModel");
     qmlRegisterType<SystemUpdateCache>("RoStore", 1, 0, "SystemUpdateCache");
     qmlRegisterType<SystemOfflineUpgrade>("RoStore", 1, 0, "SystemOfflineUpgrade");
+    qmlRegisterType<FlatpakManager>("RoStore", 1, 0, "FlatpakManager");
     qmlRegisterType<PackageStatus>("RoStore", 1, 0, "PackageStatus");
     qmlRegisterType<AppLauncher>("RoStore", 1, 0, "AppLauncher");
     qmlRegisterType<SourceManager>("RoStore", 1, 0, "SourceManager");

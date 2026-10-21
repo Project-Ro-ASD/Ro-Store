@@ -10,6 +10,39 @@
 
 ## Türkçe
 
+## v0.7.0 — Flatpak / Flathub (sınırlı kapsam)
+
+Bu dal Fedora 44 için ayrı bir **Flatpak / Flathub** ekranı ekler: kullanıcı/sistem
+kapsamında kaynakları, kurulmuş uygulamaları ve güncelleme adaylarını gösterir;
+uygulama keşfi, simge, açıklama, ekran görüntüleri ve uygulama detayları bulunur.
+Kullanıcı onayıyla Flathub kullanıcı kaynağını ekleme, uygulama kurma,
+kaldırma ve çalıştırma akışları desteklenir.
+
+**Doğrulananlar:** Fedora 44 x86_64'te Flathub kaynağı ekleme ve Curo
+Calculator kurma–kaldırma–yeniden kurma–çalıştırma. Durum düğmeleri sayfadan
+çıkmadan yenilenir. Onaylanmış işlemlerde Flatpak güvenlik kaydı otomatik
+temizlenir. RPM/DNF5 uygulama yolu bağımsızdır.
+
+**v0.7.0 güvenli kapsam:** Yalnızca kullanıcı kapsamındaki Flathub kaynağı
+ekleme, Flathub uygulamalarını kurma, kaldırma ve çalıştırma açıktır. Sistem
+kapsamında değiştirme ve bütün Flatpak güncelleme işlemleri kapatılmıştır;
+bu öğeler yalnızca görüntülenir. NVIDIA, codec ve Flatpak çalışma ortamları
+bu yolla değiştirilemez. Kesinti, yetki reddi, çoklu örnek ve gerçek
+güncelleme testleri gelecek sürüm yol haritasına ertelenmiştir. Test planı:
+[docs/testing/v0.7-flatpak.md](docs/testing/v0.7-flatpak.md).
+
+### Geliştirme dalını kaynak koddan çalıştırma
+
+```bash
+cmake -S . -B build -G Ninja -DCMAKE_BUILD_TYPE=Debug
+cmake --build build --parallel 4
+./build/ro-store
+```
+
+Flatpak yüklü değilse Flatpak ekranı bunu açıklar; mevcut RPM işlemleri
+ayrıca kullanılabilir. Flatpak ve RPM katalogları henüz tek aramada
+birleştirilmemiştir.
+
 ## v0.6.0 — Fedora RPM sistem güncellemeleri
 
 Ro-Store v0.6.0, Fedora 44 üzerindeki RPM sistem güncellemelerini DNF5 ile
