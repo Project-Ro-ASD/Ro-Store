@@ -404,6 +404,8 @@ void FlatpakManager::startNextMetadataRequest()
     QNetworkRequest request(url);
     request.setHeader(QNetworkRequest::UserAgentHeader, QStringLiteral("Ro-Store/0.7"));
     request.setTransferTimeout(12000);
+    request.setAttribute(QNetworkRequest::RedirectPolicyAttribute,
+                         QNetworkRequest::ManualRedirectPolicy);
     auto *reply = m_metadataNetwork.get(request);
     connect(reply, &QNetworkReply::finished, this, [this, reply, id]() {
         --m_metadataActive;
@@ -428,7 +430,9 @@ void FlatpakManager::startNextMetadataRequest()
                 iconUrl = icons.value(QStringLiteral("128")).toString();
                 if (iconUrl.isEmpty()) iconUrl = icons.value(QStringLiteral("64")).toString();
             }
-            if (iconUrl.startsWith(QStringLiteral("https://")))
+            const QUrl iconLink(iconUrl);
+            if (iconLink.scheme() == QStringLiteral("https")
+                && iconLink.host() == QStringLiteral("dl.flathub.org"))
                 meta.insert(QStringLiteral("iconUrl"), iconUrl);
             const QJsonArray screenshots = obj.value(QStringLiteral("screenshots")).toArray();
             QStringList images;
@@ -444,7 +448,9 @@ void FlatpakManager::startNextMetadataRequest()
                     if (src.isEmpty()) src = shot.value(QStringLiteral("imgMobileUrl")).toString();
                     if (src.isEmpty()) src = shot.value(QStringLiteral("url")).toString();
                 }
-                if (src.startsWith(QStringLiteral("https://"))) images.append(src);
+                const QUrl imageLink(src);
+                if (imageLink.scheme() == QStringLiteral("https")
+                    && imageLink.host() == QStringLiteral("dl.flathub.org")) images.append(src);
             }
             meta.insert(QStringLiteral("screenshots"), images);
         }
