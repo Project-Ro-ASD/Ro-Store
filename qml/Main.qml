@@ -22,6 +22,7 @@ ApplicationWindow {
     title: "Ro-Store"
     property bool qaSafetyBannerPreview: false
     property bool qaInstalledPreview: false
+    property bool qaHistoryPreview: false
     property bool exitingFromTray: false
     property var pendingConfirmation: null
 
@@ -403,6 +404,7 @@ ApplicationWindow {
             }
             onFlatpakRequested: stackView.push(flatpakPageComponent)
             onInstalledSoftwareRequested: stackView.push(installedSoftwarePageComponent)
+            onSoftwareHistoryRequested: stackView.push(softwareHistoryPageComponent)
 
             onAppSelected: function(title, summary, description, category, version, packageName, iconUrl) {
                 stackView.push(detailPageComponent, {
@@ -466,6 +468,13 @@ ApplicationWindow {
     }
 
     Component {
+        id: softwareHistoryPageComponent
+        SoftwareHistoryPage {
+            onBackRequested: stackView.pop()
+        }
+    }
+
+    Component {
         id: flatpakDetailPageComponent
         FlatpakDetailPage {
             flatpak: flatpakManager
@@ -523,6 +532,8 @@ ApplicationWindow {
     Component.onCompleted: {
         if (qaInstalledPreview)
             stackView.push(installedSoftwarePageComponent)
+        if (qaHistoryPreview)
+            stackView.push(softwareHistoryPageComponent)
         sourceManager.refresh()
 
         catalogModel.load(

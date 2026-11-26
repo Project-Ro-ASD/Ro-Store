@@ -133,10 +133,12 @@ jobs:
         run: |
           set -euo pipefail
 
-          for scenario in home installed; do
+          for scenario in home installed history; do
             ARGS=()
             if [ "$scenario" = installed ]; then
               ARGS=(--qa-open-installed)
+            elif [ "$scenario" = history ]; then
+              ARGS=(--qa-open-history)
             fi
 
             set +e

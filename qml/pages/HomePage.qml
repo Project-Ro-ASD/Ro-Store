@@ -62,6 +62,7 @@ Item {
     signal systemUpdatesRequested()
     signal flatpakRequested()
     signal installedSoftwareRequested()
+    signal softwareHistoryRequested()
     signal repositoryActionRequested()
 
     StackView.onActivated: {
@@ -303,6 +304,14 @@ Item {
                 height: Math.max(42, metrics.fontPx(42))
                 text: "Kurulu yazılımları göster  →"
                 onClicked: page.installedSoftwareRequested()
+            }
+
+            ThemedActionButton {
+                x: page.sideMargin
+                width: page.contentWidth
+                height: Math.max(42, metrics.fontPx(42))
+                text: "İşlem geçmişini göster  →"
+                onClicked: page.softwareHistoryRequested()
             }
 
             // RO-ASD REPOSITORY DURUMU
