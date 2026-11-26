@@ -18,6 +18,7 @@
 #include "TrayController.h"
 #include "CatalogModel.h"
 #include "FedoraPackageModel.h"
+#include "InstalledRpmModel.h"
 #include "SystemUpdateModel.h"
 #include "SystemUpdateCache.h"
 #include "SystemOfflineUpgrade.h"
@@ -137,6 +138,7 @@ int main(int argc, char *argv[])
 
     qmlRegisterType<CatalogModel>("RoStore", 1, 0, "CatalogModel");
     qmlRegisterType<FedoraPackageModel>("RoStore", 1, 0, "FedoraPackageModel");
+    qmlRegisterType<InstalledRpmModel>("RoStore", 1, 0, "InstalledRpmModel");
     qmlRegisterType<SystemUpdateModel>("RoStore", 1, 0, "SystemUpdateModel");
     qmlRegisterType<SystemUpdateCache>("RoStore", 1, 0, "SystemUpdateCache");
     qmlRegisterType<SystemOfflineUpgrade>("RoStore", 1, 0, "SystemOfflineUpgrade");
@@ -175,7 +177,9 @@ int main(int argc, char *argv[])
     // touches the persistent recovery journal.
     engine.setInitialProperties({
         {QStringLiteral("qaSafetyBannerPreview"),
-         app.arguments().contains(QStringLiteral("--qa-safety-banner"))}
+         app.arguments().contains(QStringLiteral("--qa-safety-banner"))},
+        {QStringLiteral("qaInstalledPreview"),
+         app.arguments().contains(QStringLiteral("--qa-open-installed"))}
     });
 
     QObject::connect(

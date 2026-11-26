@@ -38,6 +38,8 @@ qt_add_executable(ro-store
     src/CatalogModel.cpp
     src/FedoraPackageModel.h
     src/FedoraPackageModel.cpp
+    src/InstalledRpmModel.h
+    src/InstalledRpmModel.cpp
     src/SystemUpdateModel.h
     src/SystemUpdateModel.cpp
     src/SystemUpdateCache.h
@@ -101,6 +103,7 @@ qt_add_qml_module(ro-store
         qml/pages/FedoraCatalogPage.qml
         qml/pages/SystemUpdatesPage.qml
         qml/pages/FlatpakPage.qml
+        qml/pages/InstalledSoftwarePage.qml
         qml/pages/FlatpakDetailPage.qml
         qml/components/AppCard.qml
         qml/components/ThemeMetrics.qml

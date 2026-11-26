@@ -21,8 +21,10 @@ ApplicationWindow {
     visible: true
     title: "Ro-Store"
     property bool qaSafetyBannerPreview: false
+    property bool qaInstalledPreview: false
     property bool exitingFromTray: false
     property var pendingConfirmation: null
+
 
     function formatSize(bytes) {
         var value = Number(bytes)
@@ -392,6 +394,7 @@ ApplicationWindow {
                 stackView.push(systemUpdatesPageComponent)
             }
             onFlatpakRequested: stackView.push(flatpakPageComponent)
+            onInstalledSoftwareRequested: stackView.push(installedSoftwarePageComponent)
 
             onAppSelected: function(title, summary, description, category, version, packageName, iconUrl) {
                 stackView.push(detailPageComponent, {
@@ -442,6 +445,15 @@ ApplicationWindow {
             onAppDetailsRequested: function(appData) {
                 stackView.push(flatpakDetailPageComponent, {appData: appData})
             }
+        }
+    }
+
+    Component {
+        id: installedSoftwarePageComponent
+        InstalledSoftwarePage {
+            flatpak: flatpakManager
+            onBackRequested: stackView.pop()
+            onFlatpakRequested: stackView.push(flatpakPageComponent)
         }
     }
 
@@ -501,6 +513,8 @@ ApplicationWindow {
     }
 
     Component.onCompleted: {
+        if (qaInstalledPreview)
+            stackView.push(installedSoftwarePageComponent)
         sourceManager.refresh()
 
         catalogModel.load(
