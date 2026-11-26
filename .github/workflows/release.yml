@@ -4,7 +4,7 @@ on:
   push:
     branches:
       - main
-      - "codex/v0.8-*"
+      - "feature/advanced-app-management-v0.8"
     tags:
       - "v*"
   pull_request:
