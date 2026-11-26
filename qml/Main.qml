@@ -184,6 +184,14 @@ ApplicationWindow {
                         + "Ek bağımlılıkları ve kaldırılacak paketleri inceleyin."
                       : ""
             }
+            Label {
+                Layout.fillWidth: true
+                visible: root.pendingConfirmation
+                         && root.pendingConfirmation.operation === PackageTransaction.Remove
+                wrapMode: Text.WordWrap
+                text: "Kaldırma planı ek bağımlılıkları da kaldırabilir. Aşağıdaki paketlerin tamamını inceleyin. Uygulamanın kullanıcı ayarları ve verileri kalabilir."
+                color: themePalette.text
+            }
             ScrollView {
                 Layout.fillWidth: true
                 Layout.fillHeight: true
