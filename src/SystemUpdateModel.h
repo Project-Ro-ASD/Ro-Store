@@ -45,7 +45,8 @@ public:
         RepositoryRole,
         KernelUpdateRole,
         SelectedRole,
-        DownloadBytesRole
+        DownloadBytesRole,
+        GroupNameRole
     };
 
     explicit SystemUpdateModel(QObject *parent = nullptr);

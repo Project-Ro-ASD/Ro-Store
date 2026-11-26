@@ -10,6 +10,25 @@
 
 ## Türkçe
 
+## v0.8.0 — Gelişmiş uygulama yönetimi (sınırlı kapsam)
+
+Kurulu RPM paketleri ve kullanıcı/sistem kapsamındaki Flatpak uygulamaları tek
+ekrandan aranabilir. RPM görünümü AppStream verisi hazır olduğunda masaüstü
+uygulamalarını süzer; tüm paketler ayrıca görülebilir. Sürüm, mimari, kaynak ve
+kurulu boyut gösterilir. İki kaynakta da kurulu aynı uygulamalar işaretlenir.
+DNF5 ve Flatpak işlem geçmişi salt okunur olarak görüntülenir; DNF5 paket ve
+durum ayrıntıları açılabilir. Sistem güncelleme adayları çekirdek ve depo
+kaynağına göre gruplanır. Kaldırma ekranları bağımlılık ve kullanıcı verisi
+etkisini daha açık anlatır.
+
+**Sınırlar:** Kaynak karşılaştırması yalnızca iki kaynakta da kurulu olan
+uygulamalar için yapılır. Flatpak geçmişi başarısız işlemleri kaydetmeyebilir.
+Önceki sürümde kapalı olan Flatpak güncellemeleri ve sistem kapsamındaki
+değişiklikler kapalı kalır. Kesinti, düşük disk ve çökme senaryoları gerçek
+bilgisayarda zorlanmamıştır. Test kanıtları ve sonraki işler:
+[v0.8 yayın kontrolü](docs/testing/v0.8-release-gate.md),
+[v0.8 sonrası yol haritası](docs/roadmap-after-v0.8.md).
+
 ## v0.7.0 — Flatpak / Flathub (sınırlı kapsam)
 
 Bu dal Fedora 44 için ayrı bir **Flatpak / Flathub** ekranı ekler: kullanıcı/sistem

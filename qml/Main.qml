@@ -21,8 +21,11 @@ ApplicationWindow {
     visible: true
     title: "Ro-Store"
     property bool qaSafetyBannerPreview: false
+    property bool qaInstalledPreview: false
+    property bool qaHistoryPreview: false
     property bool exitingFromTray: false
     property var pendingConfirmation: null
+
 
     function formatSize(bytes) {
         var value = Number(bytes)
@@ -181,6 +184,14 @@ ApplicationWindow {
                             + "başladığında gerçek boyut gösterilecek. ")
                         + "Ek bağımlılıkları ve kaldırılacak paketleri inceleyin."
                       : ""
+            }
+            Label {
+                Layout.fillWidth: true
+                visible: root.pendingConfirmation
+                         && root.pendingConfirmation.operation === PackageTransaction.Remove
+                wrapMode: Text.WordWrap
+                text: "Kaldırma planı ek bağımlılıkları da kaldırabilir. Aşağıdaki paketlerin tamamını inceleyin. Uygulamanın kullanıcı ayarları ve verileri kalabilir."
+                color: themePalette.text
             }
             ScrollView {
                 Layout.fillWidth: true
@@ -392,6 +403,8 @@ ApplicationWindow {
                 stackView.push(systemUpdatesPageComponent)
             }
             onFlatpakRequested: stackView.push(flatpakPageComponent)
+            onInstalledSoftwareRequested: stackView.push(installedSoftwarePageComponent)
+            onSoftwareHistoryRequested: stackView.push(softwareHistoryPageComponent)
 
             onAppSelected: function(title, summary, description, category, version, packageName, iconUrl) {
                 stackView.push(detailPageComponent, {
@@ -442,6 +455,22 @@ ApplicationWindow {
             onAppDetailsRequested: function(appData) {
                 stackView.push(flatpakDetailPageComponent, {appData: appData})
             }
+        }
+    }
+
+    Component {
+        id: installedSoftwarePageComponent
+        InstalledSoftwarePage {
+            flatpak: flatpakManager
+            onBackRequested: stackView.pop()
+            onFlatpakRequested: stackView.push(flatpakPageComponent)
+        }
+    }
+
+    Component {
+        id: softwareHistoryPageComponent
+        SoftwareHistoryPage {
+            onBackRequested: stackView.pop()
         }
     }
 
@@ -501,6 +530,10 @@ ApplicationWindow {
     }
 
     Component.onCompleted: {
+        if (qaInstalledPreview)
+            stackView.push(installedSoftwarePageComponent)
+        if (qaHistoryPreview)
+            stackView.push(softwareHistoryPageComponent)
         sourceManager.refresh()
 
         catalogModel.load(

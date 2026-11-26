@@ -4,6 +4,7 @@ on:
   push:
     branches:
       - main
+      - "feature/advanced-app-management-v0.8"
     tags:
       - "v*"
   pull_request:
@@ -132,23 +133,32 @@ jobs:
         run: |
           set -euo pipefail
 
-          set +e
-          QT_QPA_PLATFORM=offscreen timeout 4s /usr/bin/ro-store \
-            > /tmp/ro-store.log 2>&1
-          STATUS=$?
-          set -e
+          for scenario in home installed history; do
+            ARGS=()
+            if [ "$scenario" = installed ]; then
+              ARGS=(--qa-open-installed)
+            elif [ "$scenario" = history ]; then
+              ARGS=(--qa-open-history)
+            fi
 
-          cat /tmp/ro-store.log
+            set +e
+            QT_QPA_PLATFORM=offscreen timeout 4s /usr/bin/ro-store "${ARGS[@]}" \
+              > /tmp/ro-store.log 2>&1
+            STATUS=$?
+            set -e
 
-          if grep -Ei \
-            'failed to load component|contains no type named|module .* is not installed' \
-            /tmp/ro-store.log; then
-              exit 1
-          fi
+            cat /tmp/ro-store.log
 
-          if [ "$STATUS" -ne 0 ] && [ "$STATUS" -ne 124 ]; then
-              exit "$STATUS"
-          fi
+            if grep -Ei \
+              'failed to load component|contains no type named|module .* is not installed' \
+              /tmp/ro-store.log; then
+                exit 1
+            fi
+
+            if [ "$STATUS" -ne 0 ] && [ "$STATUS" -ne 124 ]; then
+                exit "$STATUS"
+            fi
+          done
 
       - name: Collect RPM
         shell: bash

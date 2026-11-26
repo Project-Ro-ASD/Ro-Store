@@ -147,7 +147,7 @@ void FlatpakManager::refresh() {
                     {scoped(scope), QStringLiteral("remotes"), QStringLiteral("--columns=name,url")}, 25000);
         enqueueRead(QStringLiteral("installed:") + scope,
                     {scoped(scope), QStringLiteral("list"), QStringLiteral("--app"),
-                     QStringLiteral("--columns=application,name,version,origin,branch")}, 30000);
+                     QStringLiteral("--columns=application,name,version,origin,branch,arch,size")}, 30000);
         enqueueRead(QStringLiteral("updates:") + scope,
                     {scoped(scope), QStringLiteral("remote-ls"), QStringLiteral("--updates"),
                      QStringLiteral("--columns=application,name,version,origin")}, 45000);
@@ -442,7 +442,7 @@ void FlatpakManager::parseResponse(const QString &kind, const QByteArray &output
     const QString remote = parts.value(2);
     QStringList keys;
     if (section == QStringLiteral("remotes")) keys = {QStringLiteral("name"), QStringLiteral("url")};
-    if (section == QStringLiteral("installed")) keys = {QStringLiteral("id"), QStringLiteral("name"), QStringLiteral("version"), QStringLiteral("origin"), QStringLiteral("branch")};
+    if (section == QStringLiteral("installed")) keys = {QStringLiteral("id"), QStringLiteral("name"), QStringLiteral("version"), QStringLiteral("origin"), QStringLiteral("branch"), QStringLiteral("architecture"), QStringLiteral("installedSize")};
     if (section == QStringLiteral("updates")) keys = {QStringLiteral("id"), QStringLiteral("name"), QStringLiteral("version"), QStringLiteral("origin")};
     if (section == QStringLiteral("catalog")) keys = {QStringLiteral("id"), QStringLiteral("name"), QStringLiteral("version"), QStringLiteral("branch")};
     for (const QString &line : lines(output)) {
