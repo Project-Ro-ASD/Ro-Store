@@ -999,6 +999,17 @@ Item {
             spacing: metrics.spaceCompact
             model: updates
             ScrollBar.vertical: ScrollBar { policy: ScrollBar.AsNeeded }
+            section.property: "groupName"
+            section.criteria: ViewSection.FullString
+            section.delegate: Label {
+                required property string section
+                width: updateList.width - 14
+                height: Math.max(36, implicitHeight + metrics.spaceMedium)
+                text: section
+                font.bold: true
+                color: palette.windowText
+                verticalAlignment: Text.AlignVCenter
+            }
 
             delegate: Rectangle {
                 id: updateCard

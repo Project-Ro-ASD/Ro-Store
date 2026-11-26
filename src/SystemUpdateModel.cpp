@@ -27,6 +27,12 @@ bool isKernelUpdate(const QString &name)
     return name == QStringLiteral("kernel")
         || name.startsWith(QStringLiteral("kernel-"));
 }
+
+QString updateGroup(const SystemUpdateItem &item)
+{
+    return isKernelUpdate(item.name) ? QStringLiteral("Kernel güncellemeleri")
+                                     : QStringLiteral("Kaynak: ") + item.repository;
+}
 } // namespace
 
 SystemUpdateModel::SystemUpdateModel(QObject *parent)
@@ -67,6 +73,7 @@ QVariant SystemUpdateModel::data(const QModelIndex &index, int role) const
     case KernelUpdateRole: return isKernelUpdate(update.name);
     case SelectedRole: return m_selected.contains(updateKey(update));
     case DownloadBytesRole: return QVariant::fromValue(update.downloadBytes);
+    case GroupNameRole: return updateGroup(update);
     default: return {};
     }
 }
@@ -81,7 +88,8 @@ QHash<int, QByteArray> SystemUpdateModel::roleNames() const
         { RepositoryRole, "repository" },
         { KernelUpdateRole, "kernelUpdate" },
         { SelectedRole, "updateSelected" },
-        { DownloadBytesRole, "downloadBytes" }
+        { DownloadBytesRole, "downloadBytes" },
+        { GroupNameRole, "groupName" }
     };
 }
 
@@ -458,6 +466,11 @@ void SystemUpdateModel::parseUpdates(const QByteArray &output)
 
     std::sort(parsed.begin(), parsed.end(), [](const SystemUpdateItem &a,
                                                const SystemUpdateItem &b) {
+        if (isKernelUpdate(a.name) != isKernelUpdate(b.name))
+            return isKernelUpdate(a.name);
+        const int byGroup = QString::compare(updateGroup(a), updateGroup(b), Qt::CaseInsensitive);
+        if (byGroup != 0)
+            return byGroup < 0;
         const int byName = QString::compare(a.name, b.name, Qt::CaseInsensitive);
         if (byName != 0)
             return byName < 0;
