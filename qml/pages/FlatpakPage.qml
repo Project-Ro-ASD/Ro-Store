@@ -521,6 +521,15 @@ Item {
                             font.pixelSize: metrics.fontCaption
                             color: palette.windowText
                         }
+                        Label {
+                            Layout.fillWidth: true
+                            visible: page.tab === "installed"
+                            text: "Mimari: " + (cell.modelData.architecture || "Bilinmiyor")
+                                  + " · Kurulu boyut: " + (cell.modelData.installedSize || "Bilinmiyor")
+                            font.pixelSize: metrics.fontCaption
+                            color: palette.windowText
+                            elide: Text.ElideRight
+                        }
                         RowLayout {
                             Layout.fillWidth: true
                             spacing: 7
