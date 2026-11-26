@@ -8,6 +8,7 @@ Item {
     id: page
     property var flatpak: null
     property string source: "rpm"
+    property bool applicationsOnly: true
     property var visibleRows: []
     property int visibleLimit: 48
     signal backRequested()
@@ -32,11 +33,32 @@ Item {
         const matching = []
         for (let i = 0; i < rows.length; ++i) {
             const row = rows[i]
-            if (!query || ((row.name || "") + " " + (row.id || ""))
+            if (source === "rpm" && applicationsOnly && rpm.applicationMetadataReady
+                    && !row.isApplication)
+                continue
+            if (!query || ((row.displayName || "") + " " + (row.name || "")
+                    + " " + (row.id || ""))
                     .toLocaleLowerCase().indexOf(query) >= 0)
                 matching.push(row)
         }
         visibleRows = matching
+    }
+
+    function counterpart(row) {
+        if (source === "rpm") {
+            const ids = row.appIds || []
+            const installed = flatpak.installed
+            for (let i = 0; i < installed.length; ++i)
+                if (ids.indexOf(installed[i].id) >= 0)
+                    return "Flatpak: " + (installed[i].version || "Sürüm bilinmiyor")
+                        + " · " + (installed[i].origin || "Kaynak bilinmiyor")
+        } else {
+            const installed = rpm.packages
+            for (let i = 0; i < installed.length; ++i)
+                if ((installed[i].appIds || []).indexOf(row.id) >= 0)
+                    return "RPM: " + (installed[i].version || "Sürüm bilinmiyor")
+        }
+        return ""
     }
 
     Component.onCompleted: {
@@ -44,6 +66,10 @@ Item {
         flatpak.refresh()
     }
     onSourceChanged: {
+        visibleLimit = 48
+        updateRows()
+    }
+    onApplicationsOnlyChanged: {
         visibleLimit = 48
         updateRows()
     }
@@ -99,7 +125,30 @@ Item {
 
             Label {
                 Layout.fillWidth: true
-                text: "RPM paketleri ve Flatpak uygulamaları ayrı listelenir. RPM listesi sistem bileşenlerini de içerir."
+                text: "RPM ve Flatpak ayrı listelenir. Tüm RPM paketleri görünümü sistem bileşenlerini de içerir."
+                wrapMode: Text.WordWrap
+                color: palette.windowText
+            }
+
+            RowLayout {
+                Layout.fillWidth: true
+                visible: page.source === "rpm"
+                Label {
+                    text: "RPM görünümü"
+                    color: palette.windowText
+                }
+                ComboBox {
+                    Layout.fillWidth: true
+                    Layout.preferredHeight: 42
+                    model: ["Uygulamalar", "Tüm paketler"]
+                    currentIndex: page.applicationsOnly ? 0 : 1
+                    onActivated: page.applicationsOnly = currentIndex === 0
+                }
+            }
+            Label {
+                Layout.fillWidth: true
+                visible: page.source === "rpm" && !rpm.applicationMetadataReady
+                text: "Uygulama kataloğu hazır değil; şimdilik tüm RPM paketleri gösteriliyor."
                 wrapMode: Text.WordWrap
                 color: palette.windowText
             }
@@ -164,6 +213,7 @@ Item {
                 model: page.visibleRows.slice(0, page.visibleLimit)
                 delegate: Rectangle {
                     required property var modelData
+                    readonly property string otherSource: page.counterpart(modelData)
                     Layout.fillWidth: true
                     implicitHeight: details.implicitHeight + 20
                     radius: metrics.radiusCard
@@ -178,7 +228,7 @@ Item {
                         spacing: 4
                         Label {
                             Layout.fillWidth: true
-                            text: modelData.name || modelData.id || "?"
+                            text: modelData.displayName || modelData.name || modelData.id || "?"
                             font.bold: true
                             elide: Text.ElideRight
                         }
@@ -195,6 +245,13 @@ Item {
                                   : "Kaynak: " + (modelData.origin || "Bilinmiyor")
                                     + " (" + (modelData.scope === "user" ? "Kullanıcı" : "Sistem") + ")"
                                     + " · Kurulu boyut: " + (modelData.installedSize || "Bilinmiyor")
+                            elide: Text.ElideRight
+                        }
+                        Label {
+                            Layout.fillWidth: true
+                            visible: otherSource.length > 0
+                            text: "Aynı uygulama diğer kaynakta da kurulu · " + otherSource
+                            color: palette.windowText
                             elide: Text.ElideRight
                         }
                     }

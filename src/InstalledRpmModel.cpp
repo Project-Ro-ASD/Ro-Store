@@ -3,7 +3,53 @@
 #include <QTimer>
 #include <algorithm>
 
-InstalledRpmModel::InstalledRpmModel(QObject *parent) : QObject(parent) {}
+#ifdef RO_STORE_HAS_APPSTREAM
+#include <AppStreamQt/pool.h>
+#include <AppStreamQt/component.h>
+#endif
+
+InstalledRpmModel::InstalledRpmModel(QObject *parent) : QObject(parent)
+{
+#ifdef RO_STORE_HAS_APPSTREAM
+    auto *pool = new AppStream::Pool(this);
+    pool->setFlags(AppStream::Pool::Flags(AppStream::Pool::FlagLoadOsCatalog)
+                   | AppStream::Pool::FlagLoadOsMetainfo);
+    connect(pool, &AppStream::Pool::loadFinished, this, [this, pool](bool success) {
+        if (!success) return;
+        for (const auto &component : pool->components()) {
+            if (component.kind() != AppStream::Component::KindDesktopApp) continue;
+            const QString title = component.name().trimmed();
+            QString appId = component.id().trimmed();
+            if (appId.endsWith(QStringLiteral(".desktop")))
+                appId.chop(8);
+            for (const QString &name : component.packageNames()) {
+                if (name.isEmpty()) continue;
+                if (!m_applicationNames.contains(name))
+                    m_applicationNames.insert(name, title.isEmpty() ? name : title);
+                if (!appId.isEmpty() && !m_applicationIds[name].contains(appId))
+                    m_applicationIds[name].append(appId);
+            }
+        }
+        m_applicationMetadataReady = !m_applicationNames.isEmpty();
+        annotateApplications();
+        emit changed();
+    });
+    pool->loadAsync();
+#endif
+}
+
+void InstalledRpmModel::annotateApplications()
+{
+    for (QVariant &value : m_packages) {
+        QVariantMap row = value.toMap();
+        const QString name = row.value(QStringLiteral("name")).toString();
+        const auto it = m_applicationNames.constFind(name);
+        row.insert(QStringLiteral("isApplication"), it != m_applicationNames.cend());
+        row.insert(QStringLiteral("displayName"), it == m_applicationNames.cend() ? name : it.value());
+        row.insert(QStringLiteral("appIds"), m_applicationIds.value(name));
+        value = row;
+    }
+}
 
 InstalledRpmModel::~InstalledRpmModel()
 {
@@ -70,6 +116,7 @@ void InstalledRpmModel::refresh()
                        b.toMap().value(QStringLiteral("name")).toString(), Qt::CaseInsensitive) < 0;
         });
         m_packages = next;
+        annotateApplications();
         m_error.clear();
         emit changed();
     });
