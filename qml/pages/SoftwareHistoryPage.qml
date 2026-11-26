@@ -14,6 +14,28 @@ Item {
     ThemeMetrics { id: metrics }
     SoftwareHistoryModel { id: history }
 
+    Dialog {
+        id: detailDialog
+        parent: Overlay.overlay
+        anchors.centerIn: parent
+        modal: true
+        title: "DNF5 işlem ayrıntıları"
+        width: Math.min(600, page.width - 28)
+        height: Math.min(500, page.height - 28)
+        standardButtons: Dialog.Close
+        ScrollView {
+            anchors.fill: parent
+            clip: true
+            TextEdit {
+                width: parent.width
+                readOnly: true
+                wrapMode: TextEdit.Wrap
+                color: palette.text
+                text: history.detailsLoading ? "Ayrıntılar okunuyor..." : history.details
+            }
+        }
+    }
+
     Component.onCompleted: history.refresh()
     onSourceChanged: visibleLimit = 48
 
@@ -139,6 +161,17 @@ Item {
                             visible: page.source === "rpm"
                             text: modelData.command || ""
                             elide: Text.ElideRight
+                        }
+                        ThemedActionButton {
+                            Layout.fillWidth: true
+                            Layout.preferredHeight: 38
+                            visible: page.source === "rpm"
+                            text: "Paket ve durum ayrıntıları"
+                            enabled: !history.detailsLoading
+                            onClicked: {
+                                history.loadDetails(modelData.id)
+                                detailDialog.open()
+                            }
                         }
                     }
                 }

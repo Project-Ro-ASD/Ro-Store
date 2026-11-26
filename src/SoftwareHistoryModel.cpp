@@ -16,6 +16,67 @@ SoftwareHistoryModel::~SoftwareHistoryModel()
         m_process->kill();
         m_process->waitForFinished(2000);
     }
+    if (m_detailProcess && m_detailProcess->state() != QProcess::NotRunning) {
+        m_detailProcess->kill();
+        m_detailProcess->waitForFinished(2000);
+    }
+}
+
+void SoftwareHistoryModel::loadDetails(qint64 id)
+{
+    if (id < 0 || m_detailsLoading) return;
+    m_details.clear();
+    m_detailsLoading = true;
+    emit changed();
+    auto *process = new QProcess(this);
+    m_detailProcess = process;
+    process->setProgram(QStringLiteral("/usr/bin/dnf5"));
+    process->setArguments({QStringLiteral("history"), QStringLiteral("info"),
+                           QString::number(id), QStringLiteral("--json")});
+    connect(process, &QProcess::errorOccurred, this, [this, process](QProcess::ProcessError error) {
+        if (m_detailProcess != process || error != QProcess::FailedToStart) return;
+        m_detailProcess = nullptr;
+        m_detailsLoading = false;
+        m_details = QStringLiteral("DNF5 işlem ayrıntıları başlatılamadı.");
+        process->deleteLater();
+        emit changed();
+    });
+    connect(process, qOverload<int, QProcess::ExitStatus>(&QProcess::finished), this,
+            [this, process](int code, QProcess::ExitStatus status) {
+        if (m_detailProcess != process) return;
+        m_detailProcess = nullptr;
+        m_detailsLoading = false;
+        const QByteArray bytes = process->readAllStandardOutput();
+        process->deleteLater();
+        const QJsonDocument document = QJsonDocument::fromJson(bytes);
+        if (status != QProcess::NormalExit || code != 0 || bytes.size() > 2 * 1024 * 1024
+            || !document.isArray() || document.array().isEmpty()) {
+            m_details = QStringLiteral("DNF5 işlem ayrıntıları okunamadı.");
+            emit changed();
+            return;
+        }
+        const QJsonObject item = document.array().first().toObject();
+        QStringList lines;
+        lines << QStringLiteral("Durum: ") + item.value(QStringLiteral("status")).toString();
+        lines << QStringLiteral("İşlem: ") + item.value(QStringLiteral("description")).toString();
+        const QString comment = item.value(QStringLiteral("comment")).toString();
+        if (!comment.isEmpty()) lines << QStringLiteral("Not: ") + comment;
+        const QJsonArray packages = item.value(QStringLiteral("packages")).toArray();
+        lines << QStringLiteral("Paketler: ") + QString::number(packages.size());
+        for (qsizetype i = 0; i < qMin(qsizetype(100), packages.size()); ++i) {
+            const QJsonObject pkg = packages.at(i).toObject();
+            lines << pkg.value(QStringLiteral("action")).toString() + QStringLiteral(" · ")
+                      + pkg.value(QStringLiteral("nevra")).toString() + QStringLiteral(" · ")
+                      + pkg.value(QStringLiteral("repository")).toString();
+        }
+        if (packages.size() > 100) lines << QStringLiteral("İlk 100 paket gösteriliyor.");
+        m_details = lines.join(QLatin1Char('\n'));
+        emit changed();
+    });
+    QTimer::singleShot(30000, process, [process]() {
+        if (process->state() != QProcess::NotRunning) process->kill();
+    });
+    process->start();
 }
 
 void SoftwareHistoryModel::refresh()
