@@ -196,14 +196,23 @@ void CatalogModel::load(const QUrl &url)
     request.setAttribute(QNetworkRequest::RedirectPolicyAttribute,
                          QNetworkRequest::ManualRedirectPolicy);
     QNetworkReply *reply = m_network.get(request);
+    reply->setReadBufferSize(maxBytes + 1);
+    connect(reply, &QIODevice::readyRead, this, [reply, maxBytes]() {
+        if (reply->bytesAvailable() > maxBytes) {
+            reply->setProperty("catalogTooLarge", true);
+            reply->abort();
+        }
+    });
 
     connect(reply, &QNetworkReply::finished, this, [this, reply, url, cachePath, cacheDirectory, cached]() {
         reply->deleteLater();
 
         if (reply->error() != QNetworkReply::NoError) {
             setLoading(false);
-            setError(cached ? QStringLiteral("Katalog yenilenemedi; son kayıtlı liste gösteriliyor.")
-                            : QStringLiteral("Katalog indirilemedi: ") + reply->errorString());
+            setError(reply->property("catalogTooLarge").toBool()
+                ? QStringLiteral("Katalog boyutu güvenlik sınırını aştı.")
+                : (cached ? QStringLiteral("Katalog yenilenemedi; son kayıtlı liste gösteriliyor.")
+                          : QStringLiteral("Katalog indirilemedi: ") + reply->errorString()));
             return;
         }
 

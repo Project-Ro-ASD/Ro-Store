@@ -81,6 +81,16 @@ private slots:
         QCOMPARE(model.rowCount(), 0);
     }
 
+    void oversizedCacheIsRejected()
+    {
+        writeCache(QByteArray(2 * 1024 * 1024 + 1, 'x'));
+        CatalogModel model;
+        model.load(m_url);
+        QCOMPARE(model.rowCount(), 0);
+        QTRY_VERIFY_WITH_TIMEOUT(!model.loading(), 5000);
+        QCOMPARE(model.rowCount(), 0);
+    }
+
     void warmCatalogAndSearchLatency()
     {
         QJsonArray apps;
