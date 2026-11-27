@@ -237,4 +237,18 @@ private slots:
                                       .value(QStringLiteral("status")).toString(),
                                   QStringLiteral("ready"), 10000);
     }
+
+    void closingDuringPermissionReadIsSafe()
+    {
+        auto *manager = new FlatpakManager(m_program, nullptr);
+        readInventory(*manager);
+        readCatalog(*manager);
+        qputenv("RO_STORE_TEST_MODE", "permission-slow");
+        manager->requestPermissions(QStringLiteral("user"), QStringLiteral("flathub"),
+                                    QStringLiteral("app.test.Test"));
+        QCOMPARE(manager->permissionInfo(QStringLiteral("app.test.Test"))
+                     .value(QStringLiteral("status")).toString(), QStringLiteral("loading"));
+        delete manager;
+        QVERIFY(!QFile::exists(m_journal));
+    }
 };

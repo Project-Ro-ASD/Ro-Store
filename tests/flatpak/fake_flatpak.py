@@ -26,6 +26,8 @@ elif command in ("remote-info", "info"):
     if mode == "permission-fail":
         print("permission metadata unavailable", file=sys.stderr)
         sys.exit(3)
+    if mode == "permission-slow":
+        time.sleep(2)
     print("[Context]\nshared=network;\nfilesystems=xdg-download;")
 elif command == "install":
     if mode == "mutation-fail":

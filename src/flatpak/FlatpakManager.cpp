@@ -58,7 +58,8 @@ FlatpakManager::FlatpakManager(const QString &program, QObject *parent)
 
 FlatpakManager::~FlatpakManager()
 {
-    for (QProcess *process : std::as_const(m_permissionProcesses)) {
+    const auto permissionProcesses = m_permissionProcesses.values();
+    for (QProcess *process : permissionProcesses) {
         process->kill();
         process->waitForFinished(1000);
     }
