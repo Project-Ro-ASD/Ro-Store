@@ -25,6 +25,7 @@ ApplicationWindow {
     property bool qaHistoryPreview: false
     property bool qaUnifiedPreview: false
     property bool qaFlatpakDetailPreview: false
+    property bool qaUpdatesPreview: false
     property bool exitingFromTray: false
     property var pendingConfirmation: null
 
@@ -626,6 +627,8 @@ ApplicationWindow {
             stackView.push(unifiedSearchPageComponent, {initialQuery: "firefox"})
         if (qaFlatpakDetailPreview)
             flatpakManager.refresh()
+        if (qaUpdatesPreview)
+            stackView.push(systemUpdatesPageComponent)
         sourceManager.refresh()
 
         catalogModel.load(

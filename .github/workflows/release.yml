@@ -136,7 +136,7 @@ jobs:
         run: |
           set -euo pipefail
 
-          for scenario in home installed history unified; do
+          for scenario in home installed history unified updates; do
             ARGS=()
             if [ "$scenario" = installed ]; then
               ARGS=(--qa-open-installed)
@@ -144,6 +144,8 @@ jobs:
               ARGS=(--qa-open-history)
             elif [ "$scenario" = unified ]; then
               ARGS=(--qa-open-unified)
+            elif [ "$scenario" = updates ]; then
+              ARGS=(--qa-open-system-updates)
             fi
 
             set +e

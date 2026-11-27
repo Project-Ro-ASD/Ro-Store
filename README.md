@@ -23,7 +23,7 @@ Flatpak işlem güvenliği için çalıştırılabilir hata ve kurtarma testleri
 eklendi. Sistem güncellemeleri çekirdek, grafik sürücüleri, aygıt yazılımları
 ve depo kaynağına göre gruplanır. **Sınırlar:** Flatpak güncellemeleri ve
 sistem kapsamındaki Flatpak değişiklikleri doğrulanana kadar kapalıdır.
-Güncel test kanıtları [v0.9 doğrulama kaydında](docs/testing/v0.9-progress.md)
+Güncel test kanıtları [v0.9 doğrulama kaydında](docs/testing/v0.9-release-gate.md)
 yer alır. Kararlı sürüm için kalan işler [v1.0 yol haritasında](docs/roadmap-after-v0.9.md)
 listelenir.
 
@@ -247,7 +247,7 @@ Flathub installation, the application shows a readable permission summary
 and the underlying Flatpak details. Executable tests cover Flatpak failure,
 recovery and concurrent operations, plus Ro-ASD catalog cache fallback.
 Flatpak updates and system-scope Flatpak changes remain disabled until their
-separate validation is complete. See the [v0.9 verification record](docs/testing/v0.9-progress.md).
+separate validation is complete. See the [v0.9 verification record](docs/testing/v0.9-release-gate.md).
 The remaining stable-release work is in the [v1.0 roadmap](docs/roadmap-after-v0.9.md).
 
 ### What is Ro-Store?

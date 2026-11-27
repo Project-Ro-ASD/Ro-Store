@@ -188,7 +188,9 @@ int main(int argc, char *argv[])
         {QStringLiteral("qaUnifiedPreview"),
          app.arguments().contains(QStringLiteral("--qa-open-unified"))},
         {QStringLiteral("qaFlatpakDetailPreview"),
-         app.arguments().contains(QStringLiteral("--qa-open-flatpak-detail"))}
+         app.arguments().contains(QStringLiteral("--qa-open-flatpak-detail"))},
+        {QStringLiteral("qaUpdatesPreview"),
+         app.arguments().contains(QStringLiteral("--qa-open-system-updates"))}
     };
     const int sizeIndex = args.indexOf(QStringLiteral("--qa-window-size"));
     if (sizeIndex >= 0 && sizeIndex + 1 < args.size()) {
@@ -216,7 +218,10 @@ int main(int argc, char *argv[])
     const int screenshotIndex = args.indexOf(QStringLiteral("--qa-screenshot"));
     if (screenshotIndex >= 0 && screenshotIndex + 1 < args.size()) {
         const QString path = args.at(screenshotIndex + 1);
-        QTimer::singleShot(10000, &app, [&app, &engine, path]() {
+        const int delayIndex = args.indexOf(QStringLiteral("--qa-screenshot-delay-ms"));
+        const int delayMs = delayIndex >= 0 && delayIndex + 1 < args.size()
+            ? qBound(1000, args.at(delayIndex + 1).toInt(), 60000) : 10000;
+        QTimer::singleShot(delayMs, &app, [&app, &engine, path]() {
             QQuickWindow *window = engine.rootObjects().isEmpty()
                 ? nullptr : qobject_cast<QQuickWindow *>(engine.rootObjects().constFirst());
             const bool saved = window && window->grabWindow().save(path);
