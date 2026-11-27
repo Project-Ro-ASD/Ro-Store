@@ -11,14 +11,21 @@ Item {
     property var flatpak: null
     property var appData: ({})
     property string pendingAction: ""
+    property bool showPermissionDetails: false
 
     // Q_INVOKABLE metadata() itself has no QML change notification. Explicitly
     // depend on the revision so late screenshot responses update this page.
     readonly property int metadataRevision: flatpak ? flatpak.metadataRevision : 0
+    readonly property int permissionsRevision: flatpak ? flatpak.permissionsRevision : 0
     readonly property var info: {
         var revision = metadataRevision
         return flatpak ? flatpak.metadata(appData.id || "") : ({})
     }
+    readonly property var permissions: {
+        const revision = permissionsRevision
+        return flatpak ? flatpak.permissionInfo(appData.id || "") : ({})
+    }
+    readonly property bool permissionsReady: permissions.status === "ready"
     readonly property int inventoryRevision: flatpak ? flatpak.inventoryRevision : 0
     readonly property bool installed: {
         const revision = inventoryRevision
@@ -44,8 +51,10 @@ Item {
     }
 
     Component.onCompleted: {
-        if (flatpak && appData.id && appData.origin === "flathub")
+        if (flatpak && appData.id && appData.origin === "flathub") {
             flatpak.requestMetadata(appData.id)
+            flatpak.requestPermissions(appData.scope, appData.origin, appData.id)
+        }
     }
 
     function actionDescription(action) {
@@ -58,13 +67,15 @@ Item {
     }
 
     function confirmAction(action) {
-        if (blocked || !appData.id || !userFlathub || action === "update" || (action === "install" && !installable)) return
+        if (blocked || !appData.id || !userFlathub || action === "update" ||
+            (action === "install" && (!installable || !permissionsReady))) return
         pendingAction = action
         actionApproval.open()
     }
 
     function executeApproved() {
-        if (blocked || !appData.id || !userFlathub || pendingAction === "update" || (pendingAction === "install" && !installable)) return
+        if (blocked || !appData.id || !userFlathub || pendingAction === "update" ||
+            (pendingAction === "install" && (!installable || !permissionsReady))) return
         if (pendingAction === "install")
             flatpak.install(appData.scope, appData.origin, appData.id)
         else if (pendingAction === "uninstall")
@@ -265,6 +276,48 @@ Item {
                 text: "v0.7.0: Sistem kapsamı ve diğer kaynaklar salt okunurdur. Yalnızca kullanıcı kapsamındaki Flathub uygulamaları değiştirilebilir."
             }
 
+            Label {
+                Layout.fillWidth: true
+                visible: page.userFlathub
+                text: "Flatpak izinleri"
+                font.pixelSize: metrics.fontSection
+                font.bold: true
+                color: palette.windowText
+            }
+            Label {
+                Layout.fillWidth: true
+                visible: page.userFlathub
+                text: page.permissions.status === "loading"
+                    ? "İzinler okunuyor…"
+                    : (page.permissions.summary || page.permissions.text ||
+                       "İzin bilgileri henüz alınmadı.")
+                wrapMode: Text.WrapAnywhere
+                color: palette.windowText
+                font.pixelSize: metrics.fontSmall
+            }
+            ThemedActionButton {
+                Layout.preferredHeight: Math.max(40, metrics.fontPx(40))
+                visible: page.userFlathub && page.permissionsReady
+                text: page.showPermissionDetails ? "İzin ayrıntılarını gizle" : "İzin ayrıntılarını göster"
+                onClicked: page.showPermissionDetails = !page.showPermissionDetails
+            }
+            Label {
+                Layout.fillWidth: true
+                visible: page.userFlathub && page.showPermissionDetails
+                text: page.permissions.text || ""
+                wrapMode: Text.WrapAnywhere
+                color: palette.windowText
+                font.pixelSize: metrics.fontSmall
+            }
+            ThemedActionButton {
+                Layout.preferredHeight: Math.max(40, metrics.fontPx(40))
+                visible: page.userFlathub && page.permissions.status === "error"
+                text: "İzinleri yeniden denetle"
+                onClicked: flatpak.requestPermissions(page.appData.scope,
+                                                      page.appData.origin,
+                                                      page.appData.id)
+            }
+
             Flow {
                 Layout.fillWidth: true
                 width: parent.width
@@ -276,7 +329,7 @@ Item {
                     text: page.installed ? "Kurulu" : "Kur"
                     accented: !page.installed
                     visible: !page.installed && page.installable
-                    enabled: !page.blocked
+                    enabled: !page.blocked && page.permissionsReady
                     onClicked: page.confirmAction("install")
                 }
                 ThemedActionButton {

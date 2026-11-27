@@ -4,6 +4,13 @@
 #include <QJsonDocument>
 #include <QJsonObject>
 #include <QNetworkReply>
+#include <QCryptographicHash>
+#include <QDateTime>
+#include <QDir>
+#include <QFile>
+#include <QFileInfo>
+#include <QSaveFile>
+#include <QStandardPaths>
 #include <algorithm>
 
 CatalogModel::CatalogModel(QObject *parent)
@@ -131,25 +138,102 @@ QStringList CatalogModel::categories() const
     return m_categories;
 }
 
+QVariantList CatalogModel::searchSnapshot(const QString &query) const
+{
+    QVariantList result;
+    const QString needle = query.trimmed();
+    if (needle.size() < 2) return result;
+    for (const AppInfo &app : m_allApps) {
+        if (!app.appName.contains(needle, Qt::CaseInsensitive)
+            && !app.packageName.contains(needle, Qt::CaseInsensitive)
+            && !app.summary.contains(needle, Qt::CaseInsensitive))
+            continue;
+        result.append(QVariantMap{
+            {QStringLiteral("id"), app.id},
+            {QStringLiteral("packageName"), app.packageName},
+            {QStringLiteral("name"), app.appName},
+            {QStringLiteral("summary"), app.summary},
+            {QStringLiteral("description"), app.description},
+            {QStringLiteral("category"), app.category},
+            {QStringLiteral("version"), app.latestVersion},
+            {QStringLiteral("source"), app.source},
+            {QStringLiteral("iconUrl"), app.iconUrl}
+        });
+        if (result.size() >= 80) break;
+    }
+    return result;
+}
+
 void CatalogModel::load(const QUrl &url)
 {
+    if (m_loading)
+        return;
+    if (!url.isValid() || url.scheme() != QStringLiteral("https")
+        || url.host().isEmpty() || !url.userInfo().isEmpty()) {
+        setError(QStringLiteral("Katalog adresi geçersiz veya güvenli değil."));
+        return;
+    }
+    constexpr qint64 maxBytes = 2 * 1024 * 1024;
+    const QString cacheDirectory = QStandardPaths::writableLocation(QStandardPaths::CacheLocation);
+    const QString cachePath = cacheDirectory + QStringLiteral("/catalog-")
+        + QString::fromLatin1(QCryptographicHash::hash(url.toString(QUrl::FullyEncoded).toUtf8(),
+                                                      QCryptographicHash::Sha256).toHex())
+        + QStringLiteral(".json");
+    bool cached = false;
+    const QFileInfo cacheInfo(cachePath);
+    const qint64 cacheAge = cacheInfo.lastModified().secsTo(QDateTime::currentDateTime());
+    if (cacheInfo.isFile() && cacheInfo.size() > 0 && cacheInfo.size() <= maxBytes
+        && cacheAge >= 0 && cacheAge < 7 * 24 * 60 * 60) {
+        QFile file(cachePath);
+        if (file.open(QIODevice::ReadOnly))
+            cached = parseCatalog(file.readAll(), url);
+    }
     setLoading(true);
     setError("");
 
     QNetworkRequest request(url);
+    request.setTransferTimeout(15000);
+    request.setAttribute(QNetworkRequest::RedirectPolicyAttribute,
+                         QNetworkRequest::ManualRedirectPolicy);
     QNetworkReply *reply = m_network.get(request);
+    reply->setReadBufferSize(maxBytes + 1);
+    connect(reply, &QIODevice::readyRead, this, [reply, maxBytes]() {
+        if (reply->bytesAvailable() > maxBytes) {
+            reply->setProperty("catalogTooLarge", true);
+            reply->abort();
+        }
+    });
 
-    connect(reply, &QNetworkReply::finished, this, [this, reply]() {
+    connect(reply, &QNetworkReply::finished, this, [this, reply, url, cachePath, cacheDirectory, cached]() {
         reply->deleteLater();
 
         if (reply->error() != QNetworkReply::NoError) {
             setLoading(false);
-            setError("Katalog indirilemedi: " + reply->errorString());
+            setError(reply->property("catalogTooLarge").toBool()
+                ? QStringLiteral("Katalog boyutu güvenlik sınırını aştı.")
+                : (cached ? QStringLiteral("Katalog yenilenemedi; son kayıtlı liste gösteriliyor.")
+                          : QStringLiteral("Katalog indirilemedi: ") + reply->errorString()));
             return;
         }
 
         const QByteArray data = reply->readAll();
-        parseCatalog(data, reply->url());
+        const bool validResponse = reply->attribute(QNetworkRequest::HttpStatusCodeAttribute).toInt() == 200
+            && reply->url() == url && reply->url().scheme() == QStringLiteral("https");
+        if (!validResponse || data.isEmpty() || data.size() > maxBytes
+            || !parseCatalog(data, reply->url())) {
+            if (!validResponse || data.isEmpty())
+                setError(cached ? QStringLiteral("Katalog yenilenemedi; son kayıtlı liste gösteriliyor.")
+                                : QStringLiteral("Katalog yanıtı geçersiz."));
+            else if (data.size() > maxBytes)
+                setError(QStringLiteral("Katalog boyutu güvenlik sınırını aştı."));
+            setLoading(false);
+            return;
+        }
+        if (QDir().mkpath(cacheDirectory)) {
+            QSaveFile file(cachePath);
+            if (file.open(QIODevice::WriteOnly) && file.write(data) == data.size())
+                file.commit();
+        }
 
         setLoading(false);
     });
@@ -175,31 +259,31 @@ void CatalogModel::setError(const QString &message)
     emit errorChanged();
 }
 
-void CatalogModel::parseCatalog(const QByteArray &jsonData, const QUrl &catalogUrl)
+bool CatalogModel::parseCatalog(const QByteArray &jsonData, const QUrl &catalogUrl)
 {
     QJsonParseError parseError;
     QJsonDocument document = QJsonDocument::fromJson(jsonData, &parseError);
 
     if (parseError.error != QJsonParseError::NoError) {
         setError("Katalog JSON hatası: " + parseError.errorString());
-        return;
+        return false;
     }
 
     if (!document.isObject()) {
         setError("Katalog formatı geçersiz.");
-        return;
+        return false;
     }
 
     const QJsonObject root = document.object();
 
     if (root.value("schemaVersion").toInt(-1) != 2) {
         setError("Desteklenmeyen katalog sürümü.");
-        return;
+        return false;
     }
 
     if (!root.value("apps").isArray()) {
         setError("Katalog uygulama listesi geçersiz.");
-        return;
+        return false;
     }
 
     const QJsonArray appsArray = root.value("apps").toArray();
@@ -241,14 +325,17 @@ void CatalogModel::parseCatalog(const QByteArray &jsonData, const QUrl &catalogU
         return a.priority < b.priority;
     });
 
+    if (loadedApps.isEmpty()) {
+        setError("Katalog okundu ama gösterilecek uygulama bulunamadı.");
+        return false;
+    }
+
     m_allApps = loadedApps;
 
     rebuildCategories();
     applyFilters();
 
-    if (m_allApps.isEmpty()) {
-        setError("Katalog okundu ama gösterilecek uygulama bulunamadı.");
-    }
+    return true;
 }
 
 void CatalogModel::rebuildCategories()

@@ -5,6 +5,7 @@
 #include <QStringList>
 #include <QUrl>
 #include <QVector>
+#include <QVariantList>
 
 struct AppInfo
 {
@@ -70,6 +71,7 @@ public:
     QStringList categories() const;
 
     Q_INVOKABLE void load(const QUrl &url);
+    Q_INVOKABLE QVariantList searchSnapshot(const QString &query) const;
 
 signals:
     void loadingChanged();
@@ -81,7 +83,7 @@ signals:
 private:
     void setLoading(bool value);
     void setError(const QString &message);
-    void parseCatalog(const QByteArray &jsonData, const QUrl &catalogUrl);
+    bool parseCatalog(const QByteArray &jsonData, const QUrl &catalogUrl);
     void rebuildCategories();
     void applyFilters();
 

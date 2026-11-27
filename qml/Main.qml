@@ -23,6 +23,9 @@ ApplicationWindow {
     property bool qaSafetyBannerPreview: false
     property bool qaInstalledPreview: false
     property bool qaHistoryPreview: false
+    property bool qaUnifiedPreview: false
+    property bool qaFlatpakDetailPreview: false
+    property bool qaUpdatesPreview: false
     property bool exitingFromTray: false
     property var pendingConfirmation: null
 
@@ -236,6 +239,37 @@ ApplicationWindow {
         id: catalogModel
     }
 
+    SystemUpdateModel {
+        id: backgroundUpdates
+    }
+
+    Timer {
+        interval: 30000
+        running: true
+        repeat: false
+        onTriggered: {
+            if (!transactionManager.busy && !flatpakManager.busy)
+                backgroundUpdates.refresh()
+        }
+    }
+
+    Timer {
+        interval: 2 * 60 * 60 * 1000
+        running: true
+        repeat: true
+        onTriggered: {
+            if (!transactionManager.busy && !flatpakManager.busy && !backgroundUpdates.loading)
+                backgroundUpdates.refresh()
+        }
+    }
+
+    Timer {
+        interval: 6 * 60 * 60 * 1000
+        running: true
+        repeat: true
+        onTriggered: catalogModel.load("https://repo.ro-asd.org/rpm/fedora/44/beta/store/catalog.json")
+    }
+
     SourceManager {
         id: sourceManager
     }
@@ -243,6 +277,21 @@ ApplicationWindow {
     FlatpakManager {
         id: flatpakManager
         transactionManager: transactionManager
+    }
+
+    Connections {
+        target: flatpakManager
+        function onInventoryChanged() {
+            if (!root.qaFlatpakDetailPreview || flatpakManager.loading) return
+            const apps = flatpakManager.installed
+            for (let i = 0; i < apps.length; ++i) {
+                if (apps[i].scope === "user" && apps[i].origin === "flathub") {
+                    root.qaFlatpakDetailPreview = false
+                    stackView.push(flatpakDetailPageComponent, {appData: apps[i]})
+                    return
+                }
+            }
+        }
     }
 
     PackageTransactionManager {
@@ -399,6 +448,9 @@ ApplicationWindow {
             onFedoraCatalogRequested: {
                 stackView.push(fedoraCatalogComponent)
             }
+            onUnifiedSearchRequested: function(query) {
+                stackView.push(unifiedSearchPageComponent, {initialQuery: query})
+            }
             onSystemUpdatesRequested: {
                 stackView.push(systemUpdatesPageComponent)
             }
@@ -485,8 +537,45 @@ ApplicationWindow {
     Component {
         id: systemUpdatesPageComponent
         SystemUpdatesPage {
+            updates: backgroundUpdates
             packageTransactionManager: transactionManager
             onBackRequested: stackView.pop()
+        }
+    }
+
+    Component {
+        id: unifiedSearchPageComponent
+        UnifiedSearchPage {
+            catalog: catalogModel
+            flatpak: flatpakManager
+            onBackRequested: stackView.pop()
+            onRoSelected: function(app) {
+                stackView.push(detailPageComponent, {
+                    appName: app.name,
+                    summaryText: app.summary,
+                    descriptionText: app.description,
+                    categoryText: app.category,
+                    versionText: app.version,
+                    packageName: app.packageName,
+                    iconUrl: app.iconUrl
+                })
+            }
+            onRpmSelected: function(app) {
+                stackView.push(detailPageComponent, {
+                    appName: app.displayName || app.name,
+                    summaryText: app.summary,
+                    descriptionText: app.appDescription || app.summary,
+                    screenshotUrls: app.appScreenshotUrls || [],
+                    categoryText: app.appCategory || "Fedora RPM",
+                    versionText: app.version,
+                    packageName: app.name,
+                    packageRepository: app.repository,
+                    iconUrl: app.appIconUrl || ""
+                })
+            }
+            onFlatpakSelected: function(app) {
+                stackView.push(flatpakDetailPageComponent, {appData: app})
+            }
         }
     }
 
@@ -534,6 +623,12 @@ ApplicationWindow {
             stackView.push(installedSoftwarePageComponent)
         if (qaHistoryPreview)
             stackView.push(softwareHistoryPageComponent)
+        if (qaUnifiedPreview)
+            stackView.push(unifiedSearchPageComponent, {initialQuery: "firefox"})
+        if (qaFlatpakDetailPreview)
+            flatpakManager.refresh()
+        if (qaUpdatesPreview)
+            stackView.push(systemUpdatesPageComponent)
         sourceManager.refresh()
 
         catalogModel.load(
