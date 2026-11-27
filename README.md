@@ -169,7 +169,7 @@ bu sürümde yoktur. Ro-ASD uygulamaları kendi kataloğunda kalır.
 - Küçük pencere ve ölçekleme uyumu, Tab / Shift+Tab / Enter / Esc klavye erişilebilirliği
 - Açık ve koyu temalarda okunabilir düğmeler, odak göstergeleri ve kontrastlı simge yüzeyleri
 
-> **Mevcut kapsam:** v0.5.0 Fedora RPM uygulama keşfini AppStream ile zenginleştirir. Flatpak desteği henüz bulunmaz.
+> **v0.5.0 kapsamı:** Bu sürüm Fedora RPM uygulama keşfini AppStream ile zenginleştirdi. Flatpak desteği daha sonraki sürümlerde eklendi.
 
 ### Sistem gereksinimleri
 
@@ -185,7 +185,7 @@ uname -m
 
 ### Ro-Store kurulumu
 
-1. [Ro-Store v0.5.0 sürüm sayfasını](https://github.com/Project-Ro-ASD/Ro-Store/releases/tag/v0.5.0) açın.
+1. [Ro-Store v0.9.0 sürüm sayfasını](https://github.com/Project-Ro-ASD/Ro-Store/releases/tag/v0.9.0) açın.
 2. Bilgisayarınızın mimarisine uygun RPM dosyasını indirin.
 3. Dosyayı **Home (ev dizini)** klasörüne koyduysanız aşağıdaki komutu kullanın.
 
@@ -193,14 +193,14 @@ uname -m
 
 ~~~bash
 cd ~
-sudo dnf5 install ./ro-store-0.5.0-1.fc44.x86_64.rpm
+sudo dnf5 install ./ro-store-0.9.0-1.fc44.x86_64.rpm
 ~~~
 
 **aarch64 (ARM64):**
 
 ~~~bash
 cd ~
-sudo dnf5 install ./ro-store-0.5.0-1.fc44.aarch64.rpm
+sudo dnf5 install ./ro-store-0.9.0-1.fc44.aarch64.rpm
 ~~~
 
 > RPM farklı bir klasördeyse komuttaki dosya yolunu değiştirin. Aynı kurulum komutu, daha eski bir Ro-Store sürümü kuruluysa yükseltmek için de kullanılabilir.
@@ -285,7 +285,7 @@ uname -m
 
 ### Install Ro-Store
 
-1. Open the [Ro-Store v0.5.0 release page](https://github.com/Project-Ro-ASD/Ro-Store/releases/tag/v0.5.0).
+1. Open the [Ro-Store v0.9.0 release page](https://github.com/Project-Ro-ASD/Ro-Store/releases/tag/v0.9.0).
 2. Download the RPM matching your system architecture.
 3. If the RPM is in your **Home directory**, run the corresponding command below.
 
@@ -293,14 +293,14 @@ uname -m
 
 ~~~bash
 cd ~
-sudo dnf5 install ./ro-store-0.5.0-1.fc44.x86_64.rpm
+sudo dnf5 install ./ro-store-0.9.0-1.fc44.x86_64.rpm
 ~~~
 
 **aarch64 (ARM64):**
 
 ~~~bash
 cd ~
-sudo dnf5 install ./ro-store-0.5.0-1.fc44.aarch64.rpm
+sudo dnf5 install ./ro-store-0.9.0-1.fc44.aarch64.rpm
 ~~~
 
 > Adjust the file path if you saved the RPM elsewhere. The same install command can also upgrade an older installed Ro-Store version.
