@@ -232,4 +232,13 @@ if(BUILD_TESTING)
         RO_STORE_TEST_FIXTURE_PATH="${CMAKE_CURRENT_SOURCE_DIR}/tests/flatpak/fake_flatpak.py")
     target_link_libraries(ro-store-flatpak-backend-test PRIVATE Qt6::Core Qt6::Network Qt6::Test)
     add_test(NAME flatpak-backend COMMAND ro-store-flatpak-backend-test)
+
+    qt_add_executable(ro-store-catalog-cache-test
+        tests/catalog/test_cache.cpp
+        src/CatalogModel.cpp
+        src/CatalogModel.h
+    )
+    target_include_directories(ro-store-catalog-cache-test PRIVATE ${CMAKE_CURRENT_SOURCE_DIR}/src)
+    target_link_libraries(ro-store-catalog-cache-test PRIVATE Qt6::Core Qt6::Network Qt6::Test)
+    add_test(NAME catalog-cache COMMAND ro-store-catalog-cache-test)
 endif()

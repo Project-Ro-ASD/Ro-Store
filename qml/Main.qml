@@ -24,6 +24,7 @@ ApplicationWindow {
     property bool qaInstalledPreview: false
     property bool qaHistoryPreview: false
     property bool qaUnifiedPreview: false
+    property bool qaFlatpakDetailPreview: false
     property bool exitingFromTray: false
     property var pendingConfirmation: null
 
@@ -275,6 +276,21 @@ ApplicationWindow {
     FlatpakManager {
         id: flatpakManager
         transactionManager: transactionManager
+    }
+
+    Connections {
+        target: flatpakManager
+        function onInventoryChanged() {
+            if (!root.qaFlatpakDetailPreview || flatpakManager.loading) return
+            const apps = flatpakManager.installed
+            for (let i = 0; i < apps.length; ++i) {
+                if (apps[i].scope === "user" && apps[i].origin === "flathub") {
+                    root.qaFlatpakDetailPreview = false
+                    stackView.push(flatpakDetailPageComponent, {appData: apps[i]})
+                    return
+                }
+            }
+        }
     }
 
     PackageTransactionManager {
@@ -608,6 +624,8 @@ ApplicationWindow {
             stackView.push(softwareHistoryPageComponent)
         if (qaUnifiedPreview)
             stackView.push(unifiedSearchPageComponent, {initialQuery: "firefox"})
+        if (qaFlatpakDetailPreview)
+            flatpakManager.refresh()
         sourceManager.refresh()
 
         catalogModel.load(

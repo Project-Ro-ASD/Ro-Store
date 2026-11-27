@@ -23,6 +23,9 @@ elif command == "remote-ls":
     if "--app" in args:
         print("app.test.Test\tTest\t1.0\tstable")
 elif command in ("remote-info", "info"):
+    if mode == "permission-fail":
+        print("permission metadata unavailable", file=sys.stderr)
+        sys.exit(3)
     print("[Context]\nshared=network;\nfilesystems=xdg-download;")
 elif command == "install":
     if mode == "mutation-fail":

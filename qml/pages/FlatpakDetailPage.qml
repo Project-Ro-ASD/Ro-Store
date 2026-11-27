@@ -11,6 +11,7 @@ Item {
     property var flatpak: null
     property var appData: ({})
     property string pendingAction: ""
+    property bool showPermissionDetails: false
 
     // Q_INVOKABLE metadata() itself has no QML change notification. Explicitly
     // depend on the revision so late screenshot responses update this page.
@@ -288,7 +289,22 @@ Item {
                 visible: page.userFlathub
                 text: page.permissions.status === "loading"
                     ? "İzinler okunuyor…"
-                    : (page.permissions.text || "İzin bilgileri henüz alınmadı.")
+                    : (page.permissions.summary || page.permissions.text ||
+                       "İzin bilgileri henüz alınmadı.")
+                wrapMode: Text.WrapAnywhere
+                color: palette.windowText
+                font.pixelSize: metrics.fontSmall
+            }
+            ThemedActionButton {
+                Layout.preferredHeight: Math.max(40, metrics.fontPx(40))
+                visible: page.userFlathub && page.permissionsReady
+                text: page.showPermissionDetails ? "İzin ayrıntılarını gizle" : "İzin ayrıntılarını göster"
+                onClicked: page.showPermissionDetails = !page.showPermissionDetails
+            }
+            Label {
+                Layout.fillWidth: true
+                visible: page.userFlathub && page.showPermissionDetails
+                text: page.permissions.text || ""
                 wrapMode: Text.WrapAnywhere
                 color: palette.windowText
                 font.pixelSize: metrics.fontSmall

@@ -218,4 +218,23 @@ private slots:
                                    QStringLiteral("app.test.Test"));
         QVERIFY(!QFile::exists(m_journal));
     }
+
+    void permissionReadCanBeRetried()
+    {
+        FlatpakManager manager(m_program, nullptr);
+        readInventory(manager);
+        readCatalog(manager);
+        qputenv("RO_STORE_TEST_MODE", "permission-fail");
+        manager.requestPermissions(QStringLiteral("user"), QStringLiteral("flathub"),
+                                   QStringLiteral("app.test.Test"));
+        QTRY_COMPARE_WITH_TIMEOUT(manager.permissionInfo(QStringLiteral("app.test.Test"))
+                                      .value(QStringLiteral("status")).toString(),
+                                  QStringLiteral("error"), 10000);
+        qputenv("RO_STORE_TEST_MODE", "normal");
+        manager.requestPermissions(QStringLiteral("user"), QStringLiteral("flathub"),
+                                   QStringLiteral("app.test.Test"));
+        QTRY_COMPARE_WITH_TIMEOUT(manager.permissionInfo(QStringLiteral("app.test.Test"))
+                                      .value(QStringLiteral("status")).toString(),
+                                  QStringLiteral("ready"), 10000);
+    }
 };

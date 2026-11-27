@@ -186,7 +186,9 @@ int main(int argc, char *argv[])
         {QStringLiteral("qaHistoryPreview"),
          app.arguments().contains(QStringLiteral("--qa-open-history"))},
         {QStringLiteral("qaUnifiedPreview"),
-         app.arguments().contains(QStringLiteral("--qa-open-unified"))}
+         app.arguments().contains(QStringLiteral("--qa-open-unified"))},
+        {QStringLiteral("qaFlatpakDetailPreview"),
+         app.arguments().contains(QStringLiteral("--qa-open-flatpak-detail"))}
     };
     const int sizeIndex = args.indexOf(QStringLiteral("--qa-window-size"));
     if (sizeIndex >= 0 && sizeIndex + 1 < args.size()) {

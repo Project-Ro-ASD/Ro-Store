@@ -652,8 +652,35 @@ void FlatpakManager::requestPermissions(const QString &scope, const QString &rem
             }
         }
         const bool ready = validMetadata;
+        QStringList summary;
+        for (const QString &line : std::as_const(details)) {
+            if (line.startsWith(QStringLiteral("shared="))) {
+                if (line.contains(QStringLiteral("network"))) summary.append(QStringLiteral("İnternet erişimi"));
+                if (line.contains(QStringLiteral("ipc"))) summary.append(QStringLiteral("Uygulamalar arası iletişim"));
+            } else if (line.startsWith(QStringLiteral("sockets="))) {
+                if (line.contains(QStringLiteral("wayland")) || line.contains(QStringLiteral("x11")))
+                    summary.append(QStringLiteral("Ekran erişimi"));
+                if (line.contains(QStringLiteral("pulseaudio"))) summary.append(QStringLiteral("Ses erişimi"));
+                if (line.contains(QStringLiteral("cups"))) summary.append(QStringLiteral("Yazıcı erişimi"));
+            } else if (line.startsWith(QStringLiteral("devices="))) {
+                if (line.contains(QStringLiteral("all"))) summary.append(QStringLiteral("Tüm aygıtlara erişim"));
+                else if (line.contains(QStringLiteral("dri"))) summary.append(QStringLiteral("Grafik donanımına erişim"));
+            } else if (line.startsWith(QStringLiteral("filesystems=")) && line.size() > 12) {
+                summary.append(QStringLiteral("Dosya ve klasör erişimi"));
+            } else if (line.startsWith(QStringLiteral("persistent=")) && line.size() > 11) {
+                summary.append(QStringLiteral("Kalıcı uygulama verileri"));
+            } else if (line == QStringLiteral("[Session Bus Policy]")) {
+                summary.append(QStringLiteral("Oturum servisleriyle iletişim"));
+            } else if (line == QStringLiteral("[System Bus Policy]")) {
+                summary.append(QStringLiteral("Sistem servisleriyle iletişim"));
+            }
+        }
+        summary.removeDuplicates();
         m_permissionsCache.insert(appId, {
             {QStringLiteral("status"), ready ? QStringLiteral("ready") : QStringLiteral("error")},
+            {QStringLiteral("summary"), ready ? (summary.isEmpty()
+                ? QStringLiteral("Özel erişim bildirilmiyor.") : summary.join(QStringLiteral(" · ")))
+                : QStringLiteral("İzin bilgileri alınamadı.")},
             {QStringLiteral("text"), ready ? (details.isEmpty()
                 ? QStringLiteral("Özel izin bildirilmedi.") : details.join(QLatin1Char('\n')))
                 : QStringLiteral("İzin bilgileri okunamadı. Flatpak kaynağını kontrol edin.")}
