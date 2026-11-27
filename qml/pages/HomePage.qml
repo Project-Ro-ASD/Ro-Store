@@ -59,6 +59,7 @@ Item {
     signal reloadRequested()
     signal downloadsRequested()
     signal fedoraCatalogRequested()
+    signal unifiedSearchRequested(string query)
     signal systemUpdatesRequested()
     signal flatpakRequested()
     signal installedSoftwareRequested()
@@ -168,6 +169,7 @@ Item {
                                 page.catalog.searchText = text
                             }
                         }
+                        onAccepted: page.unifiedSearchRequested(text)
                     }
 
                     ComboBox {
@@ -226,6 +228,7 @@ Item {
                             page.catalog.searchText = text
                         }
                     }
+                    onAccepted: page.unifiedSearchRequested(text)
                 }
 
                 Row {
@@ -271,6 +274,15 @@ Item {
                     icon.height: 16
                     onClicked: page.downloadsRequested()
                 }
+            }
+
+            ThemedActionButton {
+                x: page.sideMargin
+                width: page.contentWidth
+                height: Math.max(42, metrics.fontPx(42))
+                text: "Tüm kaynaklarda ara  →"
+                accented: true
+                onClicked: page.unifiedSearchRequested(page.catalog ? page.catalog.searchText : "")
             }
 
             ThemedActionButton {

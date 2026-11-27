@@ -24,7 +24,8 @@ class FlatpakSafetyGuards(unittest.TestCase):
     def test_no_shell_for_mutations(self):
         self.assertNotIn("QProcess::execute(", BACKEND)
         self.assertNotIn("/bin/sh", BACKEND)
-        self.assertIn('setProgram(QStringLiteral("/usr/bin/flatpak"))', BACKEND)
+        self.assertIn('FlatpakManager(QStringLiteral("/usr/bin/flatpak"), parent)', BACKEND)
+        self.assertIn('process->setProgram(m_program)', BACKEND)
 
     def test_journal_checked_again_under_lock(self):
         body = method("startMutation").split("void FlatpakManager::install(", 1)[0]
@@ -73,7 +74,8 @@ class FlatpakSafetyGuards(unittest.TestCase):
         self.assertIn('QStringLiteral("id")', catalog)
         detail = (ROOT / "qml/pages/FlatpakDetailPage.qml").read_text()
         self.assertIn("page.installable", detail)
-        self.assertIn('action === "install" && !installable', detail)
+        self.assertIn('action === "install" && (!installable || !permissionsReady)', detail)
+        self.assertIn('enabled: !page.blocked && page.permissionsReady', detail)
 
     def test_release_scope_is_read_only_outside_user_flathub(self):
         start = method("startMutation").split("void FlatpakManager::install", 1)[0]

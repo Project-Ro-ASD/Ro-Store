@@ -30,8 +30,25 @@ bool isKernelUpdate(const QString &name)
 
 QString updateGroup(const SystemUpdateItem &item)
 {
-    return isKernelUpdate(item.name) ? QStringLiteral("Kernel güncellemeleri")
-                                     : QStringLiteral("Kaynak: ") + item.repository;
+    if (isKernelUpdate(item.name))
+        return QStringLiteral("Kernel güncellemeleri");
+    if (item.name.contains(QStringLiteral("nvidia"), Qt::CaseInsensitive)
+        || item.name.startsWith(QStringLiteral("akmod-")))
+        return QStringLiteral("Grafik sürücüleri");
+    if (item.name.endsWith(QStringLiteral("-firmware"))
+        || item.name == QStringLiteral("linux-firmware"))
+        return QStringLiteral("Aygıt yazılımları");
+    return QStringLiteral("Kaynak: ") + item.repository;
+}
+
+int updateGroupRank(const SystemUpdateItem &item)
+{
+    if (isKernelUpdate(item.name)) return 0;
+    if (item.name.contains(QStringLiteral("nvidia"), Qt::CaseInsensitive)
+        || item.name.startsWith(QStringLiteral("akmod-"))) return 1;
+    if (item.name.endsWith(QStringLiteral("-firmware"))
+        || item.name == QStringLiteral("linux-firmware")) return 2;
+    return 3;
 }
 } // namespace
 
@@ -466,8 +483,8 @@ void SystemUpdateModel::parseUpdates(const QByteArray &output)
 
     std::sort(parsed.begin(), parsed.end(), [](const SystemUpdateItem &a,
                                                const SystemUpdateItem &b) {
-        if (isKernelUpdate(a.name) != isKernelUpdate(b.name))
-            return isKernelUpdate(a.name);
+        if (updateGroupRank(a) != updateGroupRank(b))
+            return updateGroupRank(a) < updateGroupRank(b);
         const int byGroup = QString::compare(updateGroup(a), updateGroup(b), Qt::CaseInsensitive);
         if (byGroup != 0)
             return byGroup < 0;

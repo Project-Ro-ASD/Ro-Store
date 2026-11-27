@@ -5,6 +5,7 @@
 #include <QMap>
 #include <QIcon>
 #include <QQuickImageProvider>
+#include <QQuickWindow>
 #include <QRegularExpression>
 #include <QBuffer>
 #include <QEventLoop>
@@ -177,14 +178,26 @@ int main(int argc, char *argv[])
     engine.addImageProvider(QStringLiteral("rostore-theme"), new ThemeIconProvider);
     // Explicit QA-only UI preview: never creates a DNF5 transaction or
     // touches the persistent recovery journal.
-    engine.setInitialProperties({
+    QVariantMap initialProperties{
         {QStringLiteral("qaSafetyBannerPreview"),
          app.arguments().contains(QStringLiteral("--qa-safety-banner"))},
         {QStringLiteral("qaInstalledPreview"),
          app.arguments().contains(QStringLiteral("--qa-open-installed"))},
         {QStringLiteral("qaHistoryPreview"),
-         app.arguments().contains(QStringLiteral("--qa-open-history"))}
-    });
+         app.arguments().contains(QStringLiteral("--qa-open-history"))},
+        {QStringLiteral("qaUnifiedPreview"),
+         app.arguments().contains(QStringLiteral("--qa-open-unified"))}
+    };
+    const int sizeIndex = args.indexOf(QStringLiteral("--qa-window-size"));
+    if (sizeIndex >= 0 && sizeIndex + 1 < args.size()) {
+        static const QRegularExpression sizePattern(QStringLiteral("^(\\d{3,4})x(\\d{3,4})$"));
+        const auto match = sizePattern.match(args.at(sizeIndex + 1));
+        if (match.hasMatch()) {
+            initialProperties.insert(QStringLiteral("width"), match.captured(1).toInt());
+            initialProperties.insert(QStringLiteral("height"), match.captured(2).toInt());
+        }
+    }
+    engine.setInitialProperties(initialProperties);
 
     QObject::connect(
         &engine,
@@ -197,6 +210,17 @@ int main(int argc, char *argv[])
     );
 
     engine.loadFromModule("RoStore", "Main");
+
+    const int screenshotIndex = args.indexOf(QStringLiteral("--qa-screenshot"));
+    if (screenshotIndex >= 0 && screenshotIndex + 1 < args.size()) {
+        const QString path = args.at(screenshotIndex + 1);
+        QTimer::singleShot(10000, &app, [&app, &engine, path]() {
+            QQuickWindow *window = engine.rootObjects().isEmpty()
+                ? nullptr : qobject_cast<QQuickWindow *>(engine.rootObjects().constFirst());
+            const bool saved = window && window->grabWindow().save(path);
+            app.exit(saved ? 0 : 2);
+        });
+    }
 
     return app.exec();
 }

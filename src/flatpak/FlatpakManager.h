@@ -34,10 +34,12 @@ class FlatpakManager : public QObject
     Q_PROPERTY(QVariantList updates READ updates NOTIFY changed)
     Q_PROPERTY(QVariantList catalog READ catalog NOTIFY changed)
     Q_PROPERTY(int metadataRevision READ metadataRevision NOTIFY changed)
+    Q_PROPERTY(int permissionsRevision READ permissionsRevision NOTIFY changed)
     Q_PROPERTY(int inventoryRevision READ inventoryRevision NOTIFY inventoryChanged)
 
 public:
     explicit FlatpakManager(QObject *parent = nullptr);
+    FlatpakManager(const QString &program, QObject *parent);
     ~FlatpakManager() override;
 
     QObject* transactionManager() const { return m_transactionManager.data(); }
@@ -60,15 +62,20 @@ public:
     QVariantList updates() const { return m_updates; }
     QVariantList catalog() const { return m_catalog; }
     int metadataRevision() const { return m_metadataRevision; }
+    int permissionsRevision() const { return m_permissionsRevision; }
     int inventoryRevision() const { return m_inventoryRevision; }
     Q_INVOKABLE QVariantMap metadata(const QString &appId) const;
     Q_INVOKABLE void requestMetadata(const QString &appId);
+    Q_INVOKABLE QVariantMap permissionInfo(const QString &appId) const;
+    Q_INVOKABLE void requestPermissions(const QString &scope, const QString &remote,
+                                        const QString &appId);
 
     Q_INVOKABLE void refresh();
     Q_INVOKABLE void loadCatalog(const QString &scope, const QString &remote);
     Q_INVOKABLE bool hasRemote(const QString &scope, const QString &remote) const;
     Q_INVOKABLE bool isInstalled(const QString &scope, const QString &appId) const;
     Q_INVOKABLE bool isCatalogApp(const QString &scope, const QString &remote, const QString &appId) const;
+    Q_INVOKABLE QVariantMap catalogApp(const QString &scope, const QString &remote, const QString &appId) const;
     Q_INVOKABLE bool hasUpdate(const QString &scope, const QString &appId) const;
     Q_INVOKABLE void install(const QString &scope, const QString &remote, const QString &appId);
     Q_INVOKABLE void uninstall(const QString &scope, const QString &appId);
@@ -115,6 +122,7 @@ private:
     void startNextMetadataRequest();
 
     QPointer<QObject> m_transactionManager;
+    const QString m_program;
     QPointer<QProcess> m_process;
     QPointer<QTimer> m_timer;
     QQueue<Task> m_queue;
@@ -148,9 +156,12 @@ private:
     QVariantList m_catalog;
     QNetworkAccessManager m_metadataNetwork;
     QHash<QString, QVariantMap> m_metadataCache;
+    QHash<QString, QVariantMap> m_permissionsCache;
+    QSet<QProcess *> m_permissionProcesses;
     QSet<QString> m_metadataRequested;
     QQueue<QString> m_metadataQueue;
     int m_metadataActive = 0;
     int m_metadataRevision = 0;
+    int m_permissionsRevision = 0;
     int m_inventoryRevision = 0;
 };

@@ -1,7 +1,7 @@
 cmake_minimum_required(VERSION 3.21)
 
 project(RoStore
-    VERSION 0.8.0
+    VERSION 0.9.0
     DESCRIPTION "Ro-ASD application store"
     HOMEPAGE_URL "https://github.com/Project-Ro-ASD/Ro-Store"
     LANGUAGES CXX
@@ -103,6 +103,7 @@ qt_add_qml_module(ro-store
         qml/pages/AppDetailPage.qml
         qml/pages/DownloadsPage.qml
         qml/pages/FedoraCatalogPage.qml
+        qml/pages/UnifiedSearchPage.qml
         qml/pages/SystemUpdatesPage.qml
         qml/pages/FlatpakPage.qml
         qml/pages/InstalledSoftwarePage.qml
@@ -215,3 +216,20 @@ set(CPACK_RPM_PACKAGE_REQUIRES "dnf5, dnf5-command(download), dnf5daemon-server,
 set(CPACK_RPM_FILE_NAME "RPM-DEFAULT")
 
 include(CPack)
+
+include(CTest)
+if(BUILD_TESTING)
+    find_package(Qt6 REQUIRED COMPONENTS Test)
+    qt_add_executable(ro-store-flatpak-backend-test
+        tests/flatpak/test_backend.cpp
+        tests/flatpak/TestBackend.h
+        tests/flatpak/FakeCoordinator.h
+        src/flatpak/FlatpakManager.cpp
+        src/flatpak/FlatpakManager.h
+    )
+    target_include_directories(ro-store-flatpak-backend-test PRIVATE ${CMAKE_CURRENT_SOURCE_DIR}/src)
+    target_compile_definitions(ro-store-flatpak-backend-test PRIVATE
+        RO_STORE_TEST_FIXTURE_PATH="${CMAKE_CURRENT_SOURCE_DIR}/tests/flatpak/fake_flatpak.py")
+    target_link_libraries(ro-store-flatpak-backend-test PRIVATE Qt6::Core Qt6::Network Qt6::Test)
+    add_test(NAME flatpak-backend COMMAND ro-store-flatpak-backend-test)
+endif()

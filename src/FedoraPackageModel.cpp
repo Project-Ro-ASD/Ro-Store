@@ -8,7 +8,113 @@
 #include <QFileInfo>
 #include <QTextDocument>
 #include <QUrl>
+#include <QDateTime>
+#include <QDir>
+#include <QFile>
+#include <QJsonArray>
+#include <QJsonDocument>
+#include <QJsonObject>
+#include <QSaveFile>
+#include <QStandardPaths>
 #include <algorithm>
+QString FedoraPackageModel::metadataCachePath() const
+{
+    return QStandardPaths::writableLocation(QStandardPaths::CacheLocation)
+        + QStringLiteral("/fedora-appstream-v2.json");
+}
+
+void FedoraPackageModel::applyMetadata(QHash<QString, AppMetadata> next, bool refreshQuery)
+{
+    m_metadataByPackage = std::move(next);
+    QStringList categories = {QStringLiteral("Tümü")};
+    for (auto it = m_metadataByPackage.cbegin(); it != m_metadataByPackage.cend(); ++it) {
+        if (!it.value().category.isEmpty() && !categories.contains(it.value().category))
+            categories.append(it.value().category);
+    }
+    std::sort(categories.begin() + 1, categories.end(),
+              [](const QString &a, const QString &b) {
+        return QString::compare(a, b, Qt::CaseInsensitive) < 0;
+    });
+    if (m_categories != categories) {
+        m_categories = categories;
+        emit categoriesChanged();
+    }
+    if (!m_categories.contains(m_categoryFilter)) {
+        m_categoryFilter = QStringLiteral("Tümü");
+        emit categoryFilterChanged();
+    }
+    notifyMetadataUpdated();
+    if (refreshQuery && !m_metadataByPackage.isEmpty())
+        runQuery(m_query);
+}
+
+bool FedoraPackageModel::loadMetadataCache()
+{
+    const QFileInfo info(metadataCachePath());
+    const qint64 age = info.lastModified().secsTo(QDateTime::currentDateTime());
+    if (!info.isFile() || info.size() <= 0 || info.size() > 12 * 1024 * 1024
+        || age < 0 || age > 7 * 24 * 60 * 60)
+        return false;
+    QFile file(info.filePath());
+    if (!file.open(QIODevice::ReadOnly)) return false;
+    const QJsonObject root = QJsonDocument::fromJson(file.readAll()).object();
+    if (root.value(QStringLiteral("schema")).toInt() != 2
+        || root.value(QStringLiteral("system")).toString()
+           != QSysInfo::productType() + QLatin1Char(':') + QSysInfo::productVersion())
+        return false;
+    const QJsonObject rows = root.value(QStringLiteral("packages")).toObject();
+    if (rows.isEmpty() || rows.size() > 10000) return false;
+    QHash<QString, AppMetadata> next;
+    for (auto it = rows.begin(); it != rows.end(); ++it) {
+        if (it.key().size() > 128 || !it.value().isObject()) continue;
+        const QJsonObject value = it.value().toObject();
+        AppMetadata meta;
+        meta.title = value.value(QStringLiteral("title")).toString().left(200);
+        meta.summary = value.value(QStringLiteral("summary")).toString().left(500);
+        meta.category = value.value(QStringLiteral("category")).toString().left(100);
+        meta.iconUrl = value.value(QStringLiteral("icon")).toString().left(1024);
+        meta.description = value.value(QStringLiteral("description")).toString().left(4000);
+        meta.appId = value.value(QStringLiteral("appId")).toString().left(256);
+        for (const QJsonValue &image : value.value(QStringLiteral("screenshots")).toArray()) {
+            if (meta.screenshotUrls.size() >= 4) break;
+            if (image.isString()) meta.screenshotUrls.append(image.toString().left(1024));
+        }
+        if (!meta.title.isEmpty()) next.insert(it.key(), meta);
+    }
+    if (next.isEmpty()) return false;
+    applyMetadata(std::move(next), false);
+    qInfo() << "APPSTREAM RPM CACHE LOADED:" << m_metadataByPackage.size();
+    return true;
+}
+
+void FedoraPackageModel::saveMetadataCache() const
+{
+    QJsonObject rows;
+    for (auto it = m_metadataByPackage.cbegin(); it != m_metadataByPackage.cend(); ++it) {
+        const AppMetadata &meta = it.value();
+        rows.insert(it.key(), QJsonObject{
+            {QStringLiteral("title"), meta.title},
+            {QStringLiteral("summary"), meta.summary},
+            {QStringLiteral("category"), meta.category},
+            {QStringLiteral("icon"), meta.iconUrl},
+            {QStringLiteral("description"), meta.description},
+            {QStringLiteral("appId"), meta.appId},
+            {QStringLiteral("screenshots"), QJsonArray::fromStringList(meta.screenshotUrls)}
+        });
+    }
+    const QByteArray data = QJsonDocument(QJsonObject{
+        {QStringLiteral("schema"), 2},
+        {QStringLiteral("system"), QSysInfo::productType() + QLatin1Char(':') + QSysInfo::productVersion()},
+        {QStringLiteral("packages"), rows}
+    }).toJson(QJsonDocument::Compact);
+    if (data.size() > 12 * 1024 * 1024) return;
+    const QString path = metadataCachePath();
+    if (!QDir().mkpath(QFileInfo(path).absolutePath())) return;
+    QSaveFile file(path);
+    if (file.open(QIODevice::WriteOnly) && file.write(data) == data.size())
+        file.commit();
+}
+
 #ifdef RO_STORE_HAS_APPSTREAM
 #include <AppStreamQt/pool.h>
 #include <AppStreamQt/component.h>
@@ -81,6 +187,7 @@ QVariant FedoraPackageModel::data(const QModelIndex &index, int role) const
     case AppIconUrlRole: return m_metadataByPackage.value(pkg.name).iconUrl;
     case AppDescriptionRole: return m_metadataByPackage.value(pkg.name).description;
     case AppScreenshotUrlsRole: return m_metadataByPackage.value(pkg.name).screenshotUrls;
+    case AppIdRole: return m_metadataByPackage.value(pkg.name).appId;
     default: return {};
     }
 }
@@ -99,8 +206,37 @@ QHash<int, QByteArray> FedoraPackageModel::roleNames() const
         { HasAppStreamRole, "hasAppStream" },
         { AppIconUrlRole, "appIconUrl" },
         { AppDescriptionRole, "appDescription" },
-        { AppScreenshotUrlsRole, "appScreenshotUrls" }
+        { AppScreenshotUrlsRole, "appScreenshotUrls" },
+        { AppIdRole, "appId" }
     };
+}
+
+QVariantMap FedoraPackageModel::at(int row) const
+{
+    if (row < 0 || row >= m_visibleCount) return {};
+    const QModelIndex item = index(row, 0);
+    const auto roles = roleNames();
+    QVariantMap result;
+    for (auto it = roles.cbegin(); it != roles.cend(); ++it)
+        result.insert(QString::fromLatin1(it.value()), data(item, it.key()));
+    return result;
+}
+
+QVariantMap FedoraPackageModel::availableForAppId(const QString &appId) const
+{
+    if (appId.isEmpty()) return {};
+    for (const FedoraPackage &pkg : m_packages) {
+        const auto metadata = m_metadataByPackage.constFind(pkg.name);
+        if (metadata != m_metadataByPackage.cend() && metadata->appId == appId) {
+            return {{QStringLiteral("packageName"), pkg.name},
+                    {QStringLiteral("displayName"), metadata->title},
+                    {QStringLiteral("version"), pkg.version},
+                    {QStringLiteral("repository"), pkg.repository},
+                    {QStringLiteral("summary"), pkg.summary},
+                    {QStringLiteral("appId"), appId}};
+        }
+    }
+    return {};
 }
 
 void FedoraPackageModel::setLoading(bool value)
@@ -419,7 +555,7 @@ void FedoraPackageModel::notifyMetadataUpdated()
         emit dataChanged(index(0, 0), index(m_visibleCount - 1, 0),
                          {DisplayNameRole, DisplaySummaryRole, AppCategoryRole,
                           HasAppStreamRole, AppIconUrlRole, AppDescriptionRole,
-                          AppScreenshotUrlsRole});
+                          AppScreenshotUrlsRole, AppIdRole});
 }
 
 #ifdef RO_STORE_HAS_APPSTREAM
@@ -508,6 +644,10 @@ QString appStreamIconSource(const AppStream::Component &component)
 void FedoraPackageModel::startMetadataLoad()
 {
 #ifdef RO_STORE_HAS_APPSTREAM
+    const bool cached = loadMetadataCache();
+    if (cached && QFileInfo(metadataCachePath()).lastModified().secsTo(
+                      QDateTime::currentDateTime()) < 6 * 60 * 60)
+        return;
     // AppStream metadata is advisory only. RPM identity, repository and version
     // always come exclusively from DNF5 repoquery results.
     auto *pool = new AppStream::Pool(this);
@@ -534,10 +674,12 @@ void FedoraPackageModel::startMetadataLoad()
             const QString iconUrl = appStreamIconSource(component);
             const QString description = appStreamPlainDescription(component);
             const QStringList screenshotUrls = appStreamScreenshots(component);
+            QString appId = component.id().trimmed();
+            if (appId.endsWith(QStringLiteral(".desktop"))) appId.chop(8);
             for (const auto &packageName : component.packageNames()) {
                 if (!packageName.isEmpty() && !next.contains(packageName)) {
                     next.insert(packageName, {title, summary, category, iconUrl,
-                                              description, screenshotUrls});
+                                              description, screenshotUrls, appId});
                     if (!description.isEmpty())
                         ++descriptions;
                     if (!screenshotUrls.isEmpty())
@@ -545,33 +687,15 @@ void FedoraPackageModel::startMetadataLoad()
                 }
             }
         }
-        m_metadataByPackage = std::move(next);
+        if (next.isEmpty()) {
+            qWarning() << "APPSTREAM RPM METADATA EMPTY; keeping existing catalog";
+            return;
+        }
+        applyMetadata(std::move(next), true);
+        saveMetadataCache();
         qInfo() << "APPSTREAM RPM METADATA LOADED:" << m_metadataByPackage.size();
         qInfo() << "APPSTREAM DETAILS:" << descriptions << "descriptions,"
                 << screenshots << "packages with screenshots";
-        QStringList categories = { QStringLiteral("Tümü") };
-        for (auto it = m_metadataByPackage.cbegin(); it != m_metadataByPackage.cend(); ++it) {
-            if (!it.value().category.isEmpty() && !categories.contains(it.value().category))
-                categories.append(it.value().category);
-        }
-        std::sort(categories.begin() + 1, categories.end(),
-                  [](const QString &a, const QString &b) {
-            return QString::compare(a, b, Qt::CaseInsensitive) < 0;
-        });
-        if (m_categories != categories) {
-            m_categories = categories;
-            emit categoriesChanged();
-        }
-        if (!m_categories.contains(m_categoryFilter)) {
-            m_categoryFilter = QStringLiteral("Tümü");
-            emit categoryFilterChanged();
-        }
-        notifyMetadataUpdated();
-        // Refresh the initially shown sample list into the full desktop-app
-        // catalog; also repeat searches started before display-name metadata
-        // became available. QProcess retirement keeps cancelled queries safe.
-        if (!m_metadataByPackage.isEmpty())
-            runQuery(m_query);
     });
     pool->loadAsync();
 #endif

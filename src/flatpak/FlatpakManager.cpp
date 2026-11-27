@@ -16,6 +16,7 @@
 #include <QRegularExpression>
 #include <QSaveFile>
 #include <QStandardPaths>
+#include <utility>
 
 namespace {
 constexpr qsizetype MaxCapture = 3 * 1024 * 1024;
@@ -37,9 +38,15 @@ QVariantMap fields(const QStringList &row, const QStringList &keys, const QStrin
 }
 }
 
-FlatpakManager::FlatpakManager(QObject *parent) : QObject(parent)
+FlatpakManager::FlatpakManager(QObject *parent)
+    : FlatpakManager(QStringLiteral("/usr/bin/flatpak"), parent)
 {
-    m_available = QFileInfo::exists(QStringLiteral("/usr/bin/flatpak"));
+}
+
+FlatpakManager::FlatpakManager(const QString &program, QObject *parent)
+    : QObject(parent), m_program(program)
+{
+    m_available = QFileInfo(program).isExecutable();
     m_outcomeUnknown = QFileInfo::exists(journalPath());
     if (m_outcomeUnknown)
         m_message = QStringLiteral("Önceki Flatpak işlemi belirsiz. İşlemleri durdurduk; önce durumu kontrol edin.");
@@ -51,6 +58,10 @@ FlatpakManager::FlatpakManager(QObject *parent) : QObject(parent)
 
 FlatpakManager::~FlatpakManager()
 {
+    for (QProcess *process : std::as_const(m_permissionProcesses)) {
+        process->kill();
+        process->waitForFinished(1000);
+    }
     // Never kill an active mutating Flatpak process or silently clear a journal.
     if (m_process && m_current.mutation) {
         m_process->setParent(nullptr);
@@ -188,6 +199,17 @@ bool FlatpakManager::isCatalogApp(const QString &scope, const QString &remote, c
     }
     return false;
 }
+QVariantMap FlatpakManager::catalogApp(const QString &scope, const QString &remote, const QString &id) const {
+    if (!safeScope(scope) || !safeRemote(remote) || !safeAppId(id)) return {};
+    for (const QVariant &value : m_catalog) {
+        const QVariantMap row = value.toMap();
+        if (row.value(QStringLiteral("scope")) == scope
+            && row.value(QStringLiteral("origin")) == remote
+            && row.value(QStringLiteral("id")) == id)
+            return row;
+    }
+    return {};
+}
 bool FlatpakManager::isInstalled(const QString &scope, const QString &id) const {
     for (const QVariant &v : m_installed) {
         const auto row = v.toMap();
@@ -210,7 +232,7 @@ bool FlatpakManager::startMutation(const QString &kind, const QString &scope,
     if (scope != QStringLiteral("user")
         || (kind != QStringLiteral("install") && kind != QStringLiteral("uninstall")
             && kind != QStringLiteral("add-flathub"))) {
-        fail(QStringLiteral("v0.7.0: Sistem değişiklikleri ve Flatpak güncellemeleri bu sürümde salt okunurdur."));
+        fail(QStringLiteral("Sistem değişiklikleri ve Flatpak güncellemeleri bu sürümde salt okunurdur."));
         return false;
     }
     if (!m_available || !safeScope(scope) || m_busy || m_loading || m_process || m_outcomeUnknown
@@ -262,7 +284,7 @@ bool FlatpakManager::startMutation(const QString &kind, const QString &scope,
 }
 void FlatpakManager::install(const QString &scope, const QString &remote, const QString &id) {
     if (scope != QStringLiteral("user") || remote != QStringLiteral("flathub")) {
-        fail(QStringLiteral("v0.7.0 yalnızca kullanıcı kapsamındaki Flathub uygulamalarını kurabilir."));
+        fail(QStringLiteral("Yalnızca kullanıcı kapsamındaki Flathub uygulamaları kurulabilir."));
         return;
     }
     if (!safeScope(scope) || !safeRemote(remote) || !safeAppId(id) || !hasRemote(scope, remote) || !isCatalogApp(scope, remote, id)) {
@@ -277,7 +299,7 @@ void FlatpakManager::install(const QString &scope, const QString &remote, const 
 }
 void FlatpakManager::uninstall(const QString &scope, const QString &id) {
     if (scope != QStringLiteral("user")) {
-        fail(QStringLiteral("Sistem kapsamındaki Flatpak uygulamalarını kaldırmak v0.7.0'da kapalıdır."));
+        fail(QStringLiteral("Sistem kapsamındaki Flatpak uygulamalarını kaldırmak bu sürümde kapalıdır."));
         return;
     }
     bool fromFlathub = false;
@@ -291,7 +313,7 @@ void FlatpakManager::uninstall(const QString &scope, const QString &id) {
         }
     }
     if (!fromFlathub) {
-        fail(QStringLiteral("v0.7.0 yalnızca kullanıcı kapsamındaki Flathub uygulamalarını kaldırabilir."));
+        fail(QStringLiteral("Yalnızca kullanıcı kapsamındaki Flathub uygulamaları kaldırılabilir."));
         return;
     }
     if (!safeScope(scope) || !safeAppId(id) || !isInstalled(scope, id)) {
@@ -306,7 +328,7 @@ void FlatpakManager::update(const QString &scope, const QString &id) {
     Q_UNUSED(id)
     // Flatpak app/driver/runtime updates require separate transactional
     // fault-injection and real update QA. Keep the listing read-only in 0.7.
-    fail(QStringLiteral("Flatpak güncellemeleri v0.7.0'da salt okunurdur. Tam testler sonraki sürüm yol haritasındadır."));
+    fail(QStringLiteral("Flatpak güncellemeleri bu sürümde salt okunurdur. Tam testler sonraki sürüm yol haritasındadır."));
 }
 void FlatpakManager::addFlathubUser() {
     if (hasRemote(QStringLiteral("user"), QStringLiteral("flathub"))) {
@@ -335,7 +357,7 @@ void FlatpakManager::launch(const QString &scope, const QString &id) {
     }
     if (!fromFlathub) return;
     // Launch is user-initiated, detached, and does not run through a shell.
-    const bool ok = QProcess::startDetached(QStringLiteral("/usr/bin/flatpak"),
+    const bool ok = QProcess::startDetached(m_program,
                                 {scoped(scope), QStringLiteral("run"), id});
     if (!ok) fail(QStringLiteral("Uygulama başlatılamadı."));
 }
@@ -350,7 +372,7 @@ void FlatpakManager::runTask(const Task &task) {
     m_truncated = false;
     auto *process = new QProcess(this);
     m_process = process;
-    process->setProgram(QStringLiteral("/usr/bin/flatpak"));
+    process->setProgram(m_program);
     process->setArguments(task.args);
     process->setProcessChannelMode(QProcess::MergedChannels);
     process->setStandardInputFile(QProcess::nullDevice());
@@ -525,7 +547,7 @@ QString FlatpakManager::installedCommit(const QString &scope, const QString &app
 {
     if (!safeScope(scope) || !safeAppId(appId)) return {};
     QProcess check;
-    check.setProgram(QStringLiteral("/usr/bin/flatpak"));
+    check.setProgram(m_program);
     check.setArguments({scoped(scope), QStringLiteral("info"), QStringLiteral("--show-commit"), appId});
     check.setStandardInputFile(QProcess::nullDevice());
     check.start();
@@ -568,6 +590,83 @@ void FlatpakManager::acknowledgeRecovery() {
 QVariantMap FlatpakManager::metadata(const QString &appId) const
 {
     return m_metadataCache.value(appId);
+}
+
+QVariantMap FlatpakManager::permissionInfo(const QString &appId) const
+{
+    return m_permissionsCache.value(appId);
+}
+
+void FlatpakManager::requestPermissions(const QString &scope, const QString &remote,
+                                        const QString &appId)
+{
+    if (!m_available || scope != QStringLiteral("user")
+        || remote != QStringLiteral("flathub") || !safeAppId(appId)
+        || (m_permissionsCache.contains(appId)
+            && m_permissionsCache.value(appId).value(QStringLiteral("status"))
+               != QStringLiteral("error"))
+        || (!isCatalogApp(scope, remote, appId) && !isInstalled(scope, appId)))
+        return;
+
+    m_permissionsCache.insert(appId, {{QStringLiteral("status"), QStringLiteral("loading")}});
+    ++m_permissionsRevision;
+    emit changed();
+
+    auto *process = new QProcess(this);
+    m_permissionProcesses.insert(process);
+    process->setProgram(m_program);
+    process->setArguments(isInstalled(scope, appId)
+        ? QStringList{QStringLiteral("info"), QStringLiteral("--user"),
+                      QStringLiteral("--show-permissions"), appId}
+        : QStringList{QStringLiteral("remote-info"), QStringLiteral("--user"),
+                      QStringLiteral("--show-metadata"), remote, appId});
+    connect(process, &QProcess::errorOccurred, this,
+            [this, process, appId](QProcess::ProcessError error) {
+        if (error != QProcess::FailedToStart) return;
+        m_permissionsCache.insert(appId, {
+            {QStringLiteral("status"), QStringLiteral("error")},
+            {QStringLiteral("text"), QStringLiteral("Flatpak izin sorgusu başlatılamadı.")}
+        });
+        ++m_permissionsRevision;
+        emit changed();
+        m_permissionProcesses.remove(process);
+        process->deleteLater();
+    });
+    connect(process, qOverload<int, QProcess::ExitStatus>(&QProcess::finished), this,
+            [this, process, appId](int code, QProcess::ExitStatus status) {
+        QStringList details;
+        bool validMetadata = false;
+        if (code == 0 && status == QProcess::NormalExit) {
+            const QString data = QString::fromUtf8(process->readAllStandardOutput().left(8192));
+            validMetadata = !data.trimmed().isEmpty();
+            bool included = false;
+            for (const QString &line : data.split(QLatin1Char('\n'))) {
+                if (line.startsWith(QLatin1Char('['))) {
+                    included = line == QStringLiteral("[Context]")
+                        || line == QStringLiteral("[Session Bus Policy]")
+                        || line == QStringLiteral("[System Bus Policy]");
+                    if (included) details.append(line);
+                } else if (included && line.contains(QLatin1Char('=')) && details.size() < 40) {
+                    details.append(clean(line).left(256));
+                }
+            }
+        }
+        const bool ready = validMetadata;
+        m_permissionsCache.insert(appId, {
+            {QStringLiteral("status"), ready ? QStringLiteral("ready") : QStringLiteral("error")},
+            {QStringLiteral("text"), ready ? (details.isEmpty()
+                ? QStringLiteral("Özel izin bildirilmedi.") : details.join(QLatin1Char('\n')))
+                : QStringLiteral("İzin bilgileri okunamadı. Flatpak kaynağını kontrol edin.")}
+        });
+        ++m_permissionsRevision;
+        emit changed();
+        m_permissionProcesses.remove(process);
+        process->deleteLater();
+    });
+    QTimer::singleShot(15000, process, [process]() {
+        if (process->state() != QProcess::NotRunning) process->kill();
+    });
+    process->start();
 }
 
 void FlatpakManager::requestMetadata(const QString &appId)

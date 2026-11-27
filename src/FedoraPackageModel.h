@@ -6,6 +6,7 @@
 #include <QProcess>
 #include <QStringList>
 #include <QVector>
+#include <QVariantMap>
 
 struct FedoraPackage
 {
@@ -43,7 +44,8 @@ public:
         HasAppStreamRole,
         AppIconUrlRole,
         AppDescriptionRole,
-        AppScreenshotUrlsRole
+        AppScreenshotUrlsRole,
+        AppIdRole
     };
 
     explicit FedoraPackageModel(QObject *parent = nullptr);
@@ -66,6 +68,8 @@ public:
     Q_INVOKABLE void search(const QString &name);
     Q_INVOKABLE void refresh();
     Q_INVOKABLE void loadMore();
+    Q_INVOKABLE QVariantMap at(int row) const;
+    Q_INVOKABLE QVariantMap availableForAppId(const QString &appId) const;
     void setSourceFilter(const QString &source);
     void setCategoryFilter(const QString &category);
 
@@ -95,7 +99,12 @@ private:
         QString iconUrl;
         QString description;
         QStringList screenshotUrls;
+        QString appId;
     };
+    QString metadataCachePath() const;
+    bool loadMetadataCache();
+    void saveMetadataCache() const;
+    void applyMetadata(QHash<QString, AppMetadata> next, bool refreshQuery);
 
     QVector<FedoraPackage> m_packages;
     QHash<QString, AppMetadata> m_metadataByPackage;

@@ -11,7 +11,7 @@ Item {
 
     ThemeMetrics { id: metrics }
     SystemPalette { id: palette }
-    SystemUpdateModel { id: updates }
+    property var updates: null
     property var packageTransactionManager: null
     SystemUpdateCache { id: updateCache; packageTransactionManager: page.packageTransactionManager }
     SystemOfflineUpgrade { id: offlineUpdate; transactionManager: page.packageTransactionManager }
@@ -164,7 +164,10 @@ Item {
         }
     }
 
-    Component.onCompleted: updates.refresh()
+    Component.onCompleted: {
+        if (updates && !updates.checked && !updates.loading)
+            updates.refresh()
+    }
 
     // The page itself scrolls independently of the packages ListView and
     // the plan's text ScrollView, so controls remain reachable on short windows.

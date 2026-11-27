@@ -4,7 +4,7 @@ on:
   push:
     branches:
       - main
-      - "feature/advanced-app-management-v0.8"
+      - "feature/performance-stability-v0.9"
     tags:
       - "v*"
   pull_request:
@@ -75,6 +75,9 @@ jobs:
       - name: Build
         run: cmake --build build --parallel
 
+      - name: Flatpak backend integration tests
+        run: ctest --test-dir build --output-on-failure
+
       - name: Validate desktop metadata
         run: |
           desktop-file-validate \
@@ -133,12 +136,14 @@ jobs:
         run: |
           set -euo pipefail
 
-          for scenario in home installed history; do
+          for scenario in home installed history unified; do
             ARGS=()
             if [ "$scenario" = installed ]; then
               ARGS=(--qa-open-installed)
             elif [ "$scenario" = history ]; then
               ARGS=(--qa-open-history)
+            elif [ "$scenario" = unified ]; then
+              ARGS=(--qa-open-unified)
             fi
 
             set +e
