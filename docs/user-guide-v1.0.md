@@ -9,19 +9,17 @@ testleri tamamlanmadan Ro-ASD desteği doğrulanmış sayılmaz.
 
 ### Kurulum ve yükseltme
 
-1. [Sürümler sayfasından](https://github.com/Project-Ro-ASD/Ro-Store/releases)
-   mimarinize uygun `ro-store-1.0.0-1.fc44` RPM dosyasını ve
-   `SHA256SUMS.txt` dosyasını aynı klasöre indirin. RC sınaması için
-   `ro-store-1.0.0-0.rc1.fc44` dosyasını kullanın.
-2. `sha256sum -c SHA256SUMS.txt` ile indirilen dosyayı kontrol edin.
-3. İmza anahtarını Ro-ASD'nin güvenilir kanalından edinin; parmak izi
-   `9A66A082D96374DA27D7538FB2186A6F2FD84CB3` olmalıdır. Anahtarı
-   `sudo rpmkeys --import RPM-GPG-KEY-ro-asd` ile içe aktarın ve
-   `rpmkeys --checksig --verbose ./ro-store-*.rpm` çıktısında imzanın
-   `OK` olduğunu doğrulayın.
-4. `sudo dnf5 install ./ro-store-1.0.0-1.fc44.x86_64.rpm` komutunu çalıştırın.
-   aarch64 için dosya adındaki mimariyi değiştirin. Önceki sürüm kuruluysa
-   DNF5 yükseltme işlemini yapar. RC'den kararlı sürüme geçiş de aynı yoldur.
+1. Ro-ASD'nin imzalı Fedora 44 paket kanalını ve güvenilir RPM anahtarını
+   yapılandırın. Ana anahtar parmak izi
+   `9A66A082D96374DA27D7538FB2186A6F2FD84CB3` olmalıdır.
+2. `sudo dnf5 install ro-store` komutunu çalıştırın. Önceki sürüm kuruluysa
+   `sudo dnf5 upgrade ro-store` ile güncelleyin. RC'den kararlı sürüme geçiş
+   de bu yoldan yapılır.
+3. `rpm -q ro-store` ile kurulan sürümü kontrol edin. İmzayı ayrıca görmek
+   için kanaldan indirilen RPM'de `rpmkeys --checksig --verbose` çalıştırın.
+
+GitHub'daki Ro-Store sürüm RPM'leri Ro-Repo'nun imzalayıp kanala aldığı
+**üretici girdileridir**; doğrudan kurulum için imzalı paket sayılmazlar.
 
 İşlemden sonra `rpm -q ro-store` ve `dnf5 history` ile sonucu görün. Sistem
 güncellemesi ekranda önce bir DNF5 planı gösterir; kaldırma veya sürüm düşürme
@@ -55,17 +53,17 @@ acceptance testing on Ro-ASD hardware is complete.
 
 ### Install and upgrade
 
-1. Download the architecture-specific `ro-store-1.0.0-1.fc44` RPM and
-   `SHA256SUMS.txt` from the [releases page](https://github.com/Project-Ro-ASD/Ro-Store/releases).
-   The candidate package uses `0.rc1.fc44` in its filename.
-2. Run `sha256sum -c SHA256SUMS.txt` in the download directory.
-3. Obtain the Ro-ASD RPM public key through a trusted Ro-ASD channel. Check
-   primary fingerprint `9A66A082D96374DA27D7538FB2186A6F2FD84CB3`,
-   import it with `sudo rpmkeys --import RPM-GPG-KEY-ro-asd`, and require an
-   `OK` signature from `rpmkeys --checksig --verbose ./ro-store-*.rpm`.
-4. Install with `sudo dnf5 install ./ro-store-1.0.0-1.fc44.x86_64.rpm`.
-   Substitute `aarch64` on ARM. DNF5 upgrades an existing installation,
-   including the release candidate.
+1. Configure the signed Ro-ASD Fedora 44 package channel and obtain its RPM
+   public key through a trusted source. The primary key fingerprint is
+   `9A66A082D96374DA27D7538FB2186A6F2FD84CB3`.
+2. Run `sudo dnf5 install ro-store`, or `sudo dnf5 upgrade ro-store` for an
+   existing installation. The stable package upgrades a release candidate.
+3. Check the installed version with `rpm -q ro-store`. For an independent
+   signature check, run `rpmkeys --checksig --verbose` on an RPM downloaded
+   from the signed channel.
+
+The RPMs on the Ro-Store GitHub release page are unsigned producer inputs for
+Ro-Repo. Install the centrally signed packages from the Ro-ASD channel.
 
 Check `rpm -q ro-store` and `dnf5 history` afterward. System updates show a
 DNF5 plan before preparation; unsafe plans with removals or downgrades are

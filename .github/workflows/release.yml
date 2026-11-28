@@ -41,11 +41,13 @@ jobs:
             cmake \
             ninja-build \
             gcc-c++ \
+            git \
             python3 \
             qt6-qtbase-devel \
             qt6-qtdeclarative-devel \
             kf6-kirigami \
             rpm-build \
+            rpmlint \
             desktop-file-utils \
             appstream \
             appstream-qt-devel
@@ -96,20 +98,39 @@ jobs:
             build/org.projectro.RoStore.metainfo.xml
 
       - name: Build RPM
+        shell: bash
         run: |
-          rm -rf packages
-
-          cpack \
-            --config build/CPackConfig.cmake \
-            -G RPM \
-            -B packages
+          set -euo pipefail
+          version="$(sed -n -E \
+            's/^[[:space:]]*VERSION[[:space:]]+([0-9.]+).*/\1/p' \
+            CMakeLists.txt | head -n1)"
+          test -n "$version"
+          rpm_release=1
+          if [[ "$GITHUB_REF_NAME" =~ ^v[0-9]+\.[0-9]+\.[0-9]+-rc([1-9][0-9]*)$ ]]; then
+            rpm_release="0.rc${BASH_REMATCH[1]}"
+          fi
+          topdir="$RUNNER_TEMP/ro-store-rpmbuild"
+          mkdir -p "$topdir"/{BUILD,BUILDROOT,RPMS,SOURCES,SPECS,SRPMS}
+          git -c safe.directory="$GITHUB_WORKSPACE" archive \
+            --format=tar.gz --prefix="ro-store-${version}/" \
+            --output="$topdir/SOURCES/ro-store-${version}.tar.gz" "$GITHUB_SHA"
+          cp packaging/rpm/ro-store.spec "$topdir/SPECS/ro-store.spec"
+          rpmbuild -ba "$topdir/SPECS/ro-store.spec" \
+            --define "_topdir $topdir" \
+            --define "dist .fc44" \
+            --define "ro_release $rpm_release"
+          mkdir -p packages
+          cp "$topdir/RPMS/${{ matrix.arch }}"/*.rpm packages/
+          if [[ "${{ matrix.arch }}" == x86_64 ]]; then
+            cp "$topdir/SRPMS"/*.src.rpm packages/
+          fi
 
       - name: Verify RPM
         shell: bash
         run: |
           set -euo pipefail
 
-          RPM_FILE="$(find packages -maxdepth 1 -type f -name '*.rpm' -print -quit)"
+          RPM_FILE="$(find packages -maxdepth 1 -type f -name '*.${{ matrix.arch }}.rpm' -print -quit)"
 
           test -n "$RPM_FILE"
 
@@ -126,17 +147,27 @@ jobs:
           fi
           test "$(rpm -qp --qf '%{RELEASE}' "$RPM_FILE")" = "$EXPECTED_RELEASE"
           test "$(rpm -qp --qf '%{ARCH}' "$RPM_FILE")" = "${{ matrix.arch }}"
+          if [[ "${{ matrix.arch }}" == x86_64 ]]; then
+            source_rpm="$(find packages -maxdepth 1 -type f -name '*.src.rpm' -print -quit)"
+            test -n "$source_rpm"
+            test "$(rpm -qp --qf '%{SOURCERPM}' "$RPM_FILE")" = "$(basename "$source_rpm")"
+            test "$(rpm -qp --qf '%{VERSION}-%{RELEASE}' "$source_rpm")" = \
+              "$(rpm -qp --qf '%{VERSION}-%{RELEASE}' "$RPM_FILE")"
+          fi
 
           rpm -qpl "$RPM_FILE" | grep -Fx '/usr/bin/ro-store'
           rpm -qpl "$RPM_FILE" | grep -Fx '/usr/share/applications/org.projectro.RoStore.desktop'
           rpm -qpl "$RPM_FILE" | grep -Fx '/usr/share/metainfo/org.projectro.RoStore.metainfo.xml'
+
+      - name: Lint RPM
+        run: rpmlint packages/*.rpm
 
       - name: Install RPM
         shell: bash
         run: |
           set -euo pipefail
 
-          RPM_FILE="$(find packages -maxdepth 1 -type f -name '*.rpm' -print -quit)"
+          RPM_FILE="$(find packages -maxdepth 1 -type f -name '*.${{ matrix.arch }}.rpm' -print -quit)"
 
           dnf -y install --nogpgcheck --allowerasing "$RPM_FILE"
 
@@ -185,9 +216,7 @@ jobs:
         run: |
           mkdir -p release-assets
 
-          RPM_FILE="$(find packages -maxdepth 1 -type f -name '*.rpm' -print -quit)"
-
-          cp "$RPM_FILE" release-assets/
+          cp packages/*.rpm release-assets/
 
       - name: Upload RPM artifact
         uses: actions/upload-artifact@v4
@@ -211,6 +240,9 @@ jobs:
 
     permissions:
       contents: write
+      id-token: write
+      attestations: write
+      artifact-metadata: write
 
     steps:
       - name: Checkout release source
@@ -224,7 +256,7 @@ jobs:
           git merge-base --is-ancestor HEAD FETCH_HEAD
 
       - name: Install release tools
-        run: dnf -y install rpm-sign gnupg2 gh
+        run: dnf -y install git rpm python3 python3-jsonschema gh jq
 
       - name: Download RPMs
         uses: actions/download-artifact@v4
@@ -233,51 +265,107 @@ jobs:
           path: release-assets
           merge-multiple: true
 
-      - name: Sign and verify RPMs
-        env:
-          RPM_SIGNING_KEY_BASE64: ${{ secrets.RPM_SIGNING_KEY_BASE64 }}
-          RPM_SIGNING_PASSPHRASE: ${{ secrets.RPM_SIGNING_PASSPHRASE }}
+      - name: Verify producer RPM set
         shell: bash
         run: |
           set -euo pipefail
-          test -n "$RPM_SIGNING_KEY_BASE64"
-          test -n "$RPM_SIGNING_PASSPHRASE"
-          umask 077
-          secret_dir="$(mktemp -d)"
-          trap 'rm -rf "$secret_dir"' EXIT
-          printf '%s' "$RPM_SIGNING_KEY_BASE64" | base64 --decode > "$secret_dir/key.asc"
-          printf '%s' "$RPM_SIGNING_PASSPHRASE" > "$secret_dir/passphrase"
-          scripts/sign-release-rpms.sh \
-            release-assets \
-            packaging/repository/RPM-GPG-KEY-ro-asd \
-            "$secret_dir/key.asc" \
-            "$secret_dir/passphrase" \
-            38CB87F6FBD645309432A6E22E02DEE8828B769B
+          test "$(find release-assets -maxdepth 1 -type f -name '*.rpm' | wc -l)" -eq 3
+          test "$(find release-assets -maxdepth 1 -type f -name '*.src.rpm' | wc -l)" -eq 1
+          test "$(find release-assets -maxdepth 1 -type f -name '*.x86_64.rpm' | wc -l)" -eq 1
+          test "$(find release-assets -maxdepth 1 -type f -name '*.aarch64.rpm' | wc -l)" -eq 1
+          test -s "docs/releases/${GITHUB_REF_NAME}.md"
 
       - name: Generate checksums
         run: |
           cd release-assets
-          sha256sum *.rpm > SHA256SUMS.txt
-          cat SHA256SUMS.txt
+          sha256sum *.rpm > SHA256SUMS
+          sha256sum --check SHA256SUMS
 
-      - name: Publish release
+      - name: Create draft GitHub Release
+        id: draft
         env:
           GH_TOKEN: ${{ github.token }}
         shell: bash
         run: |
-          VERSION="${GITHUB_REF_NAME#v}"
-          NOTES_FILE="docs/releases/${GITHUB_REF_NAME}.md"
-          test -s "$NOTES_FILE"
-
-          ARGS=()
-          if [[ "$VERSION" == *-rc* ]]; then
-            ARGS+=(--prerelease)
+          set -euo pipefail
+          if gh release view "$GITHUB_REF_NAME" --repo "$GITHUB_REPOSITORY" >/dev/null 2>&1; then
+            echo "Release already exists" >&2
+            exit 1
           fi
+          gh release create "$GITHUB_REF_NAME" \
+            --repo "$GITHUB_REPOSITORY" \
+            --title "Ro-Store ${GITHUB_REF_NAME#v}" \
+            --notes-file "docs/releases/${GITHUB_REF_NAME}.md" \
+            --draft
+          release_id="$(gh api "repos/${GITHUB_REPOSITORY}/releases/tags/${GITHUB_REF_NAME}" --jq '.id')"
+          [[ "$release_id" =~ ^[1-9][0-9]*$ ]]
+          echo "release_id=$release_id" >> "$GITHUB_OUTPUT"
 
-          gh release create "${GITHUB_REF_NAME}" \
+      - name: Generate Ro-Repo producer manifest
+        shell: bash
+        run: |
+          set -euo pipefail
+          python3 scripts/build-component-manifest.py \
+            --artifacts-dir release-assets \
+            --output release-assets/component-artifact-manifest-v1.json \
+            --repository "$GITHUB_REPOSITORY" \
+            --commit "$GITHUB_SHA" \
+            --tag "$GITHUB_REF_NAME" \
+            --release-id "${{ steps.draft.outputs.release_id }}" \
+            --workflow-run "$GITHUB_RUN_ID"
+
+      - name: Attest producer assets
+        uses: actions/attest@1e69f48acb82d1966a394da916b4c1698aa569d6 # v4
+        with:
+          subject-path: |
+            release-assets/*.rpm
+            release-assets/SHA256SUMS
+            release-assets/component-artifact-manifest-v1.json
+
+      - name: Verify producer attestations
+        env:
+          GH_TOKEN: ${{ github.token }}
+        shell: bash
+        run: |
+          set -euo pipefail
+          for asset in release-assets/*.rpm release-assets/SHA256SUMS release-assets/component-artifact-manifest-v1.json; do
+            verified=false
+            for attempt in 1 2 3; do
+              if gh attestation verify "$asset" \
+                --repo "$GITHUB_REPOSITORY" \
+                --signer-workflow "$GITHUB_REPOSITORY/.github/workflows/release.yml"; then
+                verified=true
+                break
+              fi
+              sleep 10
+            done
+            test "$verified" = true
+          done
+
+      - name: Upload exact producer assets
+        env:
+          GH_TOKEN: ${{ github.token }}
+        shell: bash
+        run: |
+          set -euo pipefail
+          gh release upload "$GITHUB_REF_NAME" \
             release-assets/*.rpm \
-            release-assets/SHA256SUMS.txt \
-            --repo "${GITHUB_REPOSITORY}" \
-            --title "Ro-Store ${VERSION}" \
-            --notes-file "$NOTES_FILE" \
-            "${ARGS[@]}"
+            release-assets/SHA256SUMS \
+            release-assets/component-artifact-manifest-v1.json \
+            --repo "$GITHUB_REPOSITORY"
+
+      - name: Publish release
+        env:
+          GH_TOKEN: ${{ github.token }}
+          RELEASE_ID: ${{ steps.draft.outputs.release_id }}
+        shell: bash
+        run: |
+          set -euo pipefail
+          args=()
+          if [[ "$GITHUB_REF_NAME" == *-rc* ]]; then
+            args+=(-F prerelease=true)
+          fi
+          gh api --method PATCH "repos/${GITHUB_REPOSITORY}/releases/${RELEASE_ID}" \
+            -F draft=false "${args[@]}" >/dev/null
+          gh api "repos/${GITHUB_REPOSITORY}/releases/${RELEASE_ID}" \
+            --jq '.immutable == true and .draft == false' | grep -Fx true

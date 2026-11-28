@@ -251,6 +251,8 @@ The [v1.0 release gate](docs/testing/v1.0-release-gate.md) tracks acceptance
 evidence. Installation, upgrade, troubleshooting and known limits are in the
 [user guide](docs/user-guide-v1.0.md). The stable release is pending signed
 packages, workstation and Ro-ASD acceptance, and both architecture checks.
+GitHub release RPMs are unsigned producer inputs; Ro-Repo signs accepted
+packages before they enter Ro-ASD channels.
 
 ### v0.9.0 scope
 
