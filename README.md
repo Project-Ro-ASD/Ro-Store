@@ -10,6 +10,13 @@
 
 ## Türkçe
 
+## v1.0.0 — Yayın adayı hazırlığı
+
+Kararlı sürümün doğrulama koşulları [v1.0 yayın kaydında](docs/testing/v1.0-release-gate.md),
+kurulum, yükseltme ve sorun giderme adımları [kullanıcı rehberinde](docs/user-guide-v1.0.md)
+yer alır. İmzalı paketler, gerçek Fedora/Ro-ASD kabul testleri ve iki mimarili
+yayın kontrolü tamamlanmadan v1.0.0 yayımlanmış sayılmaz.
+
 ## v0.9.0 — Performans ve kararlılık
 
 Ro-ASD kataloğu ve Fedora AppStream bilgileri sınırlı disk önbelleğiyle daha
@@ -237,6 +244,13 @@ sudo dnf5 remove ro-store
 ---
 
 ## English
+
+### v1.0.0 release candidate preparation
+
+The [v1.0 release gate](docs/testing/v1.0-release-gate.md) tracks acceptance
+evidence. Installation, upgrade, troubleshooting and known limits are in the
+[user guide](docs/user-guide-v1.0.md). The stable release is pending signed
+packages, workstation and Ro-ASD acceptance, and both architecture checks.
 
 ### v0.9.0 scope
 

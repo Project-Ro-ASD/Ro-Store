@@ -4,7 +4,7 @@ on:
   push:
     branches:
       - main
-      - "feature/performance-stability-v0.9"
+      - "feature/stable-release-v1.0"
     tags:
       - "v*"
   pull_request:
@@ -61,16 +61,25 @@ jobs:
             CMakeLists.txt | head -n1)"
 
           test -n "$VERSION"
-          test "${GITHUB_REF_NAME}" = "v${VERSION}"
+          if [[ "${GITHUB_REF_NAME}" != "v${VERSION}" ]]; then
+            [[ "${GITHUB_REF_NAME}" =~ ^v[0-9]+\.[0-9]+\.[0-9]+-rc[1-9][0-9]*$ ]]
+            [[ "${GITHUB_REF_NAME%-rc*}" == "v${VERSION}" ]]
+          fi
 
       - name: Flatpak safety source regression checks
         run: python3 -m unittest discover -s tests/flatpak -p 'test_*.py' -v
 
       - name: Configure
+        shell: bash
         run: |
+          RPM_RELEASE=1
+          if [[ "$GITHUB_REF_NAME" =~ ^v[0-9]+\.[0-9]+\.[0-9]+-rc([1-9][0-9]*)$ ]]; then
+            RPM_RELEASE="0.rc${BASH_REMATCH[1]}"
+          fi
           cmake -S . -B build -G Ninja \
             -DCMAKE_BUILD_TYPE=Release \
-            -DCMAKE_INSTALL_PREFIX=/usr
+            -DCMAKE_INSTALL_PREFIX=/usr \
+            -DRO_STORE_RPM_RELEASE="$RPM_RELEASE"
 
       - name: Build
         run: cmake --build build --parallel
@@ -111,7 +120,11 @@ jobs:
           test -n "$VERSION"
           test "$(rpm -qp --qf '%{NAME}' "$RPM_FILE")" = "ro-store"
           test "$(rpm -qp --qf '%{VERSION}' "$RPM_FILE")" = "$VERSION"
-          test "$(rpm -qp --qf '%{RELEASE}' "$RPM_FILE")" = "1.fc44"
+          EXPECTED_RELEASE=1.fc44
+          if [[ "$GITHUB_REF_NAME" =~ ^v[0-9]+\.[0-9]+\.[0-9]+-rc([1-9][0-9]*)$ ]]; then
+            EXPECTED_RELEASE="0.rc${BASH_REMATCH[1]}.fc44"
+          fi
+          test "$(rpm -qp --qf '%{RELEASE}' "$RPM_FILE")" = "$EXPECTED_RELEASE"
           test "$(rpm -qp --qf '%{ARCH}' "$RPM_FILE")" = "${{ matrix.arch }}"
 
           rpm -qpl "$RPM_FILE" | grep -Fx '/usr/bin/ro-store'
@@ -193,16 +206,53 @@ jobs:
 
     runs-on: ubuntu-24.04
 
+    container:
+      image: fedora:44
+
     permissions:
       contents: write
 
     steps:
+      - name: Checkout release source
+        uses: actions/checkout@v4
+
+      - name: Verify reviewed main commit
+        shell: bash
+        run: |
+          set -euo pipefail
+          git fetch --no-tags origin main
+          git merge-base --is-ancestor HEAD FETCH_HEAD
+
+      - name: Install release tools
+        run: dnf -y install rpm-sign gnupg2 gh
+
       - name: Download RPMs
         uses: actions/download-artifact@v4
         with:
           pattern: ro-store-*
           path: release-assets
           merge-multiple: true
+
+      - name: Sign and verify RPMs
+        env:
+          RPM_SIGNING_KEY_BASE64: ${{ secrets.RPM_SIGNING_KEY_BASE64 }}
+          RPM_SIGNING_PASSPHRASE: ${{ secrets.RPM_SIGNING_PASSPHRASE }}
+        shell: bash
+        run: |
+          set -euo pipefail
+          test -n "$RPM_SIGNING_KEY_BASE64"
+          test -n "$RPM_SIGNING_PASSPHRASE"
+          umask 077
+          secret_dir="$(mktemp -d)"
+          trap 'rm -rf "$secret_dir"' EXIT
+          printf '%s' "$RPM_SIGNING_KEY_BASE64" | base64 --decode > "$secret_dir/key.asc"
+          printf '%s' "$RPM_SIGNING_PASSPHRASE" > "$secret_dir/passphrase"
+          scripts/sign-release-rpms.sh \
+            release-assets \
+            packaging/repository/RPM-GPG-KEY-ro-asd \
+            "$secret_dir/key.asc" \
+            "$secret_dir/passphrase" \
+            38CB87F6FBD645309432A6E22E02DEE8828B769B
 
       - name: Generate checksums
         run: |
@@ -216,10 +266,18 @@ jobs:
         shell: bash
         run: |
           VERSION="${GITHUB_REF_NAME#v}"
+          NOTES_FILE="docs/releases/${GITHUB_REF_NAME}.md"
+          test -s "$NOTES_FILE"
+
+          ARGS=()
+          if [[ "$VERSION" == *-rc* ]]; then
+            ARGS+=(--prerelease)
+          fi
 
           gh release create "${GITHUB_REF_NAME}" \
             release-assets/*.rpm \
             release-assets/SHA256SUMS.txt \
             --repo "${GITHUB_REPOSITORY}" \
             --title "Ro-Store ${VERSION}" \
-            --generate-notes
+            --notes-file "$NOTES_FILE" \
+            "${ARGS[@]}"
