@@ -32,6 +32,9 @@ jobs:
       image: fedora:44
 
     steps:
+      - name: Install Git for source checkout
+        run: dnf -y install git
+
       - name: Checkout
         uses: actions/checkout@v4
 
@@ -41,7 +44,6 @@ jobs:
             cmake \
             ninja-build \
             gcc-c++ \
-            git \
             python3 \
             qt6-qtbase-devel \
             qt6-qtdeclarative-devel \
@@ -225,13 +227,49 @@ jobs:
           path: release-assets/*.rpm
           if-no-files-found: error
 
+  producer-contract:
+    name: Verify Ro-Repo producer bundle
+    needs:
+      - build-rpm
+    runs-on: ubuntu-24.04
+    container:
+      image: fedora:44
+    steps:
+      - uses: actions/checkout@v4
+      - run: dnf -y install rpm python3
+      - uses: actions/download-artifact@v4
+        with:
+          pattern: ro-store-*
+          path: release-assets
+          merge-multiple: true
+      - name: Validate exact RPM and source identities
+        shell: bash
+        run: |
+          set -euo pipefail
+          version="$(sed -n -E \
+            's/^[[:space:]]*VERSION[[:space:]]+([0-9.]+).*/\1/p' \
+            CMakeLists.txt | head -n1)"
+          tag="v${version}"
+          if [[ "$GITHUB_REF_NAME" =~ ^v[0-9]+\.[0-9]+\.[0-9]+-rc[1-9][0-9]*$ ]]; then
+            tag="$GITHUB_REF_NAME"
+          fi
+          python3 scripts/build-component-manifest.py \
+            --artifacts-dir release-assets \
+            --output release-assets/component-artifact-manifest-v1.json \
+            --repository "$GITHUB_REPOSITORY" \
+            --commit "$GITHUB_SHA" \
+            --tag "$tag" \
+            --release-id 1 \
+            --workflow-run "$GITHUB_RUN_ID"
+          python3 -m json.tool release-assets/component-artifact-manifest-v1.json >/dev/null
+
   release:
     name: Publish GitHub Release
 
     if: startsWith(github.ref, 'refs/tags/v')
 
     needs:
-      - build-rpm
+      - producer-contract
 
     runs-on: ubuntu-24.04
 
@@ -245,6 +283,9 @@ jobs:
       artifact-metadata: write
 
     steps:
+      - name: Install Git for source checkout
+        run: dnf -y install git
+
       - name: Checkout release source
         uses: actions/checkout@v4
 
