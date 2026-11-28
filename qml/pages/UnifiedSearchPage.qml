@@ -123,6 +123,7 @@ Item {
             }
             ThemedActionButton {
                 text: "Ara"
+                Layout.minimumWidth: Math.max(64, metrics.fontPx(64))
                 accented: true
                 enabled: searchField.text.trim().length >= 2
                 onClicked: page.searchAll()

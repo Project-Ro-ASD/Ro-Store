@@ -1,0 +1,6 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="128" height="128" viewBox="0 0 128 128" role="img" aria-label="Ro-Store">
+  <rect x="8" y="8" width="112" height="112" rx="28" fill="#21314f"/>
+  <path d="M37 46h54l6 49a7 7 0 0 1-7 8H38a7 7 0 0 1-7-8l6-49Z" fill="#f5f7fb"/>
+  <path d="M48 49V38a16 16 0 0 1 32 0v11" fill="none" stroke="#f5f7fb" stroke-width="8" stroke-linecap="round"/>
+  <path d="M48 68h32M48 80h20" fill="none" stroke="#e38b45" stroke-width="7" stroke-linecap="round"/>
+</svg>
